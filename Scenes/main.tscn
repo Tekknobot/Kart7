@@ -1,8 +1,8 @@
 [gd_scene load_steps=28 format=3 uid="uid://d2glnv32t8md1"]
 
-[ext_resource type="Texture2D" uid="uid://ckhx0sjrn2xu2" path="res://Temp/Background Color.png" id="1_5044a"]
 [ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_emb0w"]
 [ext_resource type="Script" uid="uid://cex362lk6utnk" path="res://Scripts/On Screen Elements/BackgroundEffects.gd" id="2_330he"]
+[ext_resource type="Texture2D" uid="uid://b7ri4tesomgep" path="res://Temp/Background Color_Black.png" id="3_fevyy"]
 [ext_resource type="Texture2D" uid="uid://cefyc1o8c12cw" path="res://Textures/Tracks/Donut Plains 1 - Sky Line.png" id="3_ht13n"]
 [ext_resource type="Shader" uid="uid://hpt6elsw8vyg" path="res://Scripts/Shaders/ModeSeven.gdshader" id="3_okd74"]
 [ext_resource type="Texture2D" uid="uid://do4l3t6fepcy8" path="res://Textures/Tracks/Donut Plains 1.png" id="3_q5wi2"]
@@ -842,7 +842,7 @@ _treeLine = NodePath("Tree Line")
 z_index = -1
 position = Vector2(240, 180)
 scale = Vector2(15, 11.25)
-texture = ExtResource("1_5044a")
+texture = ExtResource("3_fevyy")
 
 [node name="Sky Line" type="Sprite2D" parent="Background Elements"]
 texture_filter = 1

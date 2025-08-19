@@ -73,6 +73,16 @@ const POST_DRIFT_SETTLE_TIME_BREAK := 0.12# shorter settle when cancelled (no bo
 
 var _drift_break_timer := 0.0
 
+# Add this near your other consts:
+const TAU := PI * 2.0  # Godot 3.x safety; harmless on 4.x too
+
+# --- SNES-ish feel controls ---
+const DRIFT_GRIP := 0.55               # lower = slower yaw response while drifting
+const DRIFT_COUNTERSTEER_GAIN := 1.6   # extra effectiveness when steering opposite drift
+const DRIFT_SLIP_GAIN := 0.9           # sideways slide amount (scales with speed & steer)
+const DRIFT_SLIP_DAMP := 6.0           # how quickly slip decays when not fed
+var _drift_side_slip := 0.0            # accumulates lateral (perp-to-forward) velocity
+
 func _ready() -> void:
 	_register_default_actions()
 	_base_sprite_offset_y = ReturnSpriteGraphic().offset.y
@@ -185,7 +195,7 @@ func Setup(mapSize : int):
 	SetMapSize(mapSize)
 
 func Update(mapForward : Vector3):
-	# Handle collision pushback first (from base cl  ass flow)
+	# Handle collision pushback first (from base class flow)
 	if(_isPushedBack):
 		ApplyCollisionBump()
 	
@@ -198,7 +208,28 @@ func Update(mapForward : Vector3):
 	# --- Movement integration & collisions (preserve original flow) ---
 	var nextPos : Vector3 = _mapPosition + ReturnVelocity()
 	var nextPixelPos : Vector2i = Vector2i(ceil(nextPos.x), ceil(nextPos.z))
-	
+
+	# ⬇️ INSERT SIDE SLIP *HERE*, after computing nextPos but before wall checks
+	# ------------------------------------------------------------------------
+	var right_vec := Vector3(-mapForward.z, 0.0, mapForward.x).normalized()
+	var dt := get_process_delta_time()
+	if _is_drifting:
+		var speed := ReturnVelocity().length()
+		var steer_amt = abs(_inputDir.x)
+		var feed = DRIFT_SLIP_GAIN * speed * steer_amt
+
+		var outward_sign := 1.0
+		if _drift_dir >= 0:
+			outward_sign = -1.0
+
+		_drift_side_slip = lerp(_drift_side_slip, outward_sign * feed, clamp(dt * 4.0, 0.0, 1.0))
+	else:
+		_drift_side_slip = lerp(_drift_side_slip, 0.0, clamp(dt * DRIFT_SLIP_DAMP, 0.0, 1.0))
+
+	nextPos += right_vec * _drift_side_slip * dt
+	# ------------------------------------------------------------------------
+
+	# Now do wall collision checks
 	if(_collisionHandler.IsCollidingWithWall(Vector2i(ceil(nextPos.x), ceil(_mapPosition.z)))):
 		nextPos.x = _mapPosition.x 
 		SetCollisionBump(Vector3(-sign(ReturnVelocity().x), 0, 0))
@@ -215,6 +246,7 @@ func Update(mapForward : Vector3):
 	# Apply visual hop offset to sprite
 	_apply_hop_sprite_offset()
 	_choose_and_apply_frame(get_process_delta_time())
+
 
 func ReturnPlayerInput() -> Vector2:
 	var steer := 0.0
@@ -246,19 +278,15 @@ func _handle_hop_and_drift(input_vec : Vector2) -> void:
 	var dt := get_process_delta_time()
 
 	var hop_pressed := Input.is_action_just_pressed("Hop")
-	# On SNES R is both hop (on press) and drift (when held). In your input map, Hop and Drift share the same button.
 	var drift_down := Input.is_action_pressed("Drift")
 	var moving_fast := _movementSpeed >= DRIFT_MIN_SPEED
 	var steer_abs = abs(input_vec.x)
 
 	# --- Hop (always occurs on press) ---
 	if hop_pressed and not _is_drifting:
-		# Visual hop + tiny boost
 		_hop_timer = HOP_DURATION
 		_hop_boost_timer = HOP_DURATION
 		_speedMultiplier = max(_speedMultiplier, HOP_SPEED_BOOST)
-
-		# Arm a short window where holding R + steering can commit a drift (SNES-like)
 		_drift_arm_timer = DRIFT_ARM_WINDOW
 
 	# Decay hop boost
@@ -271,43 +299,61 @@ func _handle_hop_and_drift(input_vec : Vector2) -> void:
 	if _drift_arm_timer > 0.0:
 		_drift_arm_timer = max(0.0, _drift_arm_timer - dt)
 
+	# --- NEW: commit a drift during the arm window ---
+	if not _is_drifting \
+		and drift_down \
+		and _drift_arm_timer > 0.0 \
+		and moving_fast \
+		and steer_abs >= DRIFT_STEER_DEADZONE:
+		_is_drifting = true
+		if input_vec.x < 0.0:
+			_drift_dir = -1
+		else:
+			_drift_dir = 1
+		_drift_wobble_phase = 0.0
+		_drift_break_timer = 0.0
+		_drift_charge = 0.0
+		# lock initial visual side immediately
+		_lean_left_visual = (_drift_dir < 0)
+		# optional: clear settle so we don't fight the new drift
+		_post_settle_time = 0.0
+
 	# --- While drifting and R is held: build charge, slight slowdown, stronger steer ---
 	if _is_drifting and drift_down:
 		_speedMultiplier = DRIFT_SPEED_MULT
 
-		# SNES-ish: always bias into the drift side, then let live steer modulate it.
+		# Base bias into drift side + live steer influence (your idea)
 		var bias := _drift_dir * DRIFT_MIN_TURN_BIAS
 		var steer_mod := input_vec.x * DRIFT_STEER_INFLUENCE
-		var drifted_steer = clamp(bias + steer_mod, -1.0, 1.0)
+		var raw_target = clamp(bias + steer_mod, -1.0, 1.0)
 
-		# Optional extra yaw strength while drifting
-		_inputDir.x = clamp(drifted_steer * DRIFT_STEER_MULT, -1.0, 1.0)
+		# Counter-steer tightening: if steering opposite the drift, amplify a bit
+		if sign(input_vec.x) == -_drift_dir:
+			raw_target *= DRIFT_COUNTERSTEER_GAIN
+		raw_target = clamp(raw_target, -1.0, 1.0)
 
-		# Charge grows with *actual* steer effort
-		_drift_charge += abs(input_vec.x) * DRIFT_BUILD_RATE * dt
+		# Reduced grip: don't slam _inputDir.x; ease toward the target
+		var grip_t = clamp(get_process_delta_time() * (DRIFT_GRIP * 10.0), 0.0, 1.0)
+		_inputDir.x = lerp(_inputDir.x, raw_target * DRIFT_STEER_MULT, grip_t)
 
-		# ---- NEW: break conditions ----
+		# Build charge with actual effort (unchanged)
+		_drift_charge += abs(input_vec.x) * DRIFT_BUILD_RATE * get_process_delta_time()
+
+		# ---- break rules (unchanged) ----
 		var steer_sign = sign(input_vec.x)
-
-		# 1) Immediate cancel if steering opposite past threshold
 		if steer_sign != 0 and steer_sign == -_drift_dir and abs(input_vec.x) >= DRIFT_REVERSE_BREAK:
 			_cancel_drift_no_award(POST_DRIFT_SETTLE_TIME_BREAK)
-		# 2) Graceful cancel if centered for a bit
 		elif abs(input_vec.x) < DRIFT_BREAK_DEADZONE:
-			_drift_break_timer += dt
+			_drift_break_timer += get_process_delta_time()
 			if _drift_break_timer >= DRIFT_BREAK_GRACE:
 				_cancel_drift_no_award(POST_DRIFT_SETTLE_TIME_BREAK)
 		else:
-			# reset grace when actively steering
 			_drift_break_timer = 0.0
 
-	# --- Release (stop drifting) when R is released -> award boost if eligible ---
+
+	# --- Release: award boost if eligible ---
 	if _is_drifting and not drift_down:
 		_end_drift_with_award()
-
-	# --- No drift active (either never started or has finished) ---
-	# If the arm window expired or conditions failed, it was just a hop.
-	# Nothing special to do here.
 
 	# Turbo decay (unchanged)
 	if _turbo_timer > 0.0:
