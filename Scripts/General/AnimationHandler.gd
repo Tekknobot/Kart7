@@ -20,6 +20,8 @@ var _firstTimeSink : bool = true
 var _wasHopping: bool = false
 var _wasDrifting: bool = false
 
+@export var _gravel_speed_threshold: float = 20.0  # don’t show gravel unless speed >= this
+
 func Setup(player : Racer):
 	_player = player
 	_originalPlayerSpriteYPos = player.ReturnSpriteGraphic().position.y
@@ -28,39 +30,47 @@ func Update() -> void:
 	if _player == null or _effectsPlayer == null or _effectsPlayer.get_parent() == null:
 		return
 
-	# keep effects layer above the sprite
+	# z-index keep-alive
 	if (_effectsPlayer.get_parent().z_index != _player.ReturnSpriteGraphic().z_index + 1):
 		_effectsPlayer.get_parent().z_index = _player.ReturnSpriteGraphic().z_index + 1
 
-	# --- read hop & drift states (duck-typed so no class_name required) ---
 	var is_hopping: bool = (_player.has_method("ReturnIsHopping") and _player.ReturnIsHopping())
 	var is_drifting: bool = (_player.has_method("ReturnIsDrifting") and _player.ReturnIsDrifting())
+	var rt := _player.ReturnOnRoadType()
 
-	# HOP: hide effects; skip bounce; resume ground effect on landing
+	# HOP
 	if is_hopping:
 		_hide_all_effects_and_stop()
 		_wasHopping = true
 		return
 	elif _wasHopping:
 		_wasHopping = false
-		PlaySpecificEffectAnimation(_player.ReturnOnRoadType())
+		PlaySpecificEffectAnimation(rt)
 
-	# DRIFT: play chosen effect; toggle gas shader on wheels; restore on end
-	var rt := _player.ReturnOnRoadType()
+	# DRIFT
 	if is_drifting and rt != Globals.RoadType.SINK and rt != Globals.RoadType.WALL:
-		_play_drift_effect()
+		# If we're drifting *on gravel*, keep the gravel effect active/animated.
+		# (Let the speed gate decide visibility & playback of Gravel_Anim.)
+		if rt == Globals.RoadType.GRAVEL:
+			_apply_gravel_speed_gate()
+		else:
+			_play_drift_effect()
 		_wasDrifting = true
 	else:
 		if _wasDrifting:
 			_wasDrifting = false
 			PlaySpecificEffectAnimation(rt)
 
-	# --- normal ground-effect flow ---
-	if (_player.ReturnOnRoadType() != _previousHandledRoadType):
-		PlaySpecificEffectAnimation(_player.ReturnOnRoadType())
+	# If road type changed, re-pick base effect
+	if rt != _previousHandledRoadType:
+		PlaySpecificEffectAnimation(rt)
 
-	# keep the bounce unless we're in SINK
-	if (_player.ReturnOnRoadType() != Globals.RoadType.SINK):
+	# --- NEW: enforce gravel speed gate every frame while on gravel ---
+	if rt == Globals.RoadType.GRAVEL:
+		_apply_gravel_speed_gate()
+
+	# bounce (except in SINK)
+	if rt != Globals.RoadType.SINK:
 		PlayerRoadBounceAnimation()
 
 func PlaySpecificEffectAnimation(roadType : Globals.RoadType):
@@ -78,13 +88,26 @@ func PlaySpecificEffectAnimation(roadType : Globals.RoadType):
 			_effectsPlayer.get_parent().visible = false
 			_firstTimeSink = true
 		Globals.RoadType.GRAVEL:
-			_effectsPlayer.get_parent().visible = true
-			if _specialWheelEffect.size() > 0 and _specialWheelEffect[0]:
-				_specialWheelEffect[0].visible = true
-			if _specialWheelEffect.size() > 1 and _specialWheelEffect[1]:
-				_specialWheelEffect[1].visible = true
-			animName = "Gravel"
-			_firstTimeSink = true
+			# if we’re basically not moving, don’t display the gravel at all
+			if _player.ReturnMovementSpeed() < _gravel_speed_threshold:
+				_effectsPlayer.get_parent().visible = false
+				# make sure any previously playing gravel anim is stopped
+				if _effectsPlayer.is_playing() and _effectsPlayer.current_animation.begins_with("Gravel"):
+					_effectsPlayer.stop()
+				# hide wheel gas shader sprites if you were showing them for gravel
+				if _specialWheelEffect.size() > 0 and _specialWheelEffect[0]:
+					_specialWheelEffect[0].visible = false
+				if _specialWheelEffect.size() > 1 and _specialWheelEffect[1]:
+					_specialWheelEffect[1].visible = false
+				_firstTimeSink = true
+			else:
+				_effectsPlayer.get_parent().visible = true
+				if _specialWheelEffect.size() > 0 and _specialWheelEffect[0]:
+					_specialWheelEffect[0].visible = true
+				if _specialWheelEffect.size() > 1 and _specialWheelEffect[1]:
+					_specialWheelEffect[1].visible = true
+				animName = "Gravel"
+				_firstTimeSink = true
 		Globals.RoadType.OFF_ROAD:
 			animName = "Idle_Off_Road" if _player.ReturnMovementSpeed() < 1 else "Driving_Off_Road"
 			_firstTimeSink = true
@@ -156,3 +179,30 @@ func _play_drift_effect() -> void:
 		if _effectsPlayer.current_animation != anim_name or !_effectsPlayer.is_playing():
 			_effectsPlayer.stop()
 			_effectsPlayer.play(anim_name)
+
+func _apply_gravel_speed_gate() -> void:
+	var parent := _effectsPlayer.get_parent()
+	var speed := _player.ReturnMovementSpeed()
+
+	if speed < _gravel_speed_threshold:
+		if parent: parent.visible = false
+		# stop gravel anim if it’s playing
+		if _effectsPlayer.is_playing() and _effectsPlayer.current_animation != "" and _effectsPlayer.current_animation.begins_with("Gravel"):
+			_effectsPlayer.stop()
+		# hide wheels
+		if _specialWheelEffect.size() > 0 and _specialWheelEffect[0]:
+			_specialWheelEffect[0].visible = false
+		if _specialWheelEffect.size() > 1 and _specialWheelEffect[1]:
+			_specialWheelEffect[1].visible = false
+	else:
+		if parent: parent.visible = true
+		# show wheels
+		if _specialWheelEffect.size() > 0 and _specialWheelEffect[0]:
+			_specialWheelEffect[0].visible = true
+		if _specialWheelEffect.size() > 1 and _specialWheelEffect[1]:
+			_specialWheelEffect[1].visible = true
+		# ensure Gravel_Anim is playing when we’re fast enough
+		if _effectsPlayer.has_animation("Gravel_Anim"):
+			if _effectsPlayer.current_animation != "Gravel_Anim" or !_effectsPlayer.is_playing():
+				_effectsPlayer.stop()
+				_effectsPlayer.play("Gravel_Anim")

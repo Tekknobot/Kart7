@@ -1,11 +1,10 @@
-[gd_scene load_steps=29 format=3 uid="uid://d2glnv32t8md1"]
+[gd_scene load_steps=30 format=3 uid="uid://d2glnv32t8md1"]
 
 [ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_emb0w"]
 [ext_resource type="Script" uid="uid://cex362lk6utnk" path="res://Scripts/On Screen Elements/BackgroundEffects.gd" id="2_330he"]
 [ext_resource type="Texture2D" uid="uid://b7ri4tesomgep" path="res://Temp/Background Color_Black.png" id="3_fevyy"]
 [ext_resource type="Texture2D" uid="uid://cefyc1o8c12cw" path="res://Textures/Tracks/Donut Plains 1 - Sky Line.png" id="3_ht13n"]
 [ext_resource type="Shader" uid="uid://hpt6elsw8vyg" path="res://Scripts/Shaders/ModeSeven.gdshader" id="3_okd74"]
-[ext_resource type="Texture2D" uid="uid://do4l3t6fepcy8" path="res://Textures/Tracks/Donut Plains 1.png" id="3_q5wi2"]
 [ext_resource type="Texture2D" uid="uid://b2p41drytlkxt" path="res://Textures/Tracks/Donut Plains 1 - Tree Line.png" id="3_vt36i"]
 [ext_resource type="Texture2D" uid="uid://cnp7d7djiq0dd" path="res://Textures/Tracks/Grass_Tile.png" id="4_7c8ey"]
 [ext_resource type="Script" uid="uid://4oyj7tns2kqe" path="res://Scripts/World Elements/Pseudo3D.gd" id="4_s71t4"]
@@ -19,12 +18,212 @@
 [ext_resource type="Texture2D" uid="uid://cpbay01qhxufs" path="res://Textures/Tracks/MarioTrack - Road Type.png" id="12_hibaj"]
 [ext_resource type="Script" uid="uid://bomqe0y8c30wy" path="res://Scripts/General/AnimationHandler.gd" id="13_6hxns"]
 [ext_resource type="Texture2D" uid="uid://d1nvgl514d4vw" path="res://Textures/Hazards/Orange_Pipes.png" id="16_t3snl"]
+[ext_resource type="Script" uid="uid://5mfc8ibm83i3" path="res://Scripts/AI/PathRecorder.gd" id="19_fevyy"]
+[ext_resource type="Script" uid="uid://bkg7bm4cb65tt" path="res://Scripts/AI/PathOverlay2D.gd" id="21_pdsj5"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_lhngl"]
 shader = ExtResource("3_okd74")
 shader_parameter/trackTexture = ExtResource("8_fevyy")
 shader_parameter/grassTexture = ExtResource("4_7c8ey")
 shader_parameter/mapMatrix = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
+shader_parameter/overlayAlpha = 1.0
+
+[sub_resource type="Animation" id="Animation_fevyy"]
+resource_name = "Drift_Anim"
+length = 0.20001
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Right Wheel:offset")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [Vector2(-4, 0)]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Right Wheel:flip_h")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [false]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("Right Wheel:region_rect")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [Rect2(96, 16, 8, 8)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("Right Wheel:position")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.1),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [Vector2(48, 36), Vector2(48, 40)]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Right Wheel Special:offset")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [Vector2(-8, 0)]
+}
+tracks/5/type = "value"
+tracks/5/imported = false
+tracks/5/enabled = true
+tracks/5/path = NodePath("Right Wheel Special:flip_h")
+tracks/5/interp = 1
+tracks/5/loop_wrap = true
+tracks/5/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [false]
+}
+tracks/6/type = "value"
+tracks/6/imported = false
+tracks/6/enabled = true
+tracks/6/path = NodePath("Right Wheel Special:region_rect")
+tracks/6/interp = 1
+tracks/6/loop_wrap = true
+tracks/6/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [Rect2(96, 0, 16, 16)]
+}
+tracks/7/type = "value"
+tracks/7/imported = false
+tracks/7/enabled = true
+tracks/7/path = NodePath("Right Wheel Special:position")
+tracks/7/interp = 1
+tracks/7/loop_wrap = true
+tracks/7/keys = {
+"times": PackedFloat32Array(0, 0.1),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [Vector2(75, 56), Vector2(75, 50)]
+}
+tracks/8/type = "value"
+tracks/8/imported = false
+tracks/8/enabled = true
+tracks/8/path = NodePath("Left Wheel:offset")
+tracks/8/interp = 1
+tracks/8/loop_wrap = true
+tracks/8/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [Vector2(4, 0)]
+}
+tracks/9/type = "value"
+tracks/9/imported = false
+tracks/9/enabled = true
+tracks/9/path = NodePath("Left Wheel:flip_h")
+tracks/9/interp = 1
+tracks/9/loop_wrap = true
+tracks/9/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [true]
+}
+tracks/10/type = "value"
+tracks/10/imported = false
+tracks/10/enabled = true
+tracks/10/path = NodePath("Left Wheel:region_rect")
+tracks/10/interp = 1
+tracks/10/loop_wrap = true
+tracks/10/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [Rect2(96, 16, 8, 8)]
+}
+tracks/11/type = "value"
+tracks/11/imported = false
+tracks/11/enabled = true
+tracks/11/path = NodePath("Left Wheel:position")
+tracks/11/interp = 1
+tracks/11/loop_wrap = true
+tracks/11/keys = {
+"times": PackedFloat32Array(0, 0.1),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [Vector2(-48, 36), Vector2(-48, 40)]
+}
+tracks/12/type = "value"
+tracks/12/imported = false
+tracks/12/enabled = true
+tracks/12/path = NodePath("Left Wheel Special:offset")
+tracks/12/interp = 1
+tracks/12/loop_wrap = true
+tracks/12/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [Vector2(8, 0)]
+}
+tracks/13/type = "value"
+tracks/13/imported = false
+tracks/13/enabled = true
+tracks/13/path = NodePath("Left Wheel Special:flip_h")
+tracks/13/interp = 1
+tracks/13/loop_wrap = true
+tracks/13/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [true]
+}
+tracks/14/type = "value"
+tracks/14/imported = false
+tracks/14/enabled = true
+tracks/14/path = NodePath("Left Wheel Special:region_rect")
+tracks/14/interp = 1
+tracks/14/loop_wrap = true
+tracks/14/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [Rect2(96, 0, 16, 16)]
+}
+tracks/15/type = "value"
+tracks/15/imported = false
+tracks/15/enabled = true
+tracks/15/path = NodePath("Left Wheel Special:position")
+tracks/15/interp = 1
+tracks/15/loop_wrap = true
+tracks/15/keys = {
+"times": PackedFloat32Array(0, 0.1),
+"transitions": PackedFloat32Array(1, 1),
+"update": 1,
+"values": [Vector2(-75, 56), Vector2(-75, 50)]
+}
 
 [sub_resource type="Animation" id="Animation_65qb5"]
 resource_name = "Driving_Off_Road_Anim"
@@ -814,203 +1013,6 @@ tracks/18/keys = {
 }]
 }
 
-[sub_resource type="Animation" id="Animation_fevyy"]
-resource_name = "Drift_Anim"
-length = 0.20001
-loop_mode = 1
-tracks/0/type = "value"
-tracks/0/imported = false
-tracks/0/enabled = true
-tracks/0/path = NodePath("Right Wheel:offset")
-tracks/0/interp = 1
-tracks/0/loop_wrap = true
-tracks/0/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [Vector2(-4, 0)]
-}
-tracks/1/type = "value"
-tracks/1/imported = false
-tracks/1/enabled = true
-tracks/1/path = NodePath("Right Wheel:flip_h")
-tracks/1/interp = 1
-tracks/1/loop_wrap = true
-tracks/1/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [false]
-}
-tracks/2/type = "value"
-tracks/2/imported = false
-tracks/2/enabled = true
-tracks/2/path = NodePath("Right Wheel:region_rect")
-tracks/2/interp = 1
-tracks/2/loop_wrap = true
-tracks/2/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [Rect2(96, 16, 8, 8)]
-}
-tracks/3/type = "value"
-tracks/3/imported = false
-tracks/3/enabled = true
-tracks/3/path = NodePath("Right Wheel:position")
-tracks/3/interp = 1
-tracks/3/loop_wrap = true
-tracks/3/keys = {
-"times": PackedFloat32Array(0, 0.1),
-"transitions": PackedFloat32Array(1, 1),
-"update": 1,
-"values": [Vector2(48, 36), Vector2(48, 40)]
-}
-tracks/4/type = "value"
-tracks/4/imported = false
-tracks/4/enabled = true
-tracks/4/path = NodePath("Right Wheel Special:offset")
-tracks/4/interp = 1
-tracks/4/loop_wrap = true
-tracks/4/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [Vector2(-8, 0)]
-}
-tracks/5/type = "value"
-tracks/5/imported = false
-tracks/5/enabled = true
-tracks/5/path = NodePath("Right Wheel Special:flip_h")
-tracks/5/interp = 1
-tracks/5/loop_wrap = true
-tracks/5/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [false]
-}
-tracks/6/type = "value"
-tracks/6/imported = false
-tracks/6/enabled = true
-tracks/6/path = NodePath("Right Wheel Special:region_rect")
-tracks/6/interp = 1
-tracks/6/loop_wrap = true
-tracks/6/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [Rect2(96, 0, 16, 16)]
-}
-tracks/7/type = "value"
-tracks/7/imported = false
-tracks/7/enabled = true
-tracks/7/path = NodePath("Right Wheel Special:position")
-tracks/7/interp = 1
-tracks/7/loop_wrap = true
-tracks/7/keys = {
-"times": PackedFloat32Array(0, 0.1),
-"transitions": PackedFloat32Array(1, 1),
-"update": 1,
-"values": [Vector2(75, 56), Vector2(75, 50)]
-}
-tracks/8/type = "value"
-tracks/8/imported = false
-tracks/8/enabled = true
-tracks/8/path = NodePath("Left Wheel:offset")
-tracks/8/interp = 1
-tracks/8/loop_wrap = true
-tracks/8/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [Vector2(4, 0)]
-}
-tracks/9/type = "value"
-tracks/9/imported = false
-tracks/9/enabled = true
-tracks/9/path = NodePath("Left Wheel:flip_h")
-tracks/9/interp = 1
-tracks/9/loop_wrap = true
-tracks/9/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [true]
-}
-tracks/10/type = "value"
-tracks/10/imported = false
-tracks/10/enabled = true
-tracks/10/path = NodePath("Left Wheel:region_rect")
-tracks/10/interp = 1
-tracks/10/loop_wrap = true
-tracks/10/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [Rect2(96, 16, 8, 8)]
-}
-tracks/11/type = "value"
-tracks/11/imported = false
-tracks/11/enabled = true
-tracks/11/path = NodePath("Left Wheel:position")
-tracks/11/interp = 1
-tracks/11/loop_wrap = true
-tracks/11/keys = {
-"times": PackedFloat32Array(0, 0.1),
-"transitions": PackedFloat32Array(1, 1),
-"update": 1,
-"values": [Vector2(-48, 36), Vector2(-48, 40)]
-}
-tracks/12/type = "value"
-tracks/12/imported = false
-tracks/12/enabled = true
-tracks/12/path = NodePath("Left Wheel Special:offset")
-tracks/12/interp = 1
-tracks/12/loop_wrap = true
-tracks/12/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [Vector2(8, 0)]
-}
-tracks/13/type = "value"
-tracks/13/imported = false
-tracks/13/enabled = true
-tracks/13/path = NodePath("Left Wheel Special:flip_h")
-tracks/13/interp = 1
-tracks/13/loop_wrap = true
-tracks/13/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [true]
-}
-tracks/14/type = "value"
-tracks/14/imported = false
-tracks/14/enabled = true
-tracks/14/path = NodePath("Left Wheel Special:region_rect")
-tracks/14/interp = 1
-tracks/14/loop_wrap = true
-tracks/14/keys = {
-"times": PackedFloat32Array(0),
-"transitions": PackedFloat32Array(1),
-"update": 1,
-"values": [Rect2(96, 0, 16, 16)]
-}
-tracks/15/type = "value"
-tracks/15/imported = false
-tracks/15/enabled = true
-tracks/15/path = NodePath("Left Wheel Special:position")
-tracks/15/interp = 1
-tracks/15/loop_wrap = true
-tracks/15/keys = {
-"times": PackedFloat32Array(0, 0.1),
-"transitions": PackedFloat32Array(1, 1),
-"update": 1,
-"values": [Vector2(-75, 56), Vector2(-75, 50)]
-}
-
 [sub_resource type="AnimationLibrary" id="AnimationLibrary_2e3ut"]
 _data = {
 &"Drift_Anim": SubResource("Animation_fevyy"),
@@ -1062,14 +1064,14 @@ centered = false
 region_enabled = true
 region_rect = Rect2(0, 0, 240, 32)
 
-[node name="Map" type="Sprite2D" parent="."]
+[node name="Map" type="Sprite2D" parent="." node_paths=PackedStringArray("path_overlay_viewport")]
 z_index = -1
 texture_filter = 1
 texture_repeat = 1
 material = SubResource("ShaderMaterial_lhngl")
 position = Vector2(240, 180)
 scale = Vector2(0.46875, 0.351563)
-texture = ExtResource("3_q5wi2")
+texture = ExtResource("8_fevyy")
 script = ExtResource("4_s71t4")
 _mapStartRotationAngle = Vector2(4.9, 6.25)
 _mapMaxRotationSpeed = 1.5
@@ -1077,6 +1079,8 @@ _mapAccelRotationSpeed = 2.0
 _mapDeaccelRotationSpeed = 3.0
 _rotationRadius = 36.0
 _mapVerticalPosition = 3.8
+path_overlay_viewport = NodePath("../SubViewport")
+path_overlay_node = NodePath("../SubViewport/PathOverlay2D")
 
 [node name="Collision Handler" type="Node" parent="Map"]
 script = ExtResource("6_q57ja")
@@ -1087,6 +1091,7 @@ _roadTypeColors = Array[Color]([Color(0, 0, 0, 1), Color(1, 1, 1, 1), Color(0.8,
 [node name="Sprite Handler" type="Node2D" parent="." node_paths=PackedStringArray("_hazards")]
 script = ExtResource("7_wmybs")
 _hazards = [NodePath("Hazards/Bridge/Green Pipe"), NodePath("Hazards/Bridge/Green Pipe2"), NodePath("Hazards/Bridge/Green Pipe3"), NodePath("Hazards/Bridge/Green Pipe4"), NodePath("Hazards/Shortcut/Green Pipe"), NodePath("Hazards/Shortcut/Green Pipe2"), NodePath("Hazards/Shortcut/Green Pipe3"), NodePath("Hazards/Shortcut/Green Pipe4"), NodePath("Hazards/Lake/Green Pipe"), NodePath("Hazards/Lake/Green Pipe2"), NodePath("Hazards/Lake/Green Pipe3"), NodePath("Hazards/Lake/Green Pipe4"), NodePath("Hazards/Last Turn/Green Pipe"), NodePath("Hazards/Last Turn/Green Pipe2"), NodePath("Hazards/Last Turn/Green Pipe3"), NodePath("Hazards/Last Turn/Green Pipe4")]
+pseudo3d_node = NodePath("Racers/Player")
 
 [node name="Racers" type="Node2D" parent="Sprite Handler"]
 
@@ -1151,6 +1156,8 @@ offset = Vector2(8, 0)
 flip_h = true
 region_enabled = true
 region_rect = Rect2(96, 0, 16, 16)
+
+[node name="Racer" type="Node2D" parent="Sprite Handler/Racers"]
 
 [node name="Hazards" type="Node2D" parent="Sprite Handler"]
 visible = false
@@ -1344,3 +1351,18 @@ script = ExtResource("13_6hxns")
 _effectsPlayer = NodePath("../Racers/Player/Road Type Effects/Effects Player")
 _roadRoughness = 2
 _specialWheelEffect = [NodePath("../Racers/Player/Road Type Effects/Right Wheel Special"), NodePath("../Racers/Player/Road Type Effects/Left Wheel Special")]
+
+[node name="PathRecorder" type="Node2D" parent="."]
+script = ExtResource("19_fevyy")
+map_sprite_node = NodePath("../Map")
+path_node = NodePath("../SubViewport/PathOverlay2D")
+debug = true
+racer_node = NodePath("../Sprite Handler/Racers/Player")
+
+[node name="SubViewport" type="SubViewport" parent="."]
+transparent_bg = true
+size = Vector2i(1024, 1024)
+
+[node name="PathOverlay2D" type="Node2D" parent="SubViewport"]
+script = ExtResource("21_pdsj5")
+line_width = 2.0

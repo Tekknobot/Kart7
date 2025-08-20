@@ -16,11 +16,28 @@ var _mapPosition : Vector3
 var _mapRotationAngle : Vector2
 var _finalMatrix : Basis
 
+# --- Add near top of Pseudo3D.gd ---
+@export var path_overlay_viewport: SubViewport
+@export var path_overlay_node: NodePath  # the PathOverlay2D inside that SubViewport
+
+func _bind_path_overlay_texture() -> void:
+	if material and path_overlay_viewport:
+		var tex := path_overlay_viewport.get_texture()
+		if tex:
+			material.set_shader_parameter("pathOverlay", tex)
+
+func SetPathPoints(p: PackedVector2Array) -> void:
+	var n = get_node_or_null(path_overlay_node)
+	if n and n.has_method("set_points"):
+		n.set_points(p)
+	_bind_path_overlay_texture()  # ensure uniform bound (useful after reload)
+
 func Setup(screenSize : Vector2, player : Racer):
 	scale = screenSize / texture.get_size().x
 	_mapPosition = Vector3(player.ReturnMapPosition().x, _mapVerticalPosition, player.ReturnMapPosition().z)
 	_mapRotationAngle = _mapStartRotationAngle
 	KeepRotationDistance(player)
+	_bind_path_overlay_texture()
 	UpdateShader()
 
 func Update(player : Racer):
