@@ -1,66 +1,85 @@
 extends Node2D
 
-# ---- TEMP: force visible, fat, neon while debugging
-@export var preview_mode := true    # << set true to ignore matrix and fit to screen
-@export var line_width := 8.0
-@export var color := Color(0, 1, 1, 1.0)   # cyan, opaque
+# =========================
+# Debug / rendering
+# =========================
+@export var preview_mode := true            # ignore matrix, fit to screen for quick visual check
+@export var line_width := 6.0
+@export var color := Color(1, 0, 0, 0.9)    # red, opaque by default (change as you like)
 @export var z_index_on_top := 9999
 
-# MarioTrack sample (30 pts). Replace later with your full list.
-var DEFAULT_POINTS := PackedVector2Array([
-	Vector2(920.0, 856.0), Vector2(160.1, 224.2), Vector2(168.3, 229.5),
-	Vector2(176.7, 235.0), Vector2(185.2, 240.6), Vector2(194.0, 246.3),
-	Vector2(203.0, 252.0), Vector2(212.2, 257.9), Vector2(221.5, 263.9),
-	Vector2(231.0, 270.0), Vector2(240.5, 276.2), Vector2(250.1, 282.5),
-	Vector2(259.8, 289.0), Vector2(269.6, 295.6), Vector2(279.5, 302.3),
-	Vector2(289.5, 309.1), Vector2(299.6, 316.0), Vector2(309.8, 323.0),
-	Vector2(320.0, 330.0), Vector2(330.3, 337.1), Vector2(340.7, 344.3),
-	Vector2(351.1, 351.6), Vector2(361.6, 359.0), Vector2(372.2, 366.5),
-	Vector2(382.9, 374.1), Vector2(393.6, 381.8), Vector2(404.4, 389.6),
-	Vector2(415.3, 397.5), Vector2(426.2, 405.5)
-])
-
-# Recorder/scaling/options
+# =========================
+# Input points (PNG pixel coords)
+# =========================
+# Paste Aseprite pixels here or call set_points() at runtime.
+# These are raw texture pixels relative to the PNG (0..pos_scale_px on both axes).
 @export var points: PackedVector2Array = PackedVector2Array([])
-@export var pos_scale_px := 1024.0
-@export var points_are_inverse := false
+
+# If you want a starting sample loop to see something on screen, uncomment:
+# var DEFAULT_POINTS: PackedVector2Array = PackedVector2Array([
+#     Vector2(160,224), Vector2(240,276), Vector2(320,330), Vector2(404,390),
+#     Vector2(493,455), Vector2(584,526), Vector2(678,600), Vector2(764,656),
+#     Vector2(832,704), Vector2(896,740), Vector2(944,768), Vector2(980,810),
+#     Vector2(990,880), Vector2(968,940), Vector2(912,980), Vector2(832,1000),
+#     Vector2(740,984), Vector2(650,944), Vector2(560,884), Vector2(480,812),
+#     Vector2(400,740), Vector2(320,664), Vector2(244,588), Vector2(188,508),
+#     Vector2(160,420), Vector2(164,340), Vector2(188,280), Vector2(220,240),
+#     Vector2(240,220), Vector2(160,224) # closed
+# ])
+
+# =========================
+# Alignment controls
+# =========================
+@export var pos_scale_px := 1024.0          # PNG size (use 1024.0 for 1024x1024)
+@export var pre_rotate_deg := 0.0           # rotation (deg) around texture center BEFORE projection
+@export var pre_scale := 1.0                # uniform scale in map units BEFORE projection
+
+# Quick axis fixes (applied in centered map space)
+@export var swap_xy := false
+@export var invert_x := false
+@export var invert_y := false
+
+# Tiny nudges in map units AFTER (UV-0.5), rotation, scale (keep ZERO unless you need small offsets)
+@export var map_offset_units := Vector2.ZERO
+
+# Optional extra pixel-like offset BEFORE centering (rarely needed)
+@export var offset_px := Vector2.ZERO
+
+# Diagnostics
 @export var debug := true
 @export var fallback_fit_when_unset := true
 @export var fit_margin_px := 12.0
 
-@export var map_offset_units := Vector2.ZERO
-@export var offset_px := Vector2.ZERO
-@export var invert_x := false
-@export var invert_y := false
-@export var swap_xy := false
-
-var _world_matrix: Basis = Basis()
+# =========================
+# Internal state
+# =========================
+var _world_matrix: Basis = Basis()      # same matrix you send to the shader as `mapMatrix`
 var _screen_size: Vector2 = Vector2.ZERO
 
+# =========================
+# Lifecycle
+# =========================
 func _ready() -> void:
 	visible = true
 	set_z_index(z_index_on_top)
-	set_z_as_relative(false)   # draw on top of everything else (outside parent stacking)
-	# Backfill points if inspector saved empty
-	if points.is_empty():
-		points = DEFAULT_POINTS.duplicate()
-		if debug: prints("[Overlay] filled DEFAULT_POINTS:", points.size())
+	set_z_as_relative(false)
 
-	# If we live inside a SubViewport, inherit its size (critical!)
+	# If you want an initial sample:
+	# if points.is_empty():
+	#     points = DEFAULT_POINTS.duplicate()
+
+	# If we live inside a SubViewport, ensure it has size (and Transparent BG in the editor)
 	var svp := get_viewport()
 	if svp is SubViewport:
-		# Ensure SubViewport is actually sized; if not, set a sensible default once
-		var sz = svp.size
-		if sz == Vector2i(0,0):
-			svp.size = Vector2i(1280, 720)  # set your game resolution here
+		if svp.size == Vector2i.ZERO:
+			svp.size = Vector2i(1024, 1024)  # safe default; set to your target if needed
 			if debug: prints("[Overlay] SubViewport size was 0x0; set to", svp.size)
 		_screen_size = Vector2(svp.size)
 		if debug: prints("[Overlay] Using SubViewport size:", _screen_size)
-		# If you want transparent overlay texture in shader, set this on the SubViewport in the editor:
-		#  - Transparent Bg = On
 
 	queue_redraw()
 
+# External API ---------------------------------------------------
 func set_points(p: PackedVector2Array) -> void:
 	if p.is_empty():
 		if debug: push_warning("[Overlay] Ignored set_points([])")
@@ -69,57 +88,103 @@ func set_points(p: PackedVector2Array) -> void:
 	if debug: prints("[Overlay] set_points:", points.size())
 	queue_redraw()
 
+func get_path_points() -> PackedVector2Array:
+	return points
+
+# Call this every frame from Pseudo3D.gd so we share the same matrix as the shader
 func set_world_and_screen(m: Basis, screen_size: Vector2) -> void:
 	_world_matrix = m
 	_screen_size = screen_size
-	if debug: prints("[Overlay] set_world_and_screen() screen:", _screen_size, " preview_mode:", preview_mode)
+	if debug: prints("[Overlay] set_world_and_screen screen:", _screen_size, " preview_mode:", preview_mode)
 	queue_redraw()
 
+# =========================
+# Drawing
+# =========================
 func _draw() -> void:
 	var n := points.size()
 	if n < 2:
 		if debug:
 			draw_line(Vector2(0,0), Vector2(64,0), Color(0,1,0,0.9), 6, true)
 			draw_line(Vector2(0,0), Vector2(0,64), Color(0,1,0,0.9), 6, true)
-			push_warning("[Overlay] Not enough points to draw")
 		return
 
-	var use_fallback := preview_mode or _screen_size == Vector2.ZERO or _world_matrix == Basis()
-	if use_fallback:
-		var scr := get_viewport_rect().size
-		var bb := _bbox(points)
-		var sz := bb.size
-		if sz.x <= 0.0001 or sz.y <= 0.0001:
-			if debug: push_warning("[Overlay] degenerate bbox")
-			return
-		var sx := (scr.x - 2.0 * fit_margin_px) / sz.x
-		var sy := (scr.y - 2.0 * fit_margin_px) / sz.y
-		var s = min(sx, sy)
-		var off = -bb.position * s + Vector2(fit_margin_px, fit_margin_px)
-		# draw points as dots AND a polyline so you can’t miss them
-		for i in range(n):
-			var p = points[i] * s + off
-			draw_circle(p, 3.0, color)
-			if i < n - 1:
-				var q = points[i + 1] * s + off
-				draw_line(p, q, color, line_width, true)
-		if debug: prints("[Overlay] drew FALLBACK (preview_mode or no matrix):", n, "pts")
-		return
+	# Always draw in UV/texture space (pixels), since shader samples with projectedUV
+	_draw_uv_space(points)
 
-	# Matrix mode
+func _draw_uv_space(pts: PackedVector2Array) -> void:
+	# Optionally apply rotation/flip/scale around texture center in PIXEL space:
+	var ready = _apply_px_transforms(pts)
+
+	for i in range(ready.size()):
+		var a = ready[i]
+		draw_circle(a, 2.5, color)
+		if i < ready.size() - 1:
+			var b = ready[i + 1]
+			draw_line(a, b, color, line_width, true)
+
+func _apply_px_transforms(pts: PackedVector2Array) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	var C := Vector2(pos_scale_px * 0.5, pos_scale_px * 0.5)  # center in pixels
+
+	var ang := deg_to_rad(pre_rotate_deg)
+	var cs := cos(ang)
+	var sn := sin(ang)
+
+	for p in pts:
+		var v := p + offset_px     # tiny pre-nudge in pixels (optional)
+
+		# center to origin (pixels)
+		v -= C
+
+		# quick axis fixes in pixel space
+		if swap_xy: v = Vector2(v.y, v.x)
+		if invert_x: v.x = -v.x
+		if invert_y: v.y = -v.y
+
+		# scale, rotate, back to pixel space
+		if pre_scale != 1.0: v *= pre_scale
+		if pre_rotate_deg != 0.0:
+			v = Vector2(v.x * cs - v.y * sn, v.x * sn + v.y * cs)
+
+		v += C
+
+		# final nudge in map units -> convert to pixels (map_offset_units is in “UV-centered units”)
+		if map_offset_units != Vector2.ZERO:
+			v += map_offset_units * pos_scale_px
+
+		out.append(v)
+	return out
+
+# Fallback-fit (screen-space) -----------------------------------
+func _draw_fallback(pts: PackedVector2Array) -> void:
+	var scr := get_viewport_rect().size
+	var bb := _bbox(pts)
+	var sz := bb.size
+	if sz.x <= 0.0001 or sz.y <= 0.0001:
+		if debug: push_warning("[Overlay] degenerate bbox")
+		return
+	var sx := (scr.x - 2.0 * fit_margin_px) / sz.x
+	var sy := (scr.y - 2.0 * fit_margin_px) / sz.y
+	var s = min(sx, sy)
+	var off = -bb.position * s + Vector2(fit_margin_px, fit_margin_px)
+
+	for i in range(pts.size()):
+		var p = pts[i] * s + off
+		draw_circle(p, 2.5, color)
+		if i < pts.size() - 1:
+			var q = pts[i + 1] * s + off
+			draw_line(p, q, color, line_width, true)
+	if debug: prints("[Overlay] drew FALLBACK:", pts.size(), "pts")
+
+# Matrix-projected (map space) ----------------------------------
+func _draw_projected(pts: PackedVector2Array) -> void:
 	var inv := _world_matrix.inverse()
 	var last_ok := false
 	var last_scr := Vector2.ZERO
-	var map_off := map_offset_units + (offset_px / pos_scale_px)
 
-	for i in range(n):
-		var mp := Vector2(points[i].x / pos_scale_px, points[i].y / pos_scale_px)
-		if points_are_inverse: mp = -mp
-		if swap_xy: mp = Vector2(mp.y, mp.x)
-		if invert_x: mp.x = -mp.x
-		if invert_y: mp.y = -mp.y
-		mp += map_off
-
+	for i in range(pts.size()):
+		var mp := _map_point_from_pixels(pts[i])  # centered map units
 		var w := inv * Vector3(mp.x, mp.y, 1.0)
 		if w.z <= 0.0:
 			last_ok = false
@@ -127,13 +192,54 @@ func _draw() -> void:
 		var scr := Vector2(w.x / w.z, w.y / w.z)
 		scr = (scr + Vector2(0.5, 0.5)) * _screen_size
 
-		# draw points as dots too (debug)
-		draw_circle(scr, 3.0, color)
+		draw_circle(scr, 2.5, color)
 		if last_ok:
 			draw_line(last_scr, scr, color, line_width, true)
 		last_ok = true
 		last_scr = scr
 
+# =========================
+# Core mapping math (this is the important bit)
+# =========================
+# Take PNG pixel coords (x_px, y_px) and convert to the same "map space"
+# your shader uses with: mapMatrix * vec3(UV - 0.5, 1).
+func _map_point_from_pixels(px: Vector2) -> Vector2:
+	# 0) Optional extra pre-offset in pixels (rare; use to nudge before centering)
+	var px_adj := px + offset_px
+
+	# 1) pixels -> UV [0..1]
+	var uv := px_adj / pos_scale_px
+
+	# 2) center shift (the single offset): UV - 0.5
+	var m := uv - Vector2(0.5, 0.5)
+
+	# 3) quick axis fixes in centered space
+	if swap_xy:
+		m = Vector2(m.y, m.x)
+	if invert_x:
+		m.x = -m.x
+	if invert_y:
+		m.y = -m.y
+
+	# 4) pre-scale
+	if pre_scale != 1.0:
+		m *= pre_scale
+
+	# 5) pre-rotation around the center
+	if pre_rotate_deg != 0.0:
+		var r := deg_to_rad(pre_rotate_deg)
+		var cs := cos(r)
+		var sn := sin(r)
+		m = Vector2(m.x * cs - m.y * sn, m.x * sn + m.y * cs)
+
+	# 6) final nudge in map units (keep ZERO unless you need tiny offset)
+	m += map_offset_units
+
+	return m
+
+# =========================
+# Utilities
+# =========================
 func _bbox(pts: PackedVector2Array) -> Rect2:
 	var minv := pts[0]
 	var maxv := pts[0]
@@ -144,6 +250,3 @@ func _bbox(pts: PackedVector2Array) -> Rect2:
 		if v.x > maxv.x: maxv.x = v.x
 		if v.y > maxv.y: maxv.y = v.y
 	return Rect2(minv, maxv - minv)
-
-func get_path_points() -> PackedVector2Array:
-	return points
