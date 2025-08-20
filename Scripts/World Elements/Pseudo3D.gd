@@ -10,17 +10,24 @@ extends Sprite2D
 var _mapRotSpeed : float
 var _currRotDir = 0
 
+# Perspective sizing
+@export var gfx_path: NodePath         # drag your Sprite2D child here (e.g., "GFX")
+@export var size_k: float = 0.9        # scale factor numerator
+@export var size_min: float = 0.35     # clamp min scale
+@export var size_max: float = 2.0      # clamp max scale
+
+
+# --- Add near top of Pseudo3D.gd ---
+@export var path_overlay_viewport: SubViewport
+@export var path_overlay_node: NodePath  # the PathOverlay2D inside that SubViewport
+
+@export var opponent_nodes: Array[NodePath] = []
 @export_category("Map Settings : Position")
 @export var _mapVerticalPosition : float
 var _mapPosition : Vector3
 var _mapRotationAngle : Vector2
 var _finalMatrix : Basis
 
-# --- Add near top of Pseudo3D.gd ---
-@export var path_overlay_viewport: SubViewport
-@export var path_overlay_node: NodePath  # the PathOverlay2D inside that SubViewport
-
-	
 func _bind_path_overlay_texture() -> void:
 	if material and path_overlay_viewport:
 		var tex := path_overlay_viewport.get_texture()
@@ -46,6 +53,12 @@ func Update(player : Racer):
 	KeepRotationDistance(player)
 	UpdateShader()
 
+	var scr := get_viewport_rect().size         # << important
+	for np in opponent_nodes:                   # export Array[NodePath] in inspector
+		var ai = get_node_or_null(np)
+		if ai and ai.has_method("set_world_and_screen"):
+			ai.set_world_and_screen(_finalMatrix, scr)
+			
 func RotateMap(rotDir : int, speed : float):
 	if(rotDir != 0 and abs(speed) > 0): AccelMapRotation(rotDir)
 	else: DeaccelMapRotation()

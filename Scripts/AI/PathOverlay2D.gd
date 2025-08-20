@@ -14,6 +14,7 @@ extends Node2D
 # Paste Aseprite pixels here or call set_points() at runtime.
 # These are raw texture pixels relative to the PNG (0..pos_scale_px on both axes).
 @export var points: PackedVector2Array = PackedVector2Array([])
+@export var points_uv: PackedVector2Array = PackedVector2Array([])
 
 # If you want a starting sample loop to see something on screen, uncomment:
 # var DEFAULT_POINTS: PackedVector2Array = PackedVector2Array([
@@ -250,3 +251,6 @@ func _bbox(pts: PackedVector2Array) -> Rect2:
 		if v.x > maxv.x: maxv.x = v.x
 		if v.y > maxv.y: maxv.y = v.y
 	return Rect2(minv, maxv - minv)
+
+func get_path_points_uv() -> PackedVector2Array:
+	return points_uv  # UVs (0..1), closed loop
