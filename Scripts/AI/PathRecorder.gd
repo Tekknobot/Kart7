@@ -1,197 +1,137 @@
-# Scripts/AI/PathRecorder.gd
-@tool
-extends Node
+extends Node2D
 
-# Reference to your Pseudo3D map sprite (the world node with _mapPosition)
-@export var map_sprite_node: NodePath
+# --- baked fallback points (MarioTrack, 1024×1024 pixel space) ---
+var DEFAULT_POINTS := PackedVector2Array([
+	Vector2(152.0, 220.0), Vector2(160.1, 224.2), Vector2(168.3, 229.5),
+	Vector2(176.7, 235.0), Vector2(185.2, 240.6), Vector2(194.0, 246.3),
+	Vector2(203.0, 252.0), Vector2(212.2, 257.9), Vector2(221.5, 263.9),
+	Vector2(231.0, 270.0), Vector2(240.5, 276.2), Vector2(250.1, 282.5),
+	Vector2(259.8, 289.0), Vector2(269.6, 295.6), Vector2(279.5, 302.3),
+	Vector2(289.5, 309.1), Vector2(299.6, 316.0), Vector2(309.8, 323.0),
+	Vector2(320.0, 330.0), Vector2(330.3, 337.1), Vector2(340.7, 344.3),
+	Vector2(351.1, 351.6), Vector2(361.6, 359.0), Vector2(372.2, 366.5),
+	Vector2(382.9, 374.1), Vector2(393.6, 381.8), Vector2(404.4, 389.6),
+	Vector2(415.3, 397.5), Vector2(426.2, 405.5)
+])
 
-# Optional path node to preview the recorded points (e.g., WaypointPath)
-@export var path_node: NodePath
+@export var points: PackedVector2Array = PackedVector2Array([])   # inspector can override; we’ll backfill if empty
+@export var line_width := 3.0
+@export var color := Color(1, 0.1, 0.1, 0.95)
+@export var pos_scale_px := 1024.0            # MUST match PathRecorder.pos_scale_px
+@export var points_are_inverse := false       # recorder samples -_mapPosition
+@export var z_index_on_top := 200
+@export var debug := true
+@export var fallback_fit_when_unset := true   # draw fitted to screen if no matrix yet
+@export var fit_margin_px := 12.0
 
-# Sampling + simplification
-@export var sample_every_px := 24.0       # spacing between samples (pixels after scaling)
-@export var simplify_epsilon := 6.0       # RDP tolerance
-@export var close_loop_on_save := true
+@export var map_offset_units := Vector2.ZERO   # offset in MAP UNITS (same units as Racer.ReturnMapPosition x/z)
+@export var offset_px := Vector2.ZERO          # convenience: add screen-pixel-like offset (divided by pos_scale_px)
 
-# Scaling: converts map units → pixels (tune to match texture size, e.g. 1024)
-@export var pos_scale_px := 1024.0
+@export var invert_x := false                  # quick axis fixes if needed
+@export var invert_y := false
+@export var swap_xy := false
 
-# Live preview controls
-@export var apply_interval_s := 0.25      # throttle path updates (seconds)
-@export var live_preview := true
-@export var debug := false
-
-var _recording := false
-var _buf: Array[Vector2] = []
-var _apply_elapsed := 0.0
-var _apply_pending := false
-
-@export var racer_node: NodePath   # Racer with ReturnMapPosition()
+var _world_matrix: Basis = Basis()            # 0-initialized
+var _screen_size: Vector2 = Vector2.ZERO
 
 func _ready() -> void:
-	set_process(true)
-	set_process_unhandled_input(true)
-	if Engine.is_editor_hint():
-		push_warning("PathRecorder: run scene, press R to start/stop, S to save, C to clear.")
+	set_z_index(z_index_on_top)
+	# If inspector/scene saved an empty array, backfill with baked coords:
+	if points.is_empty():
+		points = DEFAULT_POINTS.duplicate()
+		if debug: prints("[Overlay] points were empty; loaded DEFAULT_POINTS:", points.size())
 
-func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo:
-		match event.keycode:
-			KEY_R:
-				_recording = not _recording
-				if _recording:
-					_buf.clear()
-					print("[PathRecorder] Recording started")
-				else:
-					print("[PathRecorder] Recording stopped. Points:", _buf.size())
-					if live_preview:
-						_request_apply()
-			KEY_S:
-				_save()
-			KEY_C:
-				_buf.clear()
-				_request_apply()
-				print("[PathRecorder] Cleared points.")
+func set_points(p: PackedVector2Array) -> void:
+	# Guard to avoid accidentally wiping with an empty array:
+	if p.is_empty():
+		if debug: push_warning("[Overlay] Ignored SetPathPoints([])")
+		return
+	points = p
+	if debug:
+		prints("[Overlay] set_points:", points.size())
+	queue_redraw()
 
-func _process(dt: float) -> void:
-	if Engine.is_editor_hint():
+# SpriteHandler calls this every frame
+func set_world_and_screen(m: Basis, screen_size: Vector2) -> void:
+	_world_matrix = m
+	_screen_size = screen_size
+	queue_redraw()
+
+func _draw() -> void:
+	var n := points.size()
+	if n < 2:
+		if debug:
+			draw_line(Vector2(0,0), Vector2(64,0), Color(0,1,0,0.9), 3, true)
+			draw_line(Vector2(0,0), Vector2(0,64), Color(0,1,0,0.9), 3, true)
 		return
 
-	if _recording:
-		var p := _get_map_space_pos()
-		if debug and p != Vector2.ZERO:
-			var d: float = -1.0
-			if not _buf.is_empty():
-				d = _buf[_buf.size() - 1].distance_to(p)
-
-			prints("[PathRecorder]", "p:", p, "dist_from_last:", d)
-
-		if p != Vector2.ZERO:
-			if _buf.is_empty() or _buf[_buf.size()-1].distance_to(p) >= sample_every_px:
-				_buf.append(p)
-				if debug: prints("[PathRecorder] appended, total:", _buf.size())
-				if live_preview:
-					_apply_elapsed = 0.0
-					_request_apply()
-
-	if _apply_pending:
-		_apply_elapsed += dt
-		if _apply_elapsed >= apply_interval_s:
-			_apply_elapsed = 0.0
-			_apply_pending = false
-			_apply_to_path_deferred()
-
-# === Core: get map-space position (inverse of world motion) ===
-func _get_map_space_pos() -> Vector2:
-	# ✅ TRUE world/map path: use the racer's x/z
-	var r = get_node_or_null(racer_node)
-	if r and r.has_method("ReturnMapPosition"):
-		var v = r.ReturnMapPosition()             # Vector3
-		return Vector2(v.x, v.z) * pos_scale_px  # keep your scaling
-
-	# fallback: your current map-based method (will be misaligned due to orbit)
-	var m = get_node_or_null(map_sprite_node)
-	if m and m.has_method("ReturnMapPosition3D"):
-		var p3 = m.ReturnMapPosition3D()
-		return Vector2(-p3.x, -p3.z) * pos_scale_px
-	if m and m.has_method("get"):
-		var p3b = m.get("_mapPosition")
-		if typeof(p3b) == TYPE_VECTOR3:
-			return Vector2(-p3b.x, -p3b.z) * pos_scale_px
-
-	return Vector2.ZERO
-	
-func _request_apply() -> void:
-	_apply_pending = true
-
-func _apply_to_path_deferred() -> void:
-	var packed := PackedVector2Array(_buf)
-	call_deferred("_set_path_points", packed)
-
-func _set_path_points(pts: PackedVector2Array) -> void:
-	var path = get_node_or_null(path_node)
-	if path == null:
+	# If SpriteHandler hasn't fed us yet, optionally draw a fitted preview
+	if _screen_size == Vector2.ZERO or _world_matrix == Basis():
+		if not fallback_fit_when_unset:
+			return
+		var scr := get_viewport_rect().size
+		var bb := _bbox(points)
+		var sz := bb.size
+		if sz.x <= 0.0001 or sz.y <= 0.0001:
+			return
+		var sx := (scr.x - 2.0 * fit_margin_px) / sz.x
+		var sy := (scr.y - 2.0 * fit_margin_px) / sz.y
+		var s = min(sx, sy)
+		var off = -bb.position * s + Vector2(fit_margin_px, fit_margin_px)
+		for i in range(n - 1):
+			var a = points[i] * s + off
+			var b = points[i + 1] * s + off
+			draw_line(a, b, color, line_width, true)
+		if debug: prints("[Overlay] drew fallback-fit:", n, "pts")
 		return
 
-	# Prefer the method so auto-fit + redraw run.
-	if path.has_method("set_points"):
-		path.set_points(pts)
-		return
+	# Normal: project with the same matrix SpriteHandler uses
+	var inv := _world_matrix.inverse()
+	var last_ok := false
+	var last_scr := Vector2.ZERO
 
-	# Fallback: set the property and try to trigger fit + redraw if available.
-	if "points" in path:
-		path.points = pts
-		if path.has_method("_compute_fit"):
-			path._compute_fit()
-		if path.has_method("queue_redraw"):
-			path.queue_redraw()
+	# Precompute combined map-space offset (units)
+	var map_off := map_offset_units + (offset_px / pos_scale_px)
 
+	for i in range(n):
+		# back to MAP units (recorder saved pixels)
+		var mp := Vector2(points[i].x / pos_scale_px, points[i].y / pos_scale_px)
 
-func _save() -> void:
-	if _buf.size() < 3:
-		push_warning("PathRecorder: not enough points to save.")
-		return
+		# undo inverse if recorder used map inverse (we use racer now, so false)
+		if points_are_inverse:
+			mp = -mp
 
-	var pts := _rdp(PackedVector2Array(_buf), simplify_epsilon)
-	if close_loop_on_save and pts.size() >= 2:
-		if pts[0].distance_to(pts[pts.size()-1]) > sample_every_px:
-			pts.append(pts[0])
+		# optional axis fixes
+		if swap_xy:
+			mp = Vector2(mp.y, mp.x)
+		if invert_x:
+			mp.x = -mp.x
+		if invert_y:
+			mp.y = -mp.y
 
-	# Convert to simple [[x,y], [x,y], ...] for JSON
-	var arr: Array = []
-	for v in pts:
-		arr.append([v.x, v.y])
+		# apply alignment offset
+		mp += map_off
 
-	var data := {"points": arr}
+		# project to screen
+		var w := inv * Vector3(mp.x, mp.y, 1.0)
+		if w.z <= 0.0:
+			last_ok = false
+			continue
+		var scr := Vector2(w.x / w.z, w.y / w.z)
+		scr = (scr + Vector2(0.5, 0.5)) * _screen_size
 
-	var fa := FileAccess.open("user://ai_path.json", FileAccess.WRITE)
-	if fa:
-		fa.store_string(JSON.stringify(data))
-		fa.close()
-		print("[PathRecorder] Saved to user://ai_path.json (", pts.size(), " points)")
+		if last_ok:
+			draw_line(last_scr, scr, color, line_width, true)
+		last_ok = true
+		last_scr = scr
 
-		# Rebuild _buf as Array[Vector2] for runtime use
-		_buf.clear()
-		for v in pts:
-			_buf.append(v)
-
-		if live_preview:
-			_request_apply()
-	else:
-		push_error("PathRecorder: Failed to write user://ai_path.json")
-
-
-# --- RDP simplification ---
-func _rdp(pts: PackedVector2Array, eps: float) -> PackedVector2Array:
-	if pts.size() <= 2:
-		return pts.duplicate()
-	var first := pts[0]
-	var last := pts[pts.size() - 1]
-	var index := 0
-	var dist_max := -1.0
-	for i in range(1, pts.size() - 1):
-		var d := _point_line_distance(pts[i], first, last)
-		if d > dist_max:
-			index = i
-			dist_max = d
-	var result: PackedVector2Array = []
-	if dist_max > eps:
-		var rec1 := _rdp(pts.slice(0, index + 1), eps)
-		var rec2 := _rdp(pts.slice(index, pts.size()), eps)
-		for j in rec1.size():
-			result.append(rec1[j])
-		for j in range(1, rec2.size()):
-			result.append(rec2[j])
-	else:
-		result.append(first)
-		result.append(last)
-	return result
-
-func _point_line_distance(p: Vector2, a: Vector2, b: Vector2) -> float:
-	var ab := b - a
-	var t := 0.0
-	var denom := ab.length_squared()
-	if denom > 0.0:
-		t = clamp((p - a).dot(ab) / denom, 0.0, 1.0)
-	var proj := a + ab * t
-	return p.distance_to(proj)
+func _bbox(pts: PackedVector2Array) -> Rect2:
+	var minv := pts[0]
+	var maxv := pts[0]
+	for k in range(1, pts.size()):
+		var v := pts[k]
+		if v.x < minv.x: minv.x = v.x
+		if v.y < minv.y: minv.y = v.y
+		if v.x > maxv.x: maxv.x = v.x
+		if v.y > maxv.y: maxv.y = v.y
+	return Rect2(minv, maxv - minv)

@@ -1,4 +1,4 @@
-[gd_scene load_steps=30 format=3 uid="uid://d2glnv32t8md1"]
+[gd_scene load_steps=29 format=3 uid="uid://d2glnv32t8md1"]
 
 [ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_emb0w"]
 [ext_resource type="Script" uid="uid://cex362lk6utnk" path="res://Scripts/On Screen Elements/BackgroundEffects.gd" id="2_330he"]
@@ -18,7 +18,6 @@
 [ext_resource type="Texture2D" uid="uid://cpbay01qhxufs" path="res://Textures/Tracks/MarioTrack - Road Type.png" id="12_hibaj"]
 [ext_resource type="Script" uid="uid://bomqe0y8c30wy" path="res://Scripts/General/AnimationHandler.gd" id="13_6hxns"]
 [ext_resource type="Texture2D" uid="uid://d1nvgl514d4vw" path="res://Textures/Hazards/Orange_Pipes.png" id="16_t3snl"]
-[ext_resource type="Script" uid="uid://5mfc8ibm83i3" path="res://Scripts/AI/PathRecorder.gd" id="19_fevyy"]
 [ext_resource type="Script" uid="uid://bkg7bm4cb65tt" path="res://Scripts/AI/PathOverlay2D.gd" id="21_pdsj5"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_lhngl"]
@@ -1156,8 +1155,6 @@ flip_h = true
 region_enabled = true
 region_rect = Rect2(96, 0, 16, 16)
 
-[node name="Racer" type="Node2D" parent="Sprite Handler/Racers"]
-
 [node name="Hazards" type="Node2D" parent="Sprite Handler"]
 visible = false
 
@@ -1351,17 +1348,12 @@ _effectsPlayer = NodePath("../Racers/Player/Road Type Effects/Effects Player")
 _roadRoughness = 2
 _specialWheelEffect = [NodePath("../Racers/Player/Road Type Effects/Right Wheel Special"), NodePath("../Racers/Player/Road Type Effects/Left Wheel Special")]
 
-[node name="PathRecorder" type="Node2D" parent="."]
-script = ExtResource("19_fevyy")
-map_sprite_node = NodePath("../Map")
-path_node = NodePath("../SubViewport/PathOverlay2D")
-debug = true
-racer_node = NodePath("../Sprite Handler/Racers/Player")
-
 [node name="SubViewport" type="SubViewport" parent="."]
 transparent_bg = true
 size = Vector2i(1024, 1024)
 
 [node name="PathOverlay2D" type="Node2D" parent="SubViewport"]
 script = ExtResource("21_pdsj5")
-line_width = 2.0
+line_width = 3.0
+color = Color(1, 0, 0, 1)
+points = PackedVector2Array()
