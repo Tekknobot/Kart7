@@ -20,6 +20,7 @@ var _finalMatrix : Basis
 @export var path_overlay_viewport: SubViewport
 @export var path_overlay_node: NodePath  # the PathOverlay2D inside that SubViewport
 
+	
 func _bind_path_overlay_texture() -> void:
 	if material and path_overlay_viewport:
 		var tex := path_overlay_viewport.get_texture()

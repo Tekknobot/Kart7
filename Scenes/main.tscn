@@ -26,7 +26,6 @@ shader = ExtResource("3_okd74")
 shader_parameter/trackTexture = ExtResource("8_fevyy")
 shader_parameter/grassTexture = ExtResource("4_7c8ey")
 shader_parameter/mapMatrix = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
-shader_parameter/overlayAlpha = 1.0
 
 [sub_resource type="Animation" id="Animation_fevyy"]
 resource_name = "Drift_Anim"

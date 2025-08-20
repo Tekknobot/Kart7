@@ -1,5 +1,4 @@
 res://Scenes/main.tscn
 res://Scripts/Shaders/ModeSeven.gdshader
 res://Scripts/Shaders/GasDistort.gdshader
-res://Scripts/On Screen Elements/SpriteHandler.gd
-res://Scripts/General/AnimationHandler.gd
+res://Scripts/AI/PathOverlay2D.gd
