@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="Kindo Kart"
+config/name="Kart7"
 run/main_scene="res://Scenes/main.tscn"
 config/features=PackedStringArray("4.4", "Forward Plus")
 run/max_fps=60

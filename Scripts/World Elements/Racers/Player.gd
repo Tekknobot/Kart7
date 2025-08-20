@@ -1,24 +1,24 @@
-#Player.gd
 extends Racer
 
 # === Controls & Drift/Hop Settings ===
 const HOP_DURATION := 0.18
-const HOP_HEIGHT := 10.0            # seconds airborne-ish
-const HOP_SPEED_BOOST := 1.08         # temporary multiplier during hop
-const DRIFT_MIN_SPEED := 20.0         # require some speed to start drift
-const DRIFT_STEER_MULT := 1.65        # extra steering while drifting
-const DRIFT_SPEED_MULT := 0.92        # slight slowdown while holding drift
-const DRIFT_BUILD_RATE := 28.0        # how quickly mini-turbo charges
+const HOP_HEIGHT := 10.0
+const HOP_SPEED_BOOST := 1.08
+
+const DRIFT_MIN_SPEED := 20.0
+const DRIFT_STEER_MULT := 1.65
+const DRIFT_SPEED_MULT := 0.92
+const DRIFT_BUILD_RATE := 28.0
 const TURBO_THRESHOLD_SMALL := 35.0
 const TURBO_THRESHOLD_BIG := 80.0
 const TURBO_SMALL_MULT := 1.15
 const TURBO_BIG_MULT := 1.28
-const TURBO_TIME := 0.45              # seconds turbo lasts
+const TURBO_TIME := 0.45
 
 var _hop_timer := 0.0
 var _hop_boost_timer := 0.0
 var _is_drifting := false
-var _drift_dir := 0                    # -1 left, +1 right
+var _drift_dir := 0
 var _drift_charge := 0.0
 var _turbo_timer := 0.0
 var _base_sprite_offset_y := 0.0
@@ -27,66 +27,59 @@ const FRAME_W := 32
 const FRAME_H := 32
 const FRAMES_PER_ROW := 12
 
-# Where is "straight" in your strip?
 const TURN_STRAIGHT_INDEX := 0
-const TURN_INCREASES_TO_RIGHT := true  # <-- flipped to fix reversed animation
+const TURN_INCREASES_TO_RIGHT := true
 
-const BASIC_MAX := 3   # frames 0..3 for normal turns
-const DRIFT_MAX := 4   # frames 0..7 for drift turns
-const LEAN_LERP_SPEED := 14.0  # higher = snappier; try 10–20
-const STEER_SIGN := -1.0  # set to 1.0 if your world turns the other way
+const BASIC_MAX := 3
+const DRIFT_MAX := 4
+const LEAN_LERP_SPEED := 14.0
+const STEER_SIGN := -1.0
 
-var _lean_visual := 0.0     # smoothed 0..1
+var _lean_visual := 0.0
 var _lean_left_visual := false
-
 var _frame_anim_time := 0.0
 
 # === Sprite drift behavior (SNES-ish) ===
-const DRIFT_WOBBLE_FREQ := 6.5          # Hz-ish feel
-const DRIFT_WOBBLE_AMPL := 0.20         # how much of the range to wobble
-const DRIFT_BASE_BIAS := 0.68           # base depth (0..1) while drifting
-const DRIFT_RELEASE_BURST_TIME := 0.12  # seconds to snap to deepest frame on release
+const DRIFT_WOBBLE_FREQ := 6.5
+const DRIFT_WOBBLE_AMPL := 0.20
+const DRIFT_BASE_BIAS := 0.68
+const DRIFT_RELEASE_BURST_TIME := 0.12
 
-# Optional particles (only used if your scene has them)
-const DRIFT_PARTICLE_NODE := "DriftDust"   # GPUParticles2D under the kart (optional)
-const SPARKS_PARTICLE_NODE := "DriftSparks" # GPUParticles2D under the kart (optional)
+const DRIFT_PARTICLE_NODE := "DriftDust"
+const SPARKS_PARTICLE_NODE := "DriftSparks"
 
 var _drift_wobble_phase := 0.0
 var _drift_release_timer := 0.0
 
-const POST_DRIFT_SETTLE_TIME := 0.18   # time to ease from deep drift -> straight
+const POST_DRIFT_SETTLE_TIME := 0.18
 var _post_settle_time := 0.0
 
-const DRIFT_STEER_DEADZONE := 0.25     # min |steer| needed to commit a drift (0..1)
-const DRIFT_ARM_WINDOW := 0.20         # seconds after hop where a held R + steer can start a drift
+const DRIFT_STEER_DEADZONE := 0.25
+const DRIFT_ARM_WINDOW := 0.20
+var _drift_arm_timer := 0.0
 
-var _drift_arm_timer := 0.0            # counts down after hop; enables drift commit
+const DRIFT_MIN_TURN_BIAS := 0.55
+const DRIFT_STEER_INFLUENCE := 0.65
+const DRIFT_VISUAL_STEER_GAIN := 0.22
 
-const DRIFT_MIN_TURN_BIAS := 0.55    # guaranteed turn toward drift side while drifting (0..1)
-const DRIFT_STEER_INFLUENCE := 0.65  # how much live steer modulates that bias (0..1)
-const DRIFT_VISUAL_STEER_GAIN := 0.22  # how much |steer| deepens the skid frame
-
-const DRIFT_BREAK_DEADZONE := 0.12        # |steer| below this counts as "straight"
-const DRIFT_BREAK_GRACE := 0.10           # seconds you can be straight before the drift breaks
-const DRIFT_REVERSE_BREAK := 0.25         # opposite steer past this cancels immediately
-const POST_DRIFT_SETTLE_TIME_BREAK := 0.12# shorter settle when cancelled (no boost)
+const DRIFT_BREAK_DEADZONE := 0.12
+const DRIFT_BREAK_GRACE := 0.10
+const DRIFT_REVERSE_BREAK := 0.25
+const POST_DRIFT_SETTLE_TIME_BREAK := 0.12
 
 var _drift_break_timer := 0.0
-
-# Add this near your other consts:
-const TAU := PI * 2.0  # Godot 3.x safety; harmless on 4.x too
+const TAU := PI * 2.0
 
 # --- SNES-ish feel controls ---
-const DRIFT_GRIP := 0.55               # lower = slower yaw response while drifting
-const DRIFT_COUNTERSTEER_GAIN := 1.6   # extra effectiveness when steering opposite drift
-const DRIFT_SLIP_GAIN := 0.9           # sideways slide amount (scales with speed & steer)
-const DRIFT_SLIP_DAMP := 6.0           # how quickly slip decays when not fed
-var _drift_side_slip := 0.0            # accumulates lateral (perp-to-forward) velocity
+const DRIFT_GRIP := 0.55
+const DRIFT_COUNTERSTEER_GAIN := 1.6
+const DRIFT_SLIP_GAIN := 0.9
+const DRIFT_SLIP_DAMP := 6.0
+var _drift_side_slip := 0.0
 
 func _ready() -> void:
 	_register_default_actions()
 	_base_sprite_offset_y = ReturnSpriteGraphic().offset.y
-	# Ensure region mode is on
 	var spr := ReturnSpriteGraphic()
 	spr.region_enabled = true
 
@@ -97,7 +90,6 @@ func _set_frame(idx: int) -> void:
 	var x := idx * FRAME_W
 	spr.region_rect = Rect2(x, 0, FRAME_W, FRAME_H)
 
-# Map a 0..1 "right-lean amount" into [0..range_max], then mirror for left
 func _set_turn_amount_in_range(right_amount: float, is_left: bool, range_max: int) -> void:
 	right_amount = clamp(right_amount, 0.0, 1.0)
 	range_max = clamp(range_max, 0, FRAMES_PER_ROW - 1)
@@ -113,32 +105,26 @@ func _set_turn_amount_in_range(right_amount: float, is_left: bool, range_max: in
 
 	_set_frame(idx)
 
-	# Normal steering uses "is_left".
-	# Drifting, release-burst, and post-settle invert the flip (SNES-style skid).
 	if _is_drifting or _drift_release_timer > 0.0 or _post_settle_time > 0.0:
 		ReturnSpriteGraphic().flip_h = not is_left
 	else:
 		ReturnSpriteGraphic().flip_h = is_left
 
 func _choose_and_apply_frame(dt: float) -> void:
-	var steer := _inputDir.x            # -1..1
+	var steer := _inputDir.x
 	var target_left := steer > 0.0
-	var target_mag = abs(steer)        # 0..1
+	var target_mag = abs(steer)
 	var max_range := BASIC_MAX
 
 	if _is_drifting:
-		# SNES feel: lock side to drift dir, not current steer
-		_lean_left_visual = (_drift_dir < 0)   # left drift if -1
-
-		# Wobble around a deep base bias, react to steer, and avoid pinning
+		_lean_left_visual = (_drift_dir < 0)
 		_drift_wobble_phase += dt * DRIFT_WOBBLE_FREQ * TAU
 		var wobble := sin(_drift_wobble_phase) * DRIFT_WOBBLE_AMPL
 		var steer_intensity = abs(_inputDir.x)
 
-		var cap := 0.93  # keep headroom so wobble shows
+		var cap := 0.93
 		target_mag = clamp(DRIFT_BASE_BIAS + wobble + steer_intensity * DRIFT_VISUAL_STEER_GAIN, 0.0, cap)
 
-		# (Optional) help cross thresholds so you *see* frame swaps near the top
 		var steps := float(DRIFT_MAX)
 		var frac := fmod(target_mag * steps, 1.0)
 		if frac < 0.08: target_mag += 0.04
@@ -147,20 +133,17 @@ func _choose_and_apply_frame(dt: float) -> void:
 
 		max_range = DRIFT_MAX
 
-		# Visual charge: dust always, sparks by tier
 		_emit_dust(true)
 		if _drift_charge >= TURBO_THRESHOLD_BIG:
-			_emit_sparks(true); _set_sparks_color(Color(0.35, 0.6, 1.0))  # blue
+			_emit_sparks(true); _set_sparks_color(Color(0.35, 0.6, 1.0))
 		elif _drift_charge >= TURBO_THRESHOLD_SMALL:
-			_emit_sparks(true); _set_sparks_color(Color(1.0, 0.55, 0.2))  # orange
+			_emit_sparks(true); _set_sparks_color(Color(1.0, 0.55, 0.2))
 		else:
 			_emit_sparks(false)
 	else:
-		# No drift: normal smooth lean toward current steer
 		var t = clamp(dt * LEAN_LERP_SPEED, 0.0, 1.0)
 		_lean_visual = lerp(_lean_visual, target_mag, t)
 
-		# side switch smoothing
 		if target_left != _lean_left_visual and _lean_visual < 0.15:
 			_lean_left_visual = target_left
 		elif target_left != _lean_left_visual and target_mag > 0.35:
@@ -171,21 +154,17 @@ func _choose_and_apply_frame(dt: float) -> void:
 		_emit_dust(false)
 		_emit_sparks(false)
 
-	# Turbo release burst: snap to deepest few frames briefly
 	if _drift_release_timer > 0.0:
 		_drift_release_timer -= dt
 		target_mag = 1.0
 		max_range = DRIFT_MAX
 	elif _post_settle_time > 0.0:
-		# Post-drift settle: ease down from deep lean to straight
 		_post_settle_time = max(0.0, _post_settle_time - dt)
-		var u := 1.0 - (_post_settle_time / POST_DRIFT_SETTLE_TIME) # 0..1 elapsed
-		var eased := 1.0 - pow(1.0 - u, 3) # cubicOut
-		target_mag = lerp(1.0, 0.0, eased) # 1 -> 0 over settle
+		var u := 1.0 - (_post_settle_time / POST_DRIFT_SETTLE_TIME)
+		var eased := 1.0 - pow(1.0 - u, 3)
+		target_mag = lerp(1.0, 0.0, eased)
 		max_range = DRIFT_MAX
-		# Keep the side locked to drift side while we settle
 		_lean_left_visual = (_drift_dir < 0)
-		# No particles during settle
 		_emit_dust(false)
 		_emit_sparks(false)
 
@@ -195,41 +174,30 @@ func Setup(mapSize : int):
 	SetMapSize(mapSize)
 
 func Update(mapForward : Vector3):
-	# Handle collision pushback first (from base class flow)
 	if(_isPushedBack):
 		ApplyCollisionBump()
-	
-	# --- INPUT (analog + digital combined) ---
-	var input_vec := ReturnPlayerInput() # x=steer, y=throttle(-)/brake(+)
-	
-	# --- Hop & Drift state machine ---
+
+	var input_vec := ReturnPlayerInput()
 	_handle_hop_and_drift(input_vec)
-	
-	# --- Movement integration & collisions (preserve original flow) ---
+
 	var nextPos : Vector3 = _mapPosition + ReturnVelocity()
 	var nextPixelPos : Vector2i = Vector2i(ceil(nextPos.x), ceil(nextPos.z))
 
-	# ⬇️ INSERT SIDE SLIP *HERE*, after computing nextPos but before wall checks
-	# ------------------------------------------------------------------------
 	var right_vec := Vector3(-mapForward.z, 0.0, mapForward.x).normalized()
 	var dt := get_process_delta_time()
 	if _is_drifting:
 		var speed := ReturnVelocity().length()
 		var steer_amt = abs(_inputDir.x)
 		var feed = DRIFT_SLIP_GAIN * speed * steer_amt
-
 		var outward_sign := 1.0
 		if _drift_dir >= 0:
 			outward_sign = -1.0
-
 		_drift_side_slip = lerp(_drift_side_slip, outward_sign * feed, clamp(dt * 4.0, 0.0, 1.0))
 	else:
 		_drift_side_slip = lerp(_drift_side_slip, 0.0, clamp(dt * DRIFT_SLIP_DAMP, 0.0, 1.0))
 
 	nextPos += right_vec * _drift_side_slip * dt
-	# ------------------------------------------------------------------------
 
-	# Now do wall collision checks
 	if(_collisionHandler.IsCollidingWithWall(Vector2i(ceil(nextPos.x), ceil(_mapPosition.z)))):
 		nextPos.x = _mapPosition.x 
 		SetCollisionBump(Vector3(-sign(ReturnVelocity().x), 0, 0))
@@ -243,10 +211,8 @@ func Update(mapForward : Vector3):
 	UpdateMovementSpeed()
 	UpdateVelocity(mapForward)
 
-	# Apply visual hop offset to sprite
 	_apply_hop_sprite_offset()
 	_choose_and_apply_frame(get_process_delta_time())
-
 
 func ReturnPlayerInput() -> Vector2:
 	var steer := 0.0
@@ -260,17 +226,15 @@ func ReturnPlayerInput() -> Vector2:
 			steer = -1.0
 		elif Input.is_joy_button_pressed(dev, JOY_BUTTON_DPAD_RIGHT):
 			steer = 1.0
-		if Input.is_joy_button_pressed(dev, JOY_BUTTON_A):  # B(South) accel
+		if Input.is_joy_button_pressed(dev, JOY_BUTTON_A):
 			throttle = -1.0
-		if Input.is_joy_button_pressed(dev, JOY_BUTTON_X):  # Y(West) brake
+		if Input.is_joy_button_pressed(dev, JOY_BUTTON_X):
 			brake = 1.0
 
 	if brake > 0.01:
 		throttle = -brake
 
-	# <<< FIX: flip steering for world/camera convention >>>
 	steer *= STEER_SIGN
-
 	_inputDir = Vector2(steer, throttle)
 	return _inputDir
 
@@ -282,64 +246,49 @@ func _handle_hop_and_drift(input_vec : Vector2) -> void:
 	var moving_fast := _movementSpeed >= DRIFT_MIN_SPEED
 	var steer_abs = abs(input_vec.x)
 
-	# --- Hop (always occurs on press) ---
 	if hop_pressed and not _is_drifting:
 		_hop_timer = HOP_DURATION
 		_hop_boost_timer = HOP_DURATION
 		_speedMultiplier = max(_speedMultiplier, HOP_SPEED_BOOST)
 		_drift_arm_timer = DRIFT_ARM_WINDOW
 
-	# Decay hop boost
 	if _hop_boost_timer > 0.0:
 		_hop_boost_timer -= dt
 		if _hop_boost_timer <= 0.0:
 			_speedMultiplier = 1.0
 
-	# Decay drift arm window
 	if _drift_arm_timer > 0.0:
 		_drift_arm_timer = max(0.0, _drift_arm_timer - dt)
 
-	# --- NEW: commit a drift during the arm window ---
 	if not _is_drifting \
 		and drift_down \
 		and _drift_arm_timer > 0.0 \
 		and moving_fast \
 		and steer_abs >= DRIFT_STEER_DEADZONE:
 		_is_drifting = true
-		if input_vec.x < 0.0:
-			_drift_dir = -1
-		else:
-			_drift_dir = 1
+		_drift_dir = -1 if input_vec.x < 0.0 else 1
 		_drift_wobble_phase = 0.0
 		_drift_break_timer = 0.0
 		_drift_charge = 0.0
-		# lock initial visual side immediately
 		_lean_left_visual = (_drift_dir < 0)
-		# optional: clear settle so we don't fight the new drift
 		_post_settle_time = 0.0
 
-	# --- While drifting and R is held: build charge, slight slowdown, stronger steer ---
 	if _is_drifting and drift_down:
 		_speedMultiplier = DRIFT_SPEED_MULT
 
-		# Base bias into drift side + live steer influence (your idea)
 		var bias := _drift_dir * DRIFT_MIN_TURN_BIAS
 		var steer_mod := input_vec.x * DRIFT_STEER_INFLUENCE
 		var raw_target = clamp(bias + steer_mod, -1.0, 1.0)
 
-		# Counter-steer tightening: if steering opposite the drift, amplify a bit
 		if sign(input_vec.x) == -_drift_dir:
 			raw_target *= DRIFT_COUNTERSTEER_GAIN
 		raw_target = clamp(raw_target, -1.0, 1.0)
 
-		# Reduced grip: don't slam _inputDir.x; ease toward the target
 		var grip_t = clamp(get_process_delta_time() * (DRIFT_GRIP * 10.0), 0.0, 1.0)
 		_inputDir.x = lerp(_inputDir.x, raw_target * DRIFT_STEER_MULT, grip_t)
 
-		# Build charge with actual effort (unchanged)
 		_drift_charge += abs(input_vec.x) * DRIFT_BUILD_RATE * get_process_delta_time()
 
-		# ---- break rules (unchanged) ----
 		var steer_sign = sign(input_vec.x)
 		if steer_sign != 0 and steer_sign == -_drift_dir and abs(input_vec.x) >= DRIFT_REVERSE_BREAK:
 			_cancel_drift_no_award(POST_DRIFT_SETTLE_TIME_BREAK)
@@ -350,12 +299,9 @@ func _handle_hop_and_drift(input_vec : Vector2) -> void:
 		else:
 			_drift_break_timer = 0.0
 
-
-	# --- Release: award boost if eligible ---
 	if _is_drifting and not drift_down:
 		_end_drift_with_award()
 
-	# Turbo decay (unchanged)
 	if _turbo_timer > 0.0:
 		_turbo_timer -= dt
 		if _turbo_timer <= 0.0:
@@ -369,28 +315,19 @@ func _register_default_actions() -> void:
 	if not InputMap.has_action("Hop"):     InputMap.add_action("Hop")
 	if not InputMap.has_action("Drift"):   InputMap.add_action("Drift")
 
-	# SNES gamepad only
 	var jb := InputEventJoypadButton.new()
-
-	# Forward: B (South) -> JOY_BUTTON_A
 	jb.button_index = JOY_BUTTON_A;              InputMap.action_add_event("Forward", jb.duplicate())
-	# Brake: Y (West) -> JOY_BUTTON_X
 	jb.button_index = JOY_BUTTON_X;              InputMap.action_add_event("Brake", jb.duplicate())
-	# Hop: R shoulder (same as MK hop)
 	jb.button_index = JOY_BUTTON_RIGHT_SHOULDER; InputMap.action_add_event("Hop", jb.duplicate())
-	# Drift: R shoulder (hold)
 	jb.button_index = JOY_BUTTON_RIGHT_SHOULDER; InputMap.action_add_event("Drift", jb.duplicate())
-	# Steering: D-Pad
 	jb.button_index = JOY_BUTTON_DPAD_LEFT;      InputMap.action_add_event("Left", jb.duplicate())
 	jb.button_index = JOY_BUTTON_DPAD_RIGHT;     InputMap.action_add_event("Right", jb.duplicate())
 
 func _apply_hop_sprite_offset() -> void:
-	# Visual hop arc using sprite offset so we don't fight AnimationHandler's .position.y
 	var dt := get_process_delta_time()
 	if _hop_timer > 0.0:
 		_hop_timer -= dt
 		var t = clamp(1.0 - (_hop_timer / HOP_DURATION), 0.0, 1.0)
-		# Simple arc: sin(pi * t) for up-and-down
 		var y := sin(PI * t) * HOP_HEIGHT
 		ReturnSpriteGraphic().offset.y = _base_sprite_offset_y - y
 	else:
@@ -412,16 +349,45 @@ func _emit_sparks(on: bool) -> void:
 
 func _emit_dust(on: bool) -> void:
 	var p := _try_get_node(DRIFT_PARTICLE_NODE)
-	if p and p is GPUParticles2D:
+	if p == null:
+		return
+
+	# Path 1: GPUParticles2D (existing support)
+	if p is GPUParticles2D:
 		p.emitting = on
+		return
+
+	# Path 2: AnimatedSprite2D using your sprite sheet
+	if p is AnimatedSprite2D:
+		p.visible = on
+		if on:
+			# choose the animation you added in SpriteFrames ("drift" by default)
+			if not p.sprite_frames or p.sprite_frames.get_animation_names().is_empty():
+				return
+			var anim = p.animation
+			# If current animation is empty or stopped, use the first animation
+			if anim == "" or not p.is_playing():
+				anim = p.sprite_frames.get_animation_names()[0]  # or "drift"
+			p.animation = anim
+			if not p.is_playing():
+				p.play()
+		else:
+			if p.is_playing():
+				p.stop()
+		return
+
+	# Optional Path 3: Sprite2D with hframes/vframes (simple on/off)
+	if p is Sprite2D:
+		p.visible = on
+
 
 func _cancel_drift_no_award(settle_time: float) -> void:
 	_is_drifting = false
 	_speedMultiplier = 1.0
 	_emit_dust(false)
 	_emit_sparks(false)
-	_drift_release_timer = 0.0      # no burst frame
-	_post_settle_time = settle_time # still glide back visually
+	_drift_release_timer = 0.0
+	_post_settle_time = settle_time
 	_lean_left_visual = (_drift_dir < 0)
 	_drift_charge = 0.0
 
@@ -445,3 +411,10 @@ func _end_drift_with_award() -> void:
 	_post_settle_time = POST_DRIFT_SETTLE_TIME
 	_lean_left_visual = (_drift_dir < 0)
 	_drift_charge = 0.0
+
+# --- NEW: tiny getter AnimationHandler uses to detect hop state ---
+func ReturnIsHopping() -> bool:
+	return _hop_timer > 0.0
+
+func ReturnIsDrifting() -> bool:
+	return _is_drifting
