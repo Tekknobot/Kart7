@@ -48,17 +48,20 @@ func Setup(screenSize : Vector2, player : Racer):
 	_bind_path_overlay_texture()
 	UpdateShader()
 
-func Update(player : Racer):
+func Update(player: Racer) -> void:
 	RotateMap(player.ReturnPlayerInput().x, player.ReturnMovementSpeed())
 	KeepRotationDistance(player)
 	UpdateShader()
 
-	var scr := get_viewport_rect().size         # << important
-	for np in opponent_nodes:                   # export Array[NodePath] in inspector
-		var ai = get_node_or_null(np)
+	var scr: Vector2 = get_viewport_rect().size
+	var f3: Vector3 = ReturnForward()                      # (sin(yaw), 0, cos(yaw))
+	var cam_f: Vector2 = Vector2(f3.x, f3.z).normalized()
+
+	for np in opponent_nodes:
+		var ai: Node = get_node_or_null(np)
 		if ai and ai.has_method("set_world_and_screen"):
-			ai.set_world_and_screen(_finalMatrix, scr)
-			
+			ai.call("set_world_and_screen", _finalMatrix, scr, cam_f)
+	
 func RotateMap(rotDir : int, speed : float):
 	if(rotDir != 0 and abs(speed) > 0): AccelMapRotation(rotDir)
 	else: DeaccelMapRotation()
@@ -111,6 +114,7 @@ func UpdateShader():
 	
 	_finalMatrix =  translationMatrix * rotationMatrix 
 	material.set_shader_parameter("mapMatrix", _finalMatrix)
+
 
 func WrapAngle(angle : float) -> float: 
 	if(rad_to_deg(angle) > 360):

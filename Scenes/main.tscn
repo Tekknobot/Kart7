@@ -1094,6 +1094,7 @@ _roadTypeColors = Array[Color]([Color(0, 0, 0, 1), Color(1, 1, 1, 1), Color(0.8,
 script = ExtResource("7_wmybs")
 _hazards = [NodePath("Hazards/Bridge/Green Pipe"), NodePath("Hazards/Bridge/Green Pipe2"), NodePath("Hazards/Bridge/Green Pipe3"), NodePath("Hazards/Bridge/Green Pipe4"), NodePath("Hazards/Shortcut/Green Pipe"), NodePath("Hazards/Shortcut/Green Pipe2"), NodePath("Hazards/Shortcut/Green Pipe3"), NodePath("Hazards/Shortcut/Green Pipe4"), NodePath("Hazards/Lake/Green Pipe"), NodePath("Hazards/Lake/Green Pipe2"), NodePath("Hazards/Lake/Green Pipe3"), NodePath("Hazards/Lake/Green Pipe4"), NodePath("Hazards/Last Turn/Green Pipe"), NodePath("Hazards/Last Turn/Green Pipe2"), NodePath("Hazards/Last Turn/Green Pipe3"), NodePath("Hazards/Last Turn/Green Pipe4")]
 pseudo3d_node = NodePath("Racers/Player")
+path_overlay_node = NodePath("../SubViewport/PathOverlay2D")
 
 [node name="Racers" type="Node2D" parent="Sprite Handler"]
 
@@ -1163,6 +1164,8 @@ region_rect = Rect2(96, 0, 16, 16)
 position = Vector2(-1.52588e-05, 0)
 script = ExtResource("16_hibaj")
 path_overlay_uv = NodePath("../../../SubViewport/PathOverlay2D")
+gfx_path = NodePath("GFX")
+invert_uv_y = false
 
 [node name="GFX" type="Sprite2D" parent="Sprite Handler/Racers/Racer"]
 z_as_relative = false

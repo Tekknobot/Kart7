@@ -253,4 +253,4 @@ func _bbox(pts: PackedVector2Array) -> Rect2:
 	return Rect2(minv, maxv - minv)
 
 func get_path_points_uv() -> PackedVector2Array:
-	return points_uv  # UVs (0..1), closed loop
+	return points_uv  # UVs 0..1, CLOSED

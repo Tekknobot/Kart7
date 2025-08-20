@@ -16,9 +16,9 @@ extends Node2D
 
 # ---- Visual sprite scaling (perspective) ----
 @export_node_path("Sprite2D") var gfx_path: NodePath                   # assign your Sprite2D child (e.g., "GFX")
-@export var size_k: float = 0.9                                        # scale numerator; tweak for camera pitch
-@export var size_min: float = 0.35                                     # min scale clamp
-@export var size_max: float = 2.0                                      # max scale clamp
+@export var size_k: float = 6.0
+@export var size_min: float = 0.5
+@export var size_max: float = 3.0
 
 # ---- Orientation fix ----
 @export var invert_uv_y: bool = true   # flip UV.y if your path appears upside-down
@@ -31,6 +31,13 @@ var _pts_uv: Array[Vector2] = []            # UV points (0..1), closed
 var _cumlen_px: PackedFloat32Array = []     # cumulative arc length (texture pixels)
 var _total_len_px: float = 0.0
 var _s_px: float = 0.0
+
+var _cam_forward := Vector2(0, 1)  # map-space forward (x,z)
+@export var debug_dot: bool = false  # add near other exports
+
+@export var swap_xy: bool = false
+@export var invert_x: bool = false
+@export var invert_y: bool = false
 
 func _ready() -> void:
 	visible = true
@@ -60,9 +67,10 @@ func _physics_process(delta: float) -> void:
 	queue_redraw()  # draws a red dot so you can see the node even without a sprite
 
 # Feed same matrix+screen as shader each frame (from Pseudo3D.Update)
-func set_world_and_screen(m: Basis, screen_size: Vector2) -> void:
+func set_world_and_screen(m: Basis, screen_size: Vector2, cam_forward_map: Vector2 = Vector2(0, 1)) -> void:
 	_world_matrix = m
 	_screen_size = screen_size
+	_cam_forward = cam_forward_map.normalized()
 
 # ---------------- path ingest ----------------
 func _load_path_uv() -> void:
@@ -127,53 +135,89 @@ func _sample_uv_at_s(s_px: float) -> Vector2:
 	return a_uv.lerp(b_uv, t)
 
 func _place_racer_at_s(s_px: float) -> void:
-	var uv := _sample_uv_at_s(s_px)
-	var uv_ahead := _sample_uv_at_s(s_px + lookahead_px)
+	var uv: Vector2 = _sample_uv_at_s(s_px)
+	var uv_ahead: Vector2 = _sample_uv_at_s(s_px + lookahead_px)
 
-	# --- UV orientation fix ---
+	# Flip UV vertically once if your map needs it
 	if invert_uv_y:
 		uv.y = 1.0 - uv.y
 		uv_ahead.y = 1.0 - uv_ahead.y
 
 	# UV -> centered map units (UV - 0.5), same as shader
-	var mp := uv - Vector2(0.5, 0.5)
-	var mp2 := uv_ahead - Vector2(0.5, 0.5)
+	var mp: Vector2 = uv - Vector2(0.5, 0.5)
+	var mp2: Vector2 = uv_ahead - Vector2(0.5, 0.5)
 
-	# Inverse projection basis (safe default = identity)
-	var inv: Basis
+	# Optional axis fixes (use ONE at a time if needed)
+	if swap_xy:
+		mp = Vector2(mp.y, mp.x)
+		mp2 = Vector2(mp2.y, mp2.x)
+	if invert_x:
+		mp.x = -mp.x; mp2.x = -mp2.x
+	if invert_y:
+		mp.y = -mp.y; mp2.y = -mp2.y
+
+	# SAME matrix as shader (no inverse, no transpose)
+	var M: Basis
 	if _world_matrix == Basis():
-		inv = Basis.IDENTITY
+		M = Basis.IDENTITY
 	else:
-		inv = _world_matrix.inverse()
+		M = _world_matrix
 
-	# Project to clip/screen
-	var w := inv * Vector3(mp.x, mp.y, 1.0)
+	# project to screen
+	var w: Vector3 = M * Vector3(mp.x, mp.y, 1.0)
 	if w.z <= 0.0:
 		visible = false
 		return
 	visible = true
 
-	var scr := Vector2(w.x / w.z, w.y / w.z)
+	var scr: Vector2 = Vector2(w.x / w.z, w.y / w.z)
 	global_position = (scr + Vector2(0.5, 0.5)) * _screen_size
 
-	# Depth sort
+	if Engine.get_frames_drawn() % 60 == 0:
+		print("uv=", uv, " mp=", mp, " w=", w, " screen=", global_position)
+
+	# depth sort
 	z_index = int(clamp(w.z * 1000.0, -200000.0, 200000.0))
 
-	# Perspective sprite scale (1/z)
-	var s = clamp(size_k / w.z, size_min, size_max)
-	var gfx := get_node_or_null(gfx_path)
-	if gfx and gfx.has_method("set_scale"):
-		gfx.scale = Vector2(s, s)
+	# perspective sprite size ~ 1/z
+	# (add these exports if missing: gfx_path: NodePath, size_k: float, size_min: float, size_max: float)
+	var s: float = size_k / w.z
+	if s < size_min: s = size_min
+	if s > size_max: s = size_max
+	var gfx: Node = get_node_or_null(gfx_path)
+	if gfx is Node2D:
+		var g2d: Node2D = gfx
+		if g2d is Sprite2D:
+			(g2d as Sprite2D).centered = true   # stable pivot
+		g2d.scale = Vector2(s, s)
 
-	# Face along the path tangent (screen-projected)
+	# screen‑tangent rotation (stable)
 	if face_along_path:
-		var w2 := inv * Vector3(mp2.x, mp2.y, 1.0)
+		var w2: Vector3 = M * Vector3(mp2.x, mp2.y, 1.0)
 		if w2.z > 0.0:
-			var scr2 := Vector2(w2.x / w2.z, w2.y / w2.z)
-			var dir := ((scr2 + Vector2(0.5, 0.5)) * _screen_size) - global_position
+			var scr2: Vector2 = Vector2(w2.x / w2.z, w2.y / w2.z)
+			var dir: Vector2 = ((scr2 + Vector2(0.5, 0.5)) * _screen_size) - global_position
 			if dir.length() > 0.001:
 				rotation = dir.angle()
 
+	# Facing along the path (screen-projected)
+	if face_along_path:
+		var w2: Vector3 = M * Vector3(mp2.x, mp2.y, 1.0)
+		if w2.z > 0.0:
+			var scr2: Vector2 = Vector2(w2.x / w2.z, w2.y / w2.z)
+			var dir: Vector2 = ((scr2 + Vector2(0.5, 0.5)) * _screen_size) - global_position
+			if dir.length() > 0.001:
+				rotation = dir.angle()
+
+	rotation = 0.0
+	
+	# Feed AngleSprite to pick correct frame
+	if gfx and gfx.has_method("set_camera_forward") and gfx.has_method("set_kart_forward"):
+		var kart_forward_map: Vector2 = (mp2 - mp).normalized()
+		gfx.call("set_kart_forward",  kart_forward_map)
+		gfx.call("set_camera_forward", _cam_forward)
+
 # ---------------- debug ----------------
 func _draw() -> void:
-	draw_circle(Vector2.ZERO, 6.0, Color(1,0,0,1))
+	if debug_dot:
+		draw_circle(Vector2.ZERO, 6.0, Color(1,0,0,1))	
