@@ -6,3 +6,4 @@ res://Scripts/World Elements/Pseudo3D.gd
 res://Scripts/AI/PathRecorder.gd
 res://Scripts/World Elements/Racers/Opponent.gd
 res://Scripts/AI/AngleSprite.gd
+res://Scripts/General/Game.gd

@@ -34,12 +34,6 @@ func _bind_path_overlay_texture() -> void:
 		if tex:
 			material.set_shader_parameter("pathOverlay", tex)
 
-func SetPathPoints(p: PackedVector2Array) -> void:
-	var n = get_node_or_null(path_overlay_node)
-	if n and n.has_method("set_points"):
-		n.set_points(p)
-	_bind_path_overlay_texture()  # ensure uniform bound (useful after reload)
-
 func Setup(screenSize : Vector2, player : Racer):
 	scale = screenSize / texture.get_size().x
 	_mapPosition = Vector3(player.ReturnMapPosition().x, _mapVerticalPosition, player.ReturnMapPosition().z)
@@ -47,20 +41,13 @@ func Setup(screenSize : Vector2, player : Racer):
 	KeepRotationDistance(player)
 	_bind_path_overlay_texture()
 	UpdateShader()
+	_update_opponents_view_bindings()   # <-- prime once
 
 func Update(player: Racer) -> void:
 	RotateMap(player.ReturnPlayerInput().x, player.ReturnMovementSpeed())
 	KeepRotationDistance(player)
 	UpdateShader()
-
-	var scr: Vector2 = get_viewport_rect().size
-	var f3: Vector3 = ReturnForward()                      # (sin(yaw), 0, cos(yaw))
-	var cam_f: Vector2 = Vector2(f3.x, f3.z).normalized()
-
-	for np in opponent_nodes:
-		var ai: Node = get_node_or_null(np)
-		if ai and ai.has_method("set_world_and_screen"):
-			ai.call("set_world_and_screen", _finalMatrix, scr, cam_f)
+	_update_opponents_view_bindings()   # <-- do each frame
 	
 func RotateMap(rotDir : int, speed : float):
 	if(rotDir != 0 and abs(speed) > 0): AccelMapRotation(rotDir)
@@ -94,28 +81,29 @@ func KeepRotationDistance(racer : Racer):
 func UpdateShader():
 	var yawMatrix : Basis = Basis(
 		Vector3(cos(_mapRotationAngle.y), -sin(_mapRotationAngle.y), 0.0),
-		Vector3(sin(_mapRotationAngle.y), cos(_mapRotationAngle.y), 0.0),
-		Vector3(0.0,0.0,1.0)
+		Vector3(sin(_mapRotationAngle.y),  cos(_mapRotationAngle.y), 0.0),
+		Vector3(0.0, 0.0, 1.0)
 	)
-	
+
 	var pitchMatrix : Basis = Basis(
-		Vector3(1, 0 , 0),
-		Vector3(0, cos(_mapRotationAngle.x), -sin(_mapRotationAngle.x)),
-		Vector3(0, sin(_mapRotationAngle.x), cos(_mapRotationAngle.x))
+		Vector3(1.0, 0.0, 0.0),
+		Vector3(0.0, cos(_mapRotationAngle.x), -sin(_mapRotationAngle.x)),
+		Vector3(0.0, sin(_mapRotationAngle.x),  cos(_mapRotationAngle.x))
 	)
-	
+
 	var rotationMatrix : Basis = yawMatrix * pitchMatrix
-	
+
+	var e := _safe_exp(_mapPosition.y)
 	var translationMatrix : Basis = Basis(
 		Vector3(1.0, 0.0, 0.0),
-		Vector3(0.0, 1.0, 0),
-		Vector3(_mapPosition.x * exp(_mapPosition.y), _mapPosition.z * exp(_mapPosition.y), exp(_mapPosition.y))
+		Vector3(0.0, 1.0, 0.0),
+		Vector3(_mapPosition.x * e, _mapPosition.z * e, e)
 	)
-	
-	_finalMatrix =  translationMatrix * rotationMatrix 
-	material.set_shader_parameter("mapMatrix", _finalMatrix)
 
-
+	_finalMatrix = translationMatrix * rotationMatrix
+	if material:
+		material.set_shader_parameter("mapMatrix", _finalMatrix)
+		
 func WrapAngle(angle : float) -> float: 
 	if(rad_to_deg(angle) > 360):
 		return angle - deg_to_rad(360)
@@ -126,3 +114,54 @@ func WrapAngle(angle : float) -> float:
 func ReturnForward() -> Vector3: return Vector3(sin(_mapRotationAngle.y), 0, cos(_mapRotationAngle.y))
 func ReturnWorldMatrix() -> Basis: return _finalMatrix
 func ReturnMapRotation() -> float: return _mapRotationAngle.y
+
+func _update_opponents_view_bindings() -> void:
+	var scr: Vector2 = get_viewport_rect().size
+	var f3: Vector3 = ReturnForward()
+	var cam_f: Vector2 = Vector2(f3.x, f3.z).normalized()
+
+	# keep overlay in sync
+	var overlay := get_node_or_null(path_overlay_node)
+	if overlay and overlay.has_method("set_world_and_screen"):
+		overlay.call("set_world_and_screen", _finalMatrix, scr)
+
+	# push to all opponents
+	for np in opponent_nodes:
+		var ai: Node = get_node_or_null(np)
+		if ai:
+			if ai.has_method("set_world_and_screen"):
+				ai.call("set_world_and_screen", _finalMatrix, scr)
+			if ai.has_method("set_camera_forward"):
+				ai.call("set_camera_forward", cam_f)
+
+func SetYaw(angle: float) -> void:
+	_mapRotationAngle.y = angle
+	UpdateShader()
+	_update_opponents_view_bindings()
+
+func _safe_exp(y: float) -> float:
+	return exp(clamp(y, -6.0, 6.0))  # avoid blow-ups
+
+func SetPathPoints(p: PackedVector2Array) -> void:
+	var n = get_node_or_null(path_overlay_node)
+	if n:
+		# Accept either raw pixels or UVs
+		if n.has_method("set_points"):
+			n.call("set_points", p)
+		elif n.has_method("set_points_uv"):
+			n.call("set_points_uv", p)
+	_bind_path_overlay_texture()
+
+	# Push UVs to opponents (prefer transformed)
+	if n:
+		var uv: PackedVector2Array = PackedVector2Array()
+		if n.has_method("get_path_points_uv_transformed"):
+			uv = n.call("get_path_points_uv_transformed")
+		elif n.has_method("get_path_points_uv"):
+			uv = n.call("get_path_points_uv")
+
+		if uv.size() > 1:
+			for np in opponent_nodes:
+				var ai: Node = get_node_or_null(np)
+				if ai and ai.has_method("set_points_uv"):
+					ai.call("set_points_uv", uv)

@@ -1165,7 +1165,7 @@ position = Vector2(-1.52588e-05, 0)
 script = ExtResource("16_hibaj")
 path_overlay_uv = NodePath("../../../SubViewport/PathOverlay2D")
 gfx_path = NodePath("GFX")
-invert_uv_y = false
+kart_height_map = 0.3
 
 [node name="GFX" type="Sprite2D" parent="Sprite Handler/Racers/Racer"]
 z_as_relative = false

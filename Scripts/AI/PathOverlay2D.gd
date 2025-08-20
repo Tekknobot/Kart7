@@ -57,6 +57,9 @@ extends Node2D
 var _world_matrix: Basis = Basis()      # same matrix you send to the shader as `mapMatrix`
 var _screen_size: Vector2 = Vector2.ZERO
 
+@export var show_debug_markers := true
+var _debug_markers_uv: Array[Vector2] = []
+
 # =========================
 # Lifecycle
 # =========================
@@ -81,13 +84,46 @@ func _ready() -> void:
 	queue_redraw()
 
 # External API ---------------------------------------------------
+# --- Add/replace these in PathOverlay2D.gd ---
+
+# Set pixel-space points and auto-derive UVs (0..1)
 func set_points(p: PackedVector2Array) -> void:
 	if p.is_empty():
 		if debug: push_warning("[Overlay] Ignored set_points([])")
 		return
 	points = p
-	if debug: prints("[Overlay] set_points:", points.size())
+	# derive UVs from pixels
+	points_uv = PackedVector2Array()
+	for v in points:
+		points_uv.append(v / pos_scale_px)
+	_ensure_closed_uv()
+	if debug: prints("[Overlay] set_points px:", points.size(), " -> uv:", points_uv.size())
 	queue_redraw()
+
+# Optional: set UVs directly (0..1). Useful if your track tool already exports UVs.
+func set_points_uv(puv: PackedVector2Array) -> void:
+	if puv.is_empty():
+		if debug: push_warning("[Overlay] Ignored set_points_uv([])")
+		return
+	points_uv = puv.duplicate()
+	_ensure_closed_uv()
+	# keep 'points' in pixel space for preview drawing
+	points = PackedVector2Array()
+	for uv in points_uv:
+		points.append(uv * pos_scale_px)
+	if debug: prints("[Overlay] set_points_uv:", points_uv.size())
+	queue_redraw()
+
+func get_path_points_uv() -> PackedVector2Array:
+	return points_uv  # authoritative 0..1, CLOSED
+
+# Ensure path is closed (first == last)
+func _ensure_closed_uv() -> void:
+	if points_uv.size() >= 2:
+		var a: Vector2 = points_uv[0]
+		var b: Vector2 = points_uv[points_uv.size() - 1]
+		if a.distance_to(b) > (1.0 / pos_scale_px):
+			points_uv.append(a)
 
 func get_path_points() -> PackedVector2Array:
 	return points
@@ -96,7 +132,7 @@ func get_path_points() -> PackedVector2Array:
 func set_world_and_screen(m: Basis, screen_size: Vector2) -> void:
 	_world_matrix = m
 	_screen_size = screen_size
-	if debug: prints("[Overlay] set_world_and_screen screen:", _screen_size, " preview_mode:", preview_mode)
+	#if debug: prints("[Overlay] set_world_and_screen screen:", _screen_size, " preview_mode:", preview_mode)
 	queue_redraw()
 
 # =========================
@@ -123,6 +159,13 @@ func _draw_uv_space(pts: PackedVector2Array) -> void:
 		if i < ready.size() - 1:
 			var b = ready[i + 1]
 			draw_line(a, b, color, line_width, true)
+			
+	# --- DEBUG: draw AI/markers in UV texture space ---
+	if show_debug_markers and _debug_markers_uv.size() > 0:
+		for uv in _debug_markers_uv:
+			var p := uv * pos_scale_px      # uv -> pixels
+			draw_circle(p, 6.0, Color(0,1,0,1))   # green dot
+			
 
 func _apply_px_transforms(pts: PackedVector2Array) -> PackedVector2Array:
 	var out := PackedVector2Array()
@@ -252,5 +295,43 @@ func _bbox(pts: PackedVector2Array) -> Rect2:
 		if v.y > maxv.y: maxv.y = v.y
 	return Rect2(minv, maxv - minv)
 
-func get_path_points_uv() -> PackedVector2Array:
-	return points_uv  # UVs 0..1, CLOSED
+# Return UVs AFTER applying editor transforms (rotate/flip/scale/offset),
+# so the path matches what you see in the SubViewport.
+func get_path_points_uv_transformed() -> PackedVector2Array:
+	var src_px: PackedVector2Array
+
+	# Ensure we have pixel-space points to transform
+	if points.size() > 0:
+		src_px = points.duplicate()
+	elif points_uv.size() > 0:
+		# rebuild pixels from UVs if needed
+		src_px = PackedVector2Array()
+		for uv in points_uv:
+			src_px.append(uv * pos_scale_px)
+	else:
+		return PackedVector2Array()  # nothing to return
+
+	# Apply the same pixel-space transforms used by _draw()
+	var px_ready: PackedVector2Array = _apply_px_transforms(src_px)
+
+	# Convert back to UVs
+	var out := PackedVector2Array()
+	for p in px_ready:
+		out.append(p / pos_scale_px)
+
+	# Ensure closed loop like other getters
+	if out.size() >= 2:
+		var a := out[0]
+		var b := out[out.size() - 1]
+		if a.distance_to(b) > (1.0 / pos_scale_px):
+			out.append(a)
+
+	return out
+
+func clear_debug_markers() -> void:
+	_debug_markers_uv.clear()
+	queue_redraw()
+
+func add_debug_marker_uv(uv: Vector2) -> void:
+	_debug_markers_uv.append(uv)
+	queue_redraw()
