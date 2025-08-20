@@ -1342,5 +1342,5 @@ _mapPosition = Vector3(64, 0, 816)
 [node name="Animation Handler" type="Node" parent="Sprite Handler" node_paths=PackedStringArray("_effectsPlayer", "_specialWheelEffect")]
 script = ExtResource("13_6hxns")
 _effectsPlayer = NodePath("../Racers/Player/Road Type Effects/Effects Player")
-_roadRoughness = 1
+_roadRoughness = 2
 _specialWheelEffect = [NodePath("../Racers/Player/Road Type Effects/Right Wheel Special"), NodePath("../Racers/Player/Road Type Effects/Left Wheel Special")]

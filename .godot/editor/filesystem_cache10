@@ -8,12 +8,12 @@ engine_loop.wav::AudioStreamWAV/AudioStreamWAV::447446301014443851::1755641674::
 tire_loop.wav::AudioStreamWAV/AudioStreamWAV::6947860780481075687::1755641674::1755627409::1::::<><><>0<>0<>ec114baba0a570736543f49a1221d3e9<>res://.godot/imported/tire_loop.wav-007286d367a421678d626e69cacb1633.sample::
 turbo_whoosh.wav::AudioStreamWAV/AudioStreamWAV::6169372177695684415::1755641676::1755627409::1::::<><><>0<>0<>85a7e58ff2b2578cd4fe01e59dffa288<>res://.godot/imported/turbo_whoosh.wav-14b78b72f2cd167d7c893769ab5ac901.sample::
 ::res://Build/::1741535471
-::res://Scenes/::1755647757
-main.tscn::PackedScene::9067439345570065480::1755647757::0::1::::<><><>0<>0<><>::uid://b1lbny31w132j::::res://Scripts/General/Game.gd<>uid://cex362lk6utnk::::res://Scripts/On Screen Elements/BackgroundEffects.gd<>uid://b7ri4tesomgep::::res://Temp/Background Color_Black.png<>uid://cefyc1o8c12cw::::res://Textures/Tracks/Donut Plains 1 - Sky Line.png<>uid://hpt6elsw8vyg::::res://Scripts/Shaders/ModeSeven.gdshader<>uid://do4l3t6fepcy8::::res://Textures/Tracks/Donut Plains 1.png<>uid://b2p41drytlkxt::::res://Textures/Tracks/Donut Plains 1 - Tree Line.png<>uid://cnp7d7djiq0dd::::res://Textures/Tracks/Grass_Tile.png<>uid://4oyj7tns2kqe::::res://Scripts/World Elements/Pseudo3D.gd<>uid://bvioi2jfn2hmv::::res://Textures/Racers/Yoshi Back.png<>uid://dhfy5381d720i::::res://Scripts/General/Collision.gd<>uid://5uqme7h2yul3::::res://Scripts/On Screen Elements/SpriteHandler.gd<>uid://blxkqrqmapowt::::res://Textures/Tracks/MarioTrack.png<>uid://by6cg8pjfml46::::res://Scripts/World Elements/Racers/Player.gd<>uid://crr8fhlnitj4a::::res://Scripts/World Elements/Hazard.gd<>uid://dwtfoow25238t::::res://Textures/Racers/Particles/Road_Type_Effects_Sheet.png<>uid://cpbay01qhxufs::::res://Textures/Tracks/MarioTrack - Road Type.png<>uid://bomqe0y8c30wy::::res://Scripts/General/AnimationHandler.gd<>uid://d1nvgl514d4vw::::res://Textures/Hazards/Orange_Pipes.png
+::res://Scenes/::1755649173
+main.tscn::PackedScene::9067439345570065480::1755649173::0::1::::<><><>0<>0<><>::uid://b1lbny31w132j::::res://Scripts/General/Game.gd<>uid://cex362lk6utnk::::res://Scripts/On Screen Elements/BackgroundEffects.gd<>uid://b7ri4tesomgep::::res://Temp/Background Color_Black.png<>uid://cefyc1o8c12cw::::res://Textures/Tracks/Donut Plains 1 - Sky Line.png<>uid://hpt6elsw8vyg::::res://Scripts/Shaders/ModeSeven.gdshader<>uid://do4l3t6fepcy8::::res://Textures/Tracks/Donut Plains 1.png<>uid://b2p41drytlkxt::::res://Textures/Tracks/Donut Plains 1 - Tree Line.png<>uid://cnp7d7djiq0dd::::res://Textures/Tracks/Grass_Tile.png<>uid://4oyj7tns2kqe::::res://Scripts/World Elements/Pseudo3D.gd<>uid://bvioi2jfn2hmv::::res://Textures/Racers/Yoshi Back.png<>uid://dhfy5381d720i::::res://Scripts/General/Collision.gd<>uid://5uqme7h2yul3::::res://Scripts/On Screen Elements/SpriteHandler.gd<>uid://blxkqrqmapowt::::res://Textures/Tracks/MarioTrack.png<>uid://by6cg8pjfml46::::res://Scripts/World Elements/Racers/Player.gd<>uid://crr8fhlnitj4a::::res://Scripts/World Elements/Hazard.gd<>uid://dwtfoow25238t::::res://Textures/Racers/Particles/Road_Type_Effects_Sheet.png<>uid://cpbay01qhxufs::::res://Textures/Tracks/MarioTrack - Road Type.png<>uid://bomqe0y8c30wy::::res://Scripts/General/AnimationHandler.gd<>uid://d1nvgl514d4vw::::res://Textures/Hazards/Orange_Pipes.png
 ::res://Scripts/::1755627492
 EngineAudio.gd::GDScript/GDScript::6410749523524046263::1755627492::0::1::::<>Node<><>0<>0<><>::
-::res://Scripts/General/::1755647163
-AnimationHandler.gd::GDScript::3394816994396386184::1755647163::0::1::::<>Node<><>0<>0<><>::
+::res://Scripts/General/::1755648679
+AnimationHandler.gd::GDScript::3394816994396386184::1755648679::0::1::::<>Node<><>0<>0<><>::
 Collision.gd::GDScript/GDScript::7662418149778340342::1755620484::0::1::::<>Node<><>0<>0<><>::
 Game.gd::GDScript/GDScript::4234124010916833407::1755620484::0::1::::<>Node2D<><>0<>0<><>::
 Globals.gd::GDScript/GDScript::8244448299010129701::1755620484::0::1::::<>Node<><>0<>0<><>::
@@ -22,8 +22,8 @@ BackgroundEffects.gd::GDScript/GDScript::5102834301310110880::1755607025::0::1::
 DriftCloud.gd::GDScript/GDScript::618047163678589716::1755617574::0::1::::<>GPUParticles2D<><>0<>0<><>::
 SkidTrail.gd::GDScript/GDScript::8102787343292609673::1755617218::0::1::::<>Line2D<><>0<>0<><>::
 SpriteHandler.gd::GDScript/GDScript::2147946025515526962::1755620484::0::1::::<>Node2D<><>0<>0<><>::
-::res://Scripts/Shaders/::1755647758
-GasDistort.gdshader::Shader::2607723553934212141::1755647758::0::1::::<><><>0<>0<><>::
+::res://Scripts/Shaders/::1755649173
+GasDistort.gdshader::Shader::2607723553934212141::1755649173::0::1::::<><><>0<>0<><>::
 ModeSeven.gdshader::Shader/Shader::523496782185546226::1755620220::0::1::::<><><>0<>0<><>::
 ::res://Scripts/World Elements/::1755627340
 Hazard.gd::GDScript/GDScript::6003159106040995574::1755620484::0::1::::Hazard<>WorldElement<><>0<>0<><>::
@@ -45,9 +45,9 @@ Green_Pipes.png::CompressedTexture2D/CompressedTexture2D::1145419069409386242::1
 Orange_Pipes.png::CompressedTexture2D/CompressedTexture2D::9012295293403658364::1741535471::1755620251::1::::<><><>0<>0<>062e1fc029650d084dc6cfd8931dd984<>res://.godot/imported/Orange_Pipes.png-7dc21967fe3f39c2b96766dfad5adc66.ctex::
 ::res://Textures/Racers/::1755620251
 Yoshi Back.png::CompressedTexture2D/CompressedTexture2D::3877767178653541841::1755607889::1755620251::1::::<><><>0<>0<>217c15b7854ec30f286554aa9dcb7240<>res://.godot/imported/Yoshi Back.png-b377cb671595ca8ed35e49a7dfefd67f.ctex::
-::res://Textures/Racers/Particles/::1755620251
+::res://Textures/Racers/Particles/::1755648519
 Racer_Particles.png::CompressedTexture2D/CompressedTexture2D::2088474730687332192::1741535471::1755620251::1::::<><><>0<>0<>f01ca9876b6f1291a17bf42306850a00<>res://.godot/imported/Racer_Particles.png-8e1d2fa78619d776027d59d839fce859.ctex::
-Road_Type_Effects_Sheet.png::CompressedTexture2D/CompressedTexture2D::8742969145102192637::1755648516::1755648519::1::::<><><>0<>0<>0238ecfd544656ad30cb974dfc78da41<>res://.godot/imported/Road_Type_Effects_Sheet.png-4cf508da82fba889409ba408b0414a99.ctex::
+Road_Type_Effects_Sheet.png::CompressedTexture2D/CompressedTexture2D::8742969145102192637::1755649230::1755649233::1::::<><><>0<>0<>0238ecfd544656ad30cb974dfc78da41<>res://.godot/imported/Road_Type_Effects_Sheet.png-4cf508da82fba889409ba408b0414a99.ctex::
 ::res://Textures/Tracks/::1755625168
 Donut Plains 1 - Road Type Map.png::CompressedTexture2D/CompressedTexture2D::4556898205834199005::1741535471::1755620251::1::::<><><>0<>0<>5caec00c02ab6772f3082741b36d36fe<>res://.godot/imported/Donut Plains 1 - Road Type Map.png-d4516c5448101163a92655192f4967e9.ctex::
 Donut Plains 1 - Sky Line.png::CompressedTexture2D/CompressedTexture2D::5065380798860295894::1755624995::1755624998::1::::<><><>0<>0<>6ac0ccb6262c89791db1b96e0d3e032a<>res://.godot/imported/Donut Plains 1 - Sky Line.png-da46fac669805eede5c2fe41faed4f67.ctex::
