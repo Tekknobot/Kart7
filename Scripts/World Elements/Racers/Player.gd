@@ -1,4 +1,5 @@
-extends Racer
+# Player.gd
+extends "res://Scripts/World Elements/Racers/Racer.gd"
 
 # === Controls & Drift/Hop Settings ===
 const HOP_DURATION := 0.18
@@ -83,6 +84,10 @@ func _ready() -> void:
 	var spr := ReturnSpriteGraphic()
 	spr.region_enabled = true
 
+func _process(_dt: float) -> void:
+	# publish camera/player position for pseudo-3D projection
+	Globals.set_camera_map_position(get_player_map_position())
+
 func _set_frame(idx: int) -> void:
 	idx = clamp(idx, 0, FRAMES_PER_ROW - 1)
 	var spr := ReturnSpriteGraphic()
@@ -127,17 +132,21 @@ func _choose_and_apply_frame(dt: float) -> void:
 
 		var steps := float(DRIFT_MAX)
 		var frac := fmod(target_mag * steps, 1.0)
-		if frac < 0.08: target_mag += 0.04
-		elif frac > 0.92: target_mag -= 0.04
+		if frac < 0.08:
+			target_mag += 0.04
+		elif frac > 0.92:
+			target_mag -= 0.04
 		target_mag = clamp(target_mag, 0.0, cap)
 
 		max_range = DRIFT_MAX
 
 		_emit_dust(true)
 		if _drift_charge >= TURBO_THRESHOLD_BIG:
-			_emit_sparks(true); _set_sparks_color(Color(0.35, 0.6, 1.0))
+			_emit_sparks(true)
+			_set_sparks_color(Color(0.35, 0.6, 1.0))
 		elif _drift_charge >= TURBO_THRESHOLD_SMALL:
-			_emit_sparks(true); _set_sparks_color(Color(1.0, 0.55, 0.2))
+			_emit_sparks(true)
+			_set_sparks_color(Color(1.0, 0.55, 0.2))
 		else:
 			_emit_sparks(false)
 	else:
@@ -170,11 +179,11 @@ func _choose_and_apply_frame(dt: float) -> void:
 
 	_set_turn_amount_in_range(target_mag, _lean_left_visual, max_range)
 
-func Setup(mapSize : int):
+func Setup(mapSize : int) -> void:
 	SetMapSize(mapSize)
 
-func Update(mapForward : Vector3):
-	if(_isPushedBack):
+func Update(mapForward : Vector3) -> void:
+	if _isPushedBack:
 		ApplyCollisionBump()
 
 	var input_vec := ReturnPlayerInput()
@@ -198,12 +207,12 @@ func Update(mapForward : Vector3):
 
 	nextPos += right_vec * _drift_side_slip * dt
 
-	if(_collisionHandler.IsCollidingWithWall(Vector2i(ceil(nextPos.x), ceil(_mapPosition.z)))):
+	if _collisionHandler.IsCollidingWithWall(Vector2i(ceil(nextPos.x), ceil(_mapPosition.z))):
 		nextPos.x = _mapPosition.x 
-		SetCollisionBump(Vector3(-sign(ReturnVelocity().x), 0, 0))
-	if(_collisionHandler.IsCollidingWithWall(Vector2i(ceil(_mapPosition.x), ceil(nextPos.z)))):
+		SetCollisionBump(Vector3(-sign(ReturnVelocity().x), 0.0, 0.0))
+	if _collisionHandler.IsCollidingWithWall(Vector2i(ceil(_mapPosition.x), ceil(nextPos.z))):
 		nextPos.z = _mapPosition.z
-		SetCollisionBump(Vector3(0, 0, -sign(ReturnVelocity().z)))
+		SetCollisionBump(Vector3(0.0, 0.0, -sign(ReturnVelocity().z)))
 	
 	HandleRoadType(nextPixelPos, _collisionHandler.ReturnCurrentRoadType(nextPixelPos))
 	
@@ -260,13 +269,12 @@ func _handle_hop_and_drift(input_vec : Vector2) -> void:
 	if _drift_arm_timer > 0.0:
 		_drift_arm_timer = max(0.0, _drift_arm_timer - dt)
 
-	if not _is_drifting \
-		and drift_down \
-		and _drift_arm_timer > 0.0 \
-		and moving_fast \
-		and steer_abs >= DRIFT_STEER_DEADZONE:
+	if (not _is_drifting) and drift_down and (_drift_arm_timer > 0.0) and moving_fast and (steer_abs >= DRIFT_STEER_DEADZONE):
 		_is_drifting = true
-		_drift_dir = -1 if input_vec.x < 0.0 else 1
+		if input_vec.x < 0.0:
+			_drift_dir = -1
+		else:
+			_drift_dir = 1
 		_drift_wobble_phase = 0.0
 		_drift_break_timer = 0.0
 		_drift_charge = 0.0
@@ -276,7 +284,7 @@ func _handle_hop_and_drift(input_vec : Vector2) -> void:
 	if _is_drifting and drift_down:
 		_speedMultiplier = DRIFT_SPEED_MULT
 
-		var bias := _drift_dir * DRIFT_MIN_TURN_BIAS
+		var bias := float(_drift_dir) * DRIFT_MIN_TURN_BIAS
 		var steer_mod := input_vec.x * DRIFT_STEER_INFLUENCE
 		var raw_target = clamp(bias + steer_mod, -1.0, 1.0)
 
@@ -308,20 +316,32 @@ func _handle_hop_and_drift(input_vec : Vector2) -> void:
 			_speedMultiplier = 1.0
 
 func _register_default_actions() -> void:
-	if not InputMap.has_action("Forward"): InputMap.add_action("Forward")
-	if not InputMap.has_action("Left"):    InputMap.add_action("Left")
-	if not InputMap.has_action("Right"):   InputMap.add_action("Right")
-	if not InputMap.has_action("Brake"):   InputMap.add_action("Brake")
-	if not InputMap.has_action("Hop"):     InputMap.add_action("Hop")
-	if not InputMap.has_action("Drift"):   InputMap.add_action("Drift")
+	if not InputMap.has_action("Forward"):
+		InputMap.add_action("Forward")
+	if not InputMap.has_action("Left"):
+		InputMap.add_action("Left")
+	if not InputMap.has_action("Right"):
+		InputMap.add_action("Right")
+	if not InputMap.has_action("Brake"):
+		InputMap.add_action("Brake")
+	if not InputMap.has_action("Hop"):
+		InputMap.add_action("Hop")
+	if not InputMap.has_action("Drift"):
+		InputMap.add_action("Drift")
 
 	var jb := InputEventJoypadButton.new()
-	jb.button_index = JOY_BUTTON_A;              InputMap.action_add_event("Forward", jb.duplicate())
-	jb.button_index = JOY_BUTTON_X;              InputMap.action_add_event("Brake", jb.duplicate())
-	jb.button_index = JOY_BUTTON_RIGHT_SHOULDER; InputMap.action_add_event("Hop", jb.duplicate())
-	jb.button_index = JOY_BUTTON_RIGHT_SHOULDER; InputMap.action_add_event("Drift", jb.duplicate())
-	jb.button_index = JOY_BUTTON_DPAD_LEFT;      InputMap.action_add_event("Left", jb.duplicate())
-	jb.button_index = JOY_BUTTON_DPAD_RIGHT;     InputMap.action_add_event("Right", jb.duplicate())
+	jb.button_index = JOY_BUTTON_A
+	InputMap.action_add_event("Forward", jb.duplicate())
+	jb.button_index = JOY_BUTTON_X
+	InputMap.action_add_event("Brake", jb.duplicate())
+	jb.button_index = JOY_BUTTON_RIGHT_SHOULDER
+	InputMap.action_add_event("Hop", jb.duplicate())
+	jb.button_index = JOY_BUTTON_RIGHT_SHOULDER
+	InputMap.action_add_event("Drift", jb.duplicate())
+	jb.button_index = JOY_BUTTON_DPAD_LEFT
+	InputMap.action_add_event("Left", jb.duplicate())
+	jb.button_index = JOY_BUTTON_DPAD_RIGHT
+	InputMap.action_add_event("Right", jb.duplicate())
 
 func _apply_hop_sprite_offset() -> void:
 	var dt := get_process_delta_time()
@@ -334,17 +354,18 @@ func _apply_hop_sprite_offset() -> void:
 		ReturnSpriteGraphic().offset.y = _base_sprite_offset_y
 
 func _try_get_node(path: String) -> Node:
-	if has_node(path): return get_node(path)
+	if has_node(path):
+		return get_node(path)
 	return null
 
 func _set_sparks_color(col: Color) -> void:
 	var p := _try_get_node(SPARKS_PARTICLE_NODE)
-	if p and p is GPUParticles2D:
+	if p != null and p is GPUParticles2D:
 		p.process_material.color = col
 
 func _emit_sparks(on: bool) -> void:
 	var p := _try_get_node(SPARKS_PARTICLE_NODE)
-	if p and p is GPUParticles2D:
+	if p != null and p is GPUParticles2D:
 		p.emitting = on
 
 func _emit_dust(on: bool) -> void:
@@ -352,22 +373,18 @@ func _emit_dust(on: bool) -> void:
 	if p == null:
 		return
 
-	# Path 1: GPUParticles2D (existing support)
 	if p is GPUParticles2D:
 		p.emitting = on
 		return
 
-	# Path 2: AnimatedSprite2D using your sprite sheet
 	if p is AnimatedSprite2D:
 		p.visible = on
 		if on:
-			# choose the animation you added in SpriteFrames ("drift" by default)
-			if not p.sprite_frames or p.sprite_frames.get_animation_names().is_empty():
+			if p.sprite_frames == null or p.sprite_frames.get_animation_names().is_empty():
 				return
 			var anim = p.animation
-			# If current animation is empty or stopped, use the first animation
 			if anim == "" or not p.is_playing():
-				anim = p.sprite_frames.get_animation_names()[0]  # or "drift"
+				anim = p.sprite_frames.get_animation_names()[0]
 			p.animation = anim
 			if not p.is_playing():
 				p.play()
@@ -376,10 +393,8 @@ func _emit_dust(on: bool) -> void:
 				p.stop()
 		return
 
-	# Optional Path 3: Sprite2D with hframes/vframes (simple on/off)
 	if p is Sprite2D:
 		p.visible = on
-
 
 func _cancel_drift_no_award(settle_time: float) -> void:
 	_is_drifting = false
@@ -412,9 +427,16 @@ func _end_drift_with_award() -> void:
 	_lean_left_visual = (_drift_dir < 0)
 	_drift_charge = 0.0
 
-# --- NEW: tiny getter AnimationHandler uses to detect hop state ---
 func ReturnIsHopping() -> bool:
 	return _hop_timer > 0.0
 
 func ReturnIsDrifting() -> bool:
 	return _is_drifting
+
+# Return the player's map-space position (same space used for path/Pseudo3D)
+func get_player_map_position() -> Vector2:
+	return get_map_space_position()
+
+# Return the camera forward vector in map space
+func get_player_camera_forward(pseudo3d: Node) -> Vector2:
+	return pseudo3d.get_camera_forward_map()

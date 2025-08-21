@@ -1078,10 +1078,10 @@ _mapMaxRotationSpeed = 1.5
 _mapAccelRotationSpeed = 2.0
 _mapDeaccelRotationSpeed = 3.0
 _rotationRadius = 36.0
-gfx_path = NodePath("../Sprite Handler/Racers/Racer/GFX")
+gfx_path = NodePath("../Sprite Handler/Racers/Opponent/GFX")
 path_overlay_viewport = NodePath("../SubViewport")
 path_overlay_node = NodePath("../SubViewport/PathOverlay2D")
-opponent_nodes = Array[NodePath]([NodePath("../Sprite Handler/Racers/Racer")])
+opponent_nodes = Array[NodePath]([NodePath("../Sprite Handler/Racers/Opponent")])
 _mapVerticalPosition = 3.8
 
 [node name="Collision Handler" type="Node" parent="Map"]
@@ -1103,6 +1103,9 @@ position = Vector2(-1.52588e-05, 0)
 script = ExtResource("8_lejxo")
 _movementDeaccel = 150.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
+path_ref = NodePath("../../../SubViewport/PathOverlay2D")
+pseudo3d_ref = NodePath("../../../Map")
+angle_sprite_path = NodePath("GFX")
 _spriteGFX = NodePath("GFX")
 
 [node name="GFX" type="Sprite2D" parent="Sprite Handler/Racers/Player"]
@@ -1160,14 +1163,14 @@ flip_h = true
 region_enabled = true
 region_rect = Rect2(96, 0, 16, 16)
 
-[node name="Racer" type="Node2D" parent="Sprite Handler/Racers"]
+[node name="Opponent" type="Node2D" parent="Sprite Handler/Racers"]
 position = Vector2(-1.52588e-05, 0)
 script = ExtResource("16_hibaj")
-path_overlay_uv = NodePath("../../../SubViewport/PathOverlay2D")
-gfx_path = NodePath("GFX")
-kart_height_map = 0.3
+path_ref = NodePath("../../../SubViewport/PathOverlay2D")
+pseudo3d_ref = NodePath("../../../Map")
+angle_sprite_path = NodePath("GFX")
 
-[node name="GFX" type="Sprite2D" parent="Sprite Handler/Racers/Racer"]
+[node name="GFX" type="Sprite2D" parent="Sprite Handler/Racers/Opponent"]
 z_as_relative = false
 texture_filter = 1
 scale = Vector2(3, 3)
@@ -1177,16 +1180,16 @@ region_rect = Rect2(0, 0, 32, 32)
 script = ExtResource("17_pdsj5")
 right_frames = 12
 
-[node name="Road Type Effects" type="Node2D" parent="Sprite Handler/Racers/Racer"]
+[node name="Road Type Effects" type="Node2D" parent="Sprite Handler/Racers/Opponent"]
 visible = false
 
-[node name="Effects Player" type="AnimationPlayer" parent="Sprite Handler/Racers/Racer/Road Type Effects"]
+[node name="Effects Player" type="AnimationPlayer" parent="Sprite Handler/Racers/Opponent/Road Type Effects"]
 libraries = {
 &"": SubResource("AnimationLibrary_2e3ut")
 }
 speed_scale = 4.0
 
-[node name="Right Wheel" type="Sprite2D" parent="Sprite Handler/Racers/Racer/Road Type Effects"]
+[node name="Right Wheel" type="Sprite2D" parent="Sprite Handler/Racers/Opponent/Road Type Effects"]
 texture_filter = 1
 position = Vector2(48, 40)
 scale = Vector2(3, 3)
@@ -1195,7 +1198,7 @@ offset = Vector2(-4, 0)
 region_enabled = true
 region_rect = Rect2(96, 18, 8, 8)
 
-[node name="Right Wheel Special" type="Sprite2D" parent="Sprite Handler/Racers/Racer/Road Type Effects"]
+[node name="Right Wheel Special" type="Sprite2D" parent="Sprite Handler/Racers/Opponent/Road Type Effects"]
 texture_filter = 1
 position = Vector2(75, 50)
 scale = Vector2(3, 3)
@@ -1204,7 +1207,7 @@ offset = Vector2(-8, 0)
 region_enabled = true
 region_rect = Rect2(96, 0, 16, 16)
 
-[node name="Left Wheel" type="Sprite2D" parent="Sprite Handler/Racers/Racer/Road Type Effects"]
+[node name="Left Wheel" type="Sprite2D" parent="Sprite Handler/Racers/Opponent/Road Type Effects"]
 texture_filter = 1
 position = Vector2(-48, 40)
 scale = Vector2(3, 3)
@@ -1214,7 +1217,7 @@ flip_h = true
 region_enabled = true
 region_rect = Rect2(80, 16, 8, 8)
 
-[node name="Left Wheel Special" type="Sprite2D" parent="Sprite Handler/Racers/Racer/Road Type Effects"]
+[node name="Left Wheel Special" type="Sprite2D" parent="Sprite Handler/Racers/Opponent/Road Type Effects"]
 texture_filter = 1
 position = Vector2(-75, 50)
 scale = Vector2(3, 3)

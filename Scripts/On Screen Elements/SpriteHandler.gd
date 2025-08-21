@@ -41,22 +41,22 @@ func Update(worldMatrix : Basis):
 			
 	HandleYLayerSorting()
 
-func HandleSpriteDetail(target : WorldElement):
+func HandleSpriteDetail(target : WorldElement) -> void:
 	var playerPosition : Vector2 = Vector2(_player.ReturnMapPosition().x, _player.ReturnMapPosition().z)
 	var targetPosition : Vector2 = Vector2(target.ReturnMapPosition().x, target.ReturnMapPosition().z)
 	var distance : float = targetPosition.distance_to(playerPosition) * _mapSize
-	
-	target.ReturnSpriteGraphic().visible = true if distance < _showSpriteInRangeOf else false
-	
-	if(!target.ReturnSpriteGraphic().visible): return
+
+	target.ReturnSpriteGraphic().visible = (distance < _showSpriteInRangeOf)
+	if not target.ReturnSpriteGraphic().visible:
+		return
 	
 	var detailStates : int = target.ReturnTotalDetailStates()
-	var normalizedDistance : float = distance / _showSpriteInRangeOf
+	var normalizedDistance : float = distance / float(_showSpriteInRangeOf)
 	var expFactor : float = pow(normalizedDistance, 0.75)
-	var detailLevel : int = int(clamp(expFactor * detailStates, 0, detailStates - 1))
-	var newRegionPos : int = target.ReturnSpriteGraphic().region_rect.size.y * detailLevel
+	var detailLevel : int = int(clamp(expFactor * float(detailStates), 0.0, float(detailStates - 1)))
+	var newRegionPos : int = int(target.ReturnSpriteGraphic().region_rect.size.y) * detailLevel
 	
-	target.ReturnSpriteGraphic().region_rect.position.y = newRegionPos
+	target.ReturnSpriteGraphic().region_rect.position.y = float(newRegionPos)
 
 func HandleYLayerSorting():
 	_worldElements.sort_custom(SortByScreenY)
@@ -67,7 +67,12 @@ func HandleYLayerSorting():
 func SortByScreenY(a : WorldElement, b : WorldElement) -> int:
 	var aPosY : float = a.ReturnScreenPosition().y
 	var bPosY : float = b.ReturnScreenPosition().y
-	return aPosY < bPosY if -1 else (aPosY > bPosY if 1 else 0)
+	if aPosY < bPosY:
+		return -1
+	elif aPosY > bPosY:
+		return 1
+	else:
+		return 0
 
 func WorldToScreenPosition(worldElement : WorldElement):
 	var transformedPos : Vector3 = _worldMatrix.inverse() * Vector3(worldElement.ReturnMapPosition().x, worldElement.ReturnMapPosition().z, 1.0)
