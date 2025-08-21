@@ -7,3 +7,4 @@ res://Scripts/On Screen Elements/SpriteHandler.gd
 res://Scripts/World Elements/Racers/Racer.gd
 res://Scripts/World Elements/Racers/Player.gd
 res://Scripts/World Elements/Pseudo3D.gd
+res://Scripts/AI/AngleSprite.gd
