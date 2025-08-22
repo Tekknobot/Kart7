@@ -24,6 +24,21 @@ var _is_updating: bool = false
 @export var debug_show_all := true        # TEMP: show sprites regardless of distance
 @export var invert_depth_scale := true  # <- TRUE = larger when near, smaller when far
 
+# --- scaling knobs ---
+@export var player_base_scale_abs: float = 3.0      # player always this big
+@export var opponent_min_scale_abs: float = 1.0     # absolute floor for opponent
+@export var depth_gain: float = 1.8                 # >1.0 = hit the floor sooner
+@export var shrink_when_away := true  # true = shrink when away; false = shrink when near
+
+# --- auto-correct state (per racer) ---
+var _last_absdot := {}      # instance_id -> float
+var _last_scale  := {}      # instance_id -> float
+const _AUTO_EPS := 0.0001
+
+@export var shrink_start_abs: float = 0.00  # start shrinking only after this abs distance
+@export var depth_gamma: float = 1.00       # curve exponent ( >1 gentler, <1 harsher )
+@export var shrink_deadzone_abs: float = 0.03  # no shrink until |dot| >= this
+
 # -----------------------------------------------------------------------------
 # Lifecycle from your game script:
 #   Setup(_map.ReturnWorldMatrix(), map_tex_size, _player)
@@ -187,69 +202,78 @@ func WorldToScreenPosition(worldElement : WorldElement) -> void:
 	var spr := worldElement.ReturnSpriteGraphic()
 	var mp := worldElement.ReturnMapPosition()  # normalized UV (0..1)
 
-	# ---- depth-based SCALE (Player fixed at 3; Opponent shrinks when "far", clamped to [1.0, 3.0]) ----
-	var p3d := get_node_or_null(pseudo3d_node)
+	# throttle logging a bit
+	var _dbg_every := 12
+	var _do_log := (Engine.get_process_frames() % _dbg_every) == 0
+
+	# ---- scale: Player fixed; Opponent shrinks with absolute forward distance ----
 	if spr != null:
-		# camera forward in map space
-		var cam_f := Vector2(0, 1)
-		if p3d != null and p3d.has_method("get_camera_forward_map"):
-			cam_f = (p3d.call("get_camera_forward_map") as Vector2).normalized()
+		var base3 := player_base_scale_abs
+		var floor_abs := opponent_min_scale_abs
 
-		# signed forward depth using camera-forward dot
-		var pl_uv := Vector2(_player.ReturnMapPosition().x, _player.ReturnMapPosition().z)
-		var el_uv := Vector2(mp.x, mp.z)
-		var depth_dot := (el_uv - pl_uv).dot(cam_f)
+		if worldElement == _player:
+			# Player: always base scale
+			(spr as Node2D).scale = Vector2(base3, base3)
 
-		# far/near (non-negative), swap roles if invert_depth_scale
-		var far_raw := depth_dot
-		var near_raw := -depth_dot
-		if far_raw < 0.0:
-			far_raw = 0.0
-		if near_raw < 0.0:
-			near_raw = 0.0
-		if invert_depth_scale:
-			var swap := far_raw
-			far_raw = near_raw
-			near_raw = swap
-
-		# we only shrink when far
-		var d := far_raw
-
-		# convert distance to scale <= 1.0 (1.0 at pass-by)
-		var s_depth: float = 1.0
-		var size_min: float = 0.35
-		var size_max: float = 2.0
-		var size_k : float = 0.9
-		if p3d != null:
-			if "size_min" in p3d:
-				size_min = float(p3d.size_min)
-			if "size_max" in p3d:
-				size_max = float(p3d.size_max)
-
-		if p3d != null and p3d.has_method("depth_scale"):
-			s_depth = float(p3d.call("depth_scale", d))
+			if _do_log:
+				prints("[SCALE][PLAYER]",
+					"name=", worldElement.name,
+					" base3=", base3)
 		else:
-			var denom := size_k + d
-			if denom <= 0.0:
-				denom = 0.0001
-			s_depth = size_k / denom
-			if s_depth < size_min:
-				s_depth = size_min
-			if s_depth > size_max:
-				s_depth = size_max
+			# camera forward in map space
+			var p3d := get_node_or_null(pseudo3d_node)
+			var cam_f := Vector2(0, 1)
+			if p3d != null and p3d.has_method("get_camera_forward_map"):
+				cam_f = (p3d.call("get_camera_forward_map") as Vector2).normalized()
 
-		# absolute scales: player fixed at 3.0, opponent in [1.0, 3.0]
-		var player_base := 3.0
-		var final_scale := player_base
-		if worldElement != _player:
-			final_scale = player_base * s_depth
-			# clamp to [1.0, 3.0]
-			if final_scale < 1.0:
-				final_scale = 1.0
-			if final_scale > player_base:
-				final_scale = player_base
+			# absolute forward distance wrt camera forward (monotonic)
+			var pl_uv := Vector2(_player.ReturnMapPosition().x, _player.ReturnMapPosition().z)
+			var el_uv := Vector2(mp.x, mp.z)
+			var dot_val := (el_uv - pl_uv).dot(cam_f)
+			var d_abs = abs(dot_val)
 
-		(spr as Node2D).scale = Vector2(final_scale, final_scale)
+			# DEAD-ZONE: keep full size until clearly away
+			var d_eff = d_abs - shrink_deadzone_abs
+			if d_eff < 0.0:
+				d_eff = 0.0
+
+			# Smooth shrink: 1 / (1 + k * d_eff)
+			var k := depth_gain
+			if k <= 0.0:
+				k = 0.0001
+			var s_depth = 1.0 / (1.0 + k * d_eff)
+
+			# depth factor must never exceed 1.0
+			if s_depth > 1.0:
+				s_depth = 1.0			
+
+			# convert to absolute & clamp to [floor_abs, base3]
+			var unclamped = base3 * s_depth
+			var final_scale = unclamped
+			var clamped_floor := false
+			var clamped_ceiling := false
+			if final_scale < floor_abs:
+				final_scale = floor_abs
+				clamped_floor = true
+			if final_scale > base3:
+				final_scale = base3
+				clamped_ceiling = true
+
+			(spr as Node2D).scale = Vector2(final_scale, final_scale)
+
+			if _do_log:
+				prints("[SCALE][OPP]",
+					"name=", worldElement.name,
+					" dot=", dot_val,
+					" d_abs=", d_abs,
+					" k=", k,
+					" s_depth=", s_depth,
+					" unclamped=", unclamped,
+					" final=", final_scale,
+					" floor=", floor_abs,
+					" base3=", base3,
+					" clamp_floor=", clamped_floor,
+					" clamp_top=", clamped_ceiling)
 
 	# ---- project to screen (your original style) ----
 	var transformed : Vector3 = _worldMatrix.inverse() * Vector3(mp.x, mp.z, 1.0)
@@ -271,6 +295,14 @@ func WorldToScreenPosition(worldElement : WorldElement) -> void:
 			h = 32.0
 		screen.y -= (h * (spr as Node2D).scale.y) / 2.0
 
+		if _do_log:
+			prints("[PLACE]",
+				"name=", worldElement.name,
+				" z=", transformed.z,
+				" screen=", screen,
+				" frame_h=", h,
+				" scale_y=", (spr as Node2D).scale.y)
+
 	# cull
 	if (screen.floor().x > _screen_size().x or screen.x < 0.0 or screen.floor().y > _screen_size().y or screen.y < 0.0):
 		worldElement.SetScreenPosition(Vector2(-1000, -1000))
@@ -278,7 +310,6 @@ func WorldToScreenPosition(worldElement : WorldElement) -> void:
 			spr.visible = false
 		return
 
-	# place parent & keep your child placement approach
 	worldElement.SetScreenPosition(screen.floor())
 	if spr != null:
 		(spr as Node2D).global_position = screen.floor()

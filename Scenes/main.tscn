@@ -1096,6 +1096,9 @@ pseudo3d_node = NodePath("Racers/Player")
 path_overlay_node = NodePath("../SubViewport/PathOverlay2D")
 sprite_graphic_path = NodePath("Racers/Racer01/GFX/AngleSprite")
 collect_under = NodePath("Racers")
+depth_gain = 64.0
+shrink_when_away = false
+shrink_deadzone_abs = 0.02
 
 [node name="Racers" type="Node2D" parent="Sprite Handler"]
 
