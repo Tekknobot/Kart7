@@ -403,13 +403,12 @@ func Update(mapForward : Vector3) -> void:
 	if not _is_spinning:
 		_handle_hop_and_drift(input_vec)
 
-	# --- Maintain item boost multiplier (never force 1.0; just raise the ceiling) ---
+	# --- Item boost timer decay (no direct writes to _speedMultiplier here) ---
 	if _item_boost_timer > 0.0:
 		_item_boost_timer -= dt
-		_speedMultiplier = max(_speedMultiplier, ITEM_BOOST_MULT)
-		if _item_boost_timer <= 0.0:
-			# Let drift/turbo/hop logic decide sparks; we won’t force them off here
-			pass
+
+	# unify ALL stacking here
+	_recompute_speed_multiplier()
 
 	var nextPos : Vector3 = _mapPosition + ReturnVelocity()
 	var nextPixelPos : Vector2i = Vector2i(ceil(nextPos.x), ceil(nextPos.z))
@@ -505,7 +504,7 @@ func _handle_hop_and_drift(input_vec : Vector2) -> void:
 	# --- While DRIFTING (SNES-style fixed slip) ---
 	if _is_drifting and drift_down:
 		# Keep speed almost intact while drifting (classic SMK keeps momentum)
-		_speedMultiplier = DRIFT_SPEED_MULT
+		#_speedMultiplier = DRIFT_SPEED_MULT
 
 		var bias := float(_drift_dir) * DRIFT_MIN_TURN_BIAS
 		var raw_target = clamp(bias, -1.0, 1.0)
@@ -551,7 +550,7 @@ func _start_drift_snes(dir: int) -> void:
 	_drift_side_slip += outward_sign * 0.65  # one-off impulse
 
 	# Keep speed nearly intact while drifting
-	_speedMultiplier = DRIFT_SPEED_MULT
+	#_speedMultiplier = DRIFT_SPEED_MULT
 
 func _register_default_actions() -> void:
 	# Ensure actions exist once
@@ -760,7 +759,7 @@ func _spinout_start() -> void:
 	_spin_timer = SPIN_DURATION
 	_spin_phase = 0.0
 	_spin_meter = 0.0
-	_speedMultiplier = SPIN_SPEED_MULT
+	#_speedMultiplier = SPIN_SPEED_MULT
 
 	_emit_dust(true)
 	_emit_sparks(true)
@@ -796,3 +795,34 @@ func _finalize_move_with_item_comp(nextPos: Vector3, mapForward: Vector3) -> voi
 	SetMapPosition(nextPos)
 	UpdateMovementSpeed()
 	UpdateVelocity(mapForward)
+
+func _recompute_speed_multiplier() -> void:
+	var boost := 1.0
+
+	# hop boost
+	if _hop_timer > 0.0:
+		if boost < HOP_SPEED_BOOST:
+			boost = HOP_SPEED_BOOST
+
+	# item boost (already timed)
+	if _item_boost_timer > 0.0:
+		if boost < ITEM_BOOST_MULT:
+			boost = ITEM_BOOST_MULT
+
+	# turbo boost (already timed)
+	if _turbo_timer > 0.0:
+		# pick the bigger turbo mult based on what you last awarded
+		var maybe_turbo = max(TURBO_SMALL_MULT, TURBO_BIG_MULT)
+		if boost < maybe_turbo:
+			boost = maybe_turbo
+
+	# drift: treat as a floor (classic slight slow), but don't suppress stronger boosts
+	if _is_drifting:
+		if boost < DRIFT_SPEED_MULT:
+			boost = DRIFT_SPEED_MULT
+
+	# spin: hard cap (spin must be slow)
+	if _is_spinning:
+		boost = min(boost, SPIN_SPEED_MULT)
+
+	_speedMultiplier = boost
