@@ -1096,9 +1096,11 @@ pseudo3d_node = NodePath("Racers/Player")
 path_overlay_node = NodePath("../SubViewport/PathOverlay2D")
 sprite_graphic_path = NodePath("Racers/Racer01/GFX/AngleSprite")
 collect_under = NodePath("Racers")
-depth_gain = 64.0
-shrink_when_away = false
-shrink_deadzone_abs = 0.02
+opponent_min_scale_abs = 0.01
+depth_gain = 32.0
+shrink_deadzone_abs = 0.001
+scale_max_rate = 32.0
+ahead_max_scale_ratio = 1.0
 
 [node name="Racers" type="Node2D" parent="Sprite Handler"]
 
@@ -1178,6 +1180,8 @@ texture = ExtResource("5_lfi8c")
 [node name="Racer01" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_spriteGFX")]
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Player")
+max_speed_override = 150.0
+catchup_gain_speed = 120.0
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
 pseudo3d_ref = NodePath("../../../Map")
 _spriteGFX = NodePath("GFX/AngleSprite")
@@ -1387,6 +1391,6 @@ size = Vector2i(1024, 1024)
 [node name="PathOverlay2D" type="Node2D" parent="SubViewport"]
 script = ExtResource("21_pdsj5")
 line_width = 2.0
-color = Color(1, 0, 0, 1)
+color = Color(1, 0, 0, 0)
 points = PackedVector2Array(920, 586, 933, 425, 250, 73, 131, 86, 75, 191, 78, 708, 151, 749, 469, 589, 551, 606, 692, 874, 818, 918, 931, 857, 920, 586)
 follow_speed_px_sec = 160.0

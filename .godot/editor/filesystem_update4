@@ -4,3 +4,5 @@ res://Scripts/Shaders/GasDistort.gdshader
 res://Scripts/On Screen Elements/SpriteHandler.gd
 res://Scripts/World Elements/Racers/Racer.gd
 res://Scripts/World Elements/Racers/Player.gd
+res://Scripts/AI/PathOverlay2D.gd
+res://Scripts/World Elements/Racers/Opponent.gd

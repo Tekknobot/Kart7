@@ -27,6 +27,12 @@ var _s_px: float = 0.0
 @export var clockwise: bool = true
 @export var frame0_is_front: bool = true  # set true if atlas frame 0 is a FRONT view
 
+# --- speed tuning (add under your existing AI exports) ---
+@export var max_speed_override: float = 320.0      # hard cap just for AI
+@export var catchup_gain_speed: float = 380.0      # speed added per 1.0 UV of forward gap
+@export var catchup_deadzone_uv: float = 0.02      # ignore tiny gaps
+@export var min_ratio_vs_player: float = 1.05      # always at least 5% faster than player
+
 # --- convenience accessors to inherited exports ---
 func _path_node() -> Node:
 	return get_node_or_null(path_ref)        # path_ref is inherited from Racer.gd
@@ -58,6 +64,10 @@ func _ready() -> void:
 	var px: Vector2 = uv * _pos_scale_px()         # convert to pixels (e.g., * 1024)
 	SetMapPosition(Vector3(px.x, 0.0, px.y))       # <-- pixels into SetMapPosition
 
+	# Ensure AI can actually reach higher speeds
+	if _maxMovementSpeed < max_speed_override:
+		_maxMovementSpeed = max_speed_override
+		
 func _process(delta: float) -> void:
 	if _uv_points.is_empty():
 		return
@@ -73,8 +83,62 @@ func _process(delta: float) -> void:
 
 	var t0: Vector2 = _tangent_at_distance(_s_px)
 	var t1: Vector2 = _tangent_at_distance(_s_px + lookahead_px * 0.5)
-	var curv: float = acos(clamp(t0.dot(t1), -1.0, 1.0))
-	var v_target: float = target_speed * lerp(1.0, speed_damper_on_curve, clamp(curv / 0.6, 0.0, 1.0))
+	var dot_raw: float = t0.dot(t1)
+	if dot_raw < -1.0:
+		dot_raw = -1.0
+	if dot_raw > 1.0:
+		dot_raw = 1.0
+	var curv: float = acos(dot_raw)
+
+	# --- base desired speed ---
+	desired = target_speed
+
+	# --- catch-up towards player along camera-forward ---
+	var pl := _player()
+	if pl != null:
+		var pl_speed: float = 0.0
+		if pl.has_method("ReturnMovementSpeed"):
+			pl_speed = float(pl.call("ReturnMovementSpeed"))
+
+		# camera forward
+		var p3d := _p3d()
+		var cam_f: Vector2 = Vector2(0, 1)
+		if p3d != null and p3d.has_method("get_camera_forward_map"):
+			cam_f = (p3d.call("get_camera_forward_map") as Vector2).normalized()
+
+		# Signed forward gap (player ahead => positive)
+		var my_pos3: Vector3 = ReturnMapPosition()
+		var pl_pos3: Vector3 = (pl.call("ReturnMapPosition") as Vector3)
+		var my_uv: Vector2 = Vector2(my_pos3.x, my_pos3.z)
+		var pl_uv: Vector2 = Vector2(pl_pos3.x, pl_pos3.z)
+		var fwd_gap: float = (pl_uv - my_uv).dot(cam_f)
+
+		# ignore tiny gaps
+		if fwd_gap > catchup_deadzone_uv:
+			var eff_gap: float = fwd_gap - catchup_deadzone_uv
+			desired = desired + eff_gap * catchup_gain_speed
+
+		# ensure a margin over the player's current speed
+		var min_over: float = pl_speed * min_ratio_vs_player
+		if desired < min_over:
+			desired = min_over
+
+	# --- curve damping (same shape as before) ---
+	var curv_u: float = curv / 0.6
+	if curv_u < 0.0:
+		curv_u = 0.0
+	if curv_u > 1.0:
+		curv_u = 1.0
+	var corner_mult: float = lerp(1.0, speed_damper_on_curve, curv_u)
+	desired = desired * corner_mult
+
+	# --- clamp to AI max ---
+	if desired > _maxMovementSpeed:
+		desired = _maxMovementSpeed
+
+	# hand off to your existing accel/decel code by aliasing v_target
+	var v_target: float = desired
+
 
 	if _movementSpeed < v_target:
 		_movementSpeed = min(v_target, _movementSpeed + accel * delta)

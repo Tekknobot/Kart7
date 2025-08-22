@@ -39,6 +39,23 @@ const _AUTO_EPS := 0.0001
 @export var depth_gamma: float = 1.00       # curve exponent ( >1 gentler, <1 harsher )
 @export var shrink_deadzone_abs: float = 0.03  # no shrink until |dot| >= this
 
+# --- smoothing controls ---
+@export var scale_half_life : float = 0.12   # seconds to move half the gap (higher = smoother)
+@export var scale_max_rate  : float = 6.0    # absolute scale units per second (cap)
+
+# --- per-instance smoothed scale cache ---
+var _smoothed_scale := {}  # instance_id -> float
+@export var ahead_max_scale_ratio: float = 0.98   # opponent ≤ 98% of player when ahead
+# --- smoothing / gating exports ---
+@export var cam_half_life      : float = 0.12   # smooth camera forward
+@export var depth_half_life    : float = 0.10   # smooth depth distance
+@export var angle_power        : float = 1.40   # lateral suppression strength
+@export var min_angle_weight   : float = 0.55   # never suppress more than this
+
+# runtime state
+var _cam_f_smooth : Vector2 = Vector2(0, 1)
+var _d_abs_smooth := {}  # id -> float
+
 # -----------------------------------------------------------------------------
 # Lifecycle from your game script:
 #   Setup(_map.ReturnWorldMatrix(), map_tex_size, _player)
@@ -70,6 +87,7 @@ func Setup(worldMatrix: Basis, mapSize: int, player: Racer) -> void:
 	for we in _worldElements:
 		prints("  -", we.name, "spr:", we.ReturnSpriteGraphic())
 		
+	_smoothed_scale.clear()
 
 func Update(worldMatrix: Basis) -> void:
 	if _is_updating:
@@ -200,114 +218,108 @@ func WorldToScreenPosition(worldElement : WorldElement) -> void:
 		return
 
 	var spr := worldElement.ReturnSpriteGraphic()
-	var mp := worldElement.ReturnMapPosition()  # normalized UV (0..1)
+	var mp  := worldElement.ReturnMapPosition()   # UV (0..1)
+	var dt  := get_process_delta_time()
+	var id  := worldElement.get_instance_id()
 
-	# throttle logging a bit
-	var _dbg_every := 12
-	var _do_log := (Engine.get_process_frames() % _dbg_every) == 0
+	# ---- camera forward (smoothed) ----
+	var p3d := get_node_or_null(pseudo3d_node)
+	var cam_f_target := Vector2(0, 1)
+	if p3d != null and p3d.has_method("get_camera_forward_map"):
+		cam_f_target = (p3d.call("get_camera_forward_map") as Vector2)
+	if cam_f_target.length() <= 0.0:
+		cam_f_target = Vector2(0, 1)
+	_cam_f_smooth = _exp_smooth_vec2(_cam_f_smooth, cam_f_target, dt, cam_half_life)
 
-	# ---- scale: Player fixed; Opponent shrinks with absolute forward distance ----
+	# ---- scale: player fixed, opponent depth-based with turn damping ----
 	if spr != null:
 		var base3 := player_base_scale_abs
 		var floor_abs := opponent_min_scale_abs
 
 		if worldElement == _player:
-			# Player: always base scale
 			(spr as Node2D).scale = Vector2(base3, base3)
-
-			if _do_log:
-				prints("[SCALE][PLAYER]",
-					"name=", worldElement.name,
-					" base3=", base3)
 		else:
-			# camera forward in map space
-			var p3d := get_node_or_null(pseudo3d_node)
-			var cam_f := Vector2(0, 1)
-			if p3d != null and p3d.has_method("get_camera_forward_map"):
-				cam_f = (p3d.call("get_camera_forward_map") as Vector2).normalized()
-
-			# absolute forward distance wrt camera forward (monotonic)
+			# relative vector in map space
 			var pl_uv := Vector2(_player.ReturnMapPosition().x, _player.ReturnMapPosition().z)
 			var el_uv := Vector2(mp.x, mp.z)
-			var dot_val := (el_uv - pl_uv).dot(cam_f)
-			var d_abs = abs(dot_val)
+			var rel   := el_uv - pl_uv
 
-			# DEAD-ZONE: keep full size until clearly away
+			# camera depth & lateral
+			var depth_raw   := rel.dot(_cam_f_smooth)
+			var right_axis  := Vector2(_cam_f_smooth.y, -_cam_f_smooth.x)
+			var lateral_abs = abs(rel.dot(right_axis))
+
+			# angle weight: reduce depth influence when mostly lateral (corners)
+			var depth_abs = abs(depth_raw)
+			var denom = depth_abs + lateral_abs + 0.0001
+			var ratio = depth_abs / denom                      # ~cos(theta)
+			var angle_w := pow(ratio, angle_power)
+			if angle_w < min_angle_weight:
+				angle_w = min_angle_weight
+
+			# effective absolute distance (weighted)
+			var d_abs = depth_abs * angle_w
+
+			# smooth the distance itself to avoid spikes
+			if _d_abs_smooth.has(id):
+				d_abs = _exp_smooth_scalar(float(_d_abs_smooth[id]), d_abs, dt, depth_half_life)
+			_d_abs_smooth[id] = d_abs
+
+			# DEAD-ZONE: keep full size until clearly separated
 			var d_eff = d_abs - shrink_deadzone_abs
 			if d_eff < 0.0:
 				d_eff = 0.0
 
-			# Smooth shrink: 1 / (1 + k * d_eff)
+			# smooth shrink curve (never > 1.0)
 			var k := depth_gain
 			if k <= 0.0:
 				k = 0.0001
 			var s_depth = 1.0 / (1.0 + k * d_eff)
-
-			# depth factor must never exceed 1.0
 			if s_depth > 1.0:
-				s_depth = 1.0			
+				s_depth = 1.0
 
-			# convert to absolute & clamp to [floor_abs, base3]
-			var unclamped = base3 * s_depth
-			var final_scale = unclamped
-			var clamped_floor := false
-			var clamped_ceiling := false
-			if final_scale < floor_abs:
-				final_scale = floor_abs
-				clamped_floor = true
-			if final_scale > base3:
-				final_scale = base3
-				clamped_ceiling = true
+			# target absolute scale
+			var target_scale = base3 * s_depth
+			if target_scale < floor_abs:
+				target_scale = floor_abs
+			if target_scale > base3:
+				target_scale = base3
 
-			(spr as Node2D).scale = Vector2(final_scale, final_scale)
+			# ahead cap: opponent ahead must be smaller than the player
+			var ahead := depth_raw > 0.0
+			if invert_depth_scale:
+				ahead = not ahead
+			if ahead:
+				var ahead_cap := base3 * ahead_max_scale_ratio
+				if target_scale > ahead_cap:
+					target_scale = ahead_cap
 
-			if _do_log:
-				prints("[SCALE][OPP]",
-					"name=", worldElement.name,
-					" dot=", dot_val,
-					" d_abs=", d_abs,
-					" k=", k,
-					" s_depth=", s_depth,
-					" unclamped=", unclamped,
-					" final=", final_scale,
-					" floor=", floor_abs,
-					" base3=", base3,
-					" clamp_floor=", clamped_floor,
-					" clamp_top=", clamped_ceiling)
+			# temporal smoothing + rate limit to avoid pops
+			var sm := _smooth_scale_to(id, target_scale, dt)
+			if sm < floor_abs: sm = floor_abs
+			if sm > base3:     sm = base3
+			(spr as Node2D).scale = Vector2(sm, sm)
 
-	# ---- project to screen (your original style) ----
+	# ---- project to screen (unchanged) ----
 	var transformed : Vector3 = _worldMatrix.inverse() * Vector3(mp.x, mp.z, 1.0)
 	if transformed.z < 0.0:
 		worldElement.SetScreenPosition(Vector2(-1000, -1000))
-		if spr != null:
-			spr.visible = false
+		if spr != null: spr.visible = false
 		return
 
 	var screen : Vector2 = Vector2(transformed.x / transformed.z, transformed.y / transformed.z)
 	screen = (screen + Vector2(0.5, 0.5)) * _screen_size()
 
-	# foot anchor (keep your original logic)
 	if spr != null:
 		var h := 0.0
-		if "region_rect" in spr:
-			h = spr.region_rect.size.y
-		if h <= 0.0:
-			h = 32.0
+		if "region_rect" in spr: h = spr.region_rect.size.y
+		if h <= 0.0: h = 32.0
 		screen.y -= (h * (spr as Node2D).scale.y) / 2.0
 
-		if _do_log:
-			prints("[PLACE]",
-				"name=", worldElement.name,
-				" z=", transformed.z,
-				" screen=", screen,
-				" frame_h=", h,
-				" scale_y=", (spr as Node2D).scale.y)
-
-	# cull
-	if (screen.floor().x > _screen_size().x or screen.x < 0.0 or screen.floor().y > _screen_size().y or screen.y < 0.0):
+	if (screen.floor().x > _screen_size().x or screen.x < 0.0 or
+		screen.floor().y > _screen_size().y or screen.y < 0.0):
 		worldElement.SetScreenPosition(Vector2(-1000, -1000))
-		if spr != null:
-			spr.visible = false
+		if spr != null: spr.visible = false
 		return
 
 	worldElement.SetScreenPosition(screen.floor())
@@ -347,3 +359,43 @@ func _collect_world_elements() -> void:
 			stack.push_back(c)
 		if n is WorldElement and n != _player and not _worldElements.has(n):
 			_worldElements.append(n)
+
+func _smooth_scale_to(id: int, target: float, dt: float) -> float:
+	var prev: float
+	if _smoothed_scale.has(id):
+		prev = float(_smoothed_scale[id])
+	else:
+		_smoothed_scale[id] = target
+		return target
+
+	# Exponential smoothing with half-life: alpha = 1 - 0.5^(dt/half_life)
+	var hl := scale_half_life
+	if hl <= 0.0:
+		hl = 0.0001
+	var alpha := 1.0 - pow(0.5, dt / hl)
+
+	var raw := prev + (target - prev) * alpha
+
+	# Rate limit so big jumps are clamped per frame
+	var max_step := scale_max_rate * dt
+	var delta := raw - prev
+	if delta >  max_step:
+		raw = prev + max_step
+	elif delta < -max_step:
+		raw = prev - max_step
+
+	_smoothed_scale[id] = raw
+	return raw
+
+func _exp_smooth_scalar(prev: float, target: float, dt: float, half_life: float) -> float:
+	if half_life <= 0.0:
+		return target
+	var alpha := 1.0 - pow(0.5, dt / half_life)
+	return prev + (target - prev) * alpha
+
+func _exp_smooth_vec2(prev: Vector2, target: Vector2, dt: float, half_life: float) -> Vector2:
+	if half_life <= 0.0:
+		return target.normalized() if target.length() > 0.0 else prev
+	var alpha := 1.0 - pow(0.5, dt / half_life)
+	var v := prev + (target - prev) * alpha
+	return v.normalized() if v.length() > 0.00001 else prev
