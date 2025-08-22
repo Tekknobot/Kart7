@@ -37,6 +37,46 @@ var _path = null
 var _pseudo = null
 var _ang = null
 
+const DIRECTIONS: int = 12
+@export var sheet_uses_mirroring := false  # set true only if you have a 6-frame sheet mirrored
+
+func _spr_or_null() -> CanvasItem:
+	return ReturnSpriteGraphic()
+
+func _set_frame_idx(dir_idx: int) -> void:
+	var spr := _spr_or_null()
+	if spr == null: return
+	if spr is Sprite2D:
+		var s := spr as Sprite2D
+		if sheet_uses_mirroring:
+			var HALF := 6
+			var idx := (dir_idx % (HALF * 2) + (HALF * 2)) % (HALF * 2)
+			var left_side := idx >= HALF
+			var col := idx % HALF
+			if s.hframes != HALF:
+				s.hframes = HALF; s.vframes = 1
+			s.frame = col
+			s.flip_h = left_side
+		else:
+			if s.hframes != DIRECTIONS:
+				s.hframes = DIRECTIONS; s.vframes = 1
+			s.flip_h = false
+			s.frame = clamp(dir_idx, 0, DIRECTIONS - 1)
+	elif "frame" in spr:
+		spr.frame = clamp(dir_idx, 0, DIRECTIONS - 1)
+
+func _set_turn_angle(angle_deg: float) -> void:
+	var step := 360.0 / float(DIRECTIONS)  # 30°
+	var idx := int(floor((wrapf(angle_deg, 0.0, 360.0) + step * 0.5) / step)) % DIRECTIONS
+	_set_frame_idx(idx)
+
+func _choose_and_set_direction(cam_yaw: float, heading: float, angle_offset_deg: float = 0.0, clockwise := true) -> void:
+	var theta_cam := wrapf(heading - cam_yaw, -PI, PI)
+	var deg := rad_to_deg(theta_cam)
+	deg = wrapf(deg + angle_offset_deg, 0.0, 360.0)
+	if not clockwise: deg = 360.0 - deg
+	_set_turn_angle(deg)
+
 func _ready() -> void:
 	_path = get_node_or_null(path_ref)
 	_pseudo = get_node_or_null(pseudo3d_ref)

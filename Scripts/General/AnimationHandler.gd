@@ -24,15 +24,20 @@ var _wasDrifting: bool = false
 
 func Setup(player : Racer):
 	_player = player
-	_originalPlayerSpriteYPos = player.ReturnSpriteGraphic().position.y
+	var spr := _player.ReturnSpriteGraphic()
+	_originalPlayerSpriteYPos = spr.position.y if spr != null else 0.0
 
 func Update() -> void:
 	if _player == null or _effectsPlayer == null or _effectsPlayer.get_parent() == null:
 		return
 
 	# z-index keep-alive
-	if (_effectsPlayer.get_parent().z_index != _player.ReturnSpriteGraphic().z_index + 1):
-		_effectsPlayer.get_parent().z_index = _player.ReturnSpriteGraphic().z_index + 1
+	var parent := _effectsPlayer.get_parent()
+	var pspr := _player.ReturnSpriteGraphic()
+	if parent != null and pspr != null:
+		var want := pspr.z_index + 1
+		if parent.z_index != want:
+			parent.z_index = want
 
 	var is_hopping: bool = (_player.has_method("ReturnIsHopping") and _player.ReturnIsHopping())
 	var is_drifting: bool = (_player.has_method("ReturnIsDrifting") and _player.ReturnIsDrifting())
@@ -49,8 +54,6 @@ func Update() -> void:
 
 	# DRIFT
 	if is_drifting and rt != Globals.RoadType.SINK and rt != Globals.RoadType.WALL:
-		# If we're drifting *on gravel*, keep the gravel effect active/animated.
-		# (Let the speed gate decide visibility & playback of Gravel_Anim.)
 		if rt == Globals.RoadType.GRAVEL:
 			_apply_gravel_speed_gate()
 		else:
@@ -61,15 +64,12 @@ func Update() -> void:
 			_wasDrifting = false
 			PlaySpecificEffectAnimation(rt)
 
-	# If road type changed, re-pick base effect
 	if rt != _previousHandledRoadType:
 		PlaySpecificEffectAnimation(rt)
 
-	# --- NEW: enforce gravel speed gate every frame while on gravel ---
 	if rt == Globals.RoadType.GRAVEL:
 		_apply_gravel_speed_gate()
 
-	# bounce (except in SINK)
 	if rt != Globals.RoadType.SINK:
 		PlayerRoadBounceAnimation()
 
@@ -77,7 +77,6 @@ func PlaySpecificEffectAnimation(roadType : Globals.RoadType):
 	var animName := ""
 	_effectsPlayer.get_parent().visible = true
 
-	# defensively handle wheel array size
 	if _specialWheelEffect.size() > 0 and _specialWheelEffect[0]:
 		_specialWheelEffect[0].visible = false
 	if _specialWheelEffect.size() > 1 and _specialWheelEffect[1]:
@@ -88,13 +87,10 @@ func PlaySpecificEffectAnimation(roadType : Globals.RoadType):
 			_effectsPlayer.get_parent().visible = false
 			_firstTimeSink = true
 		Globals.RoadType.GRAVEL:
-			# if we’re basically not moving, don’t display the gravel at all
 			if _player.ReturnMovementSpeed() < _gravel_speed_threshold:
 				_effectsPlayer.get_parent().visible = false
-				# make sure any previously playing gravel anim is stopped
 				if _effectsPlayer.is_playing() and _effectsPlayer.current_animation.begins_with("Gravel"):
 					_effectsPlayer.stop()
-				# hide wheel gas shader sprites if you were showing them for gravel
 				if _specialWheelEffect.size() > 0 and _specialWheelEffect[0]:
 					_specialWheelEffect[0].visible = false
 				if _specialWheelEffect.size() > 1 and _specialWheelEffect[1]:
@@ -113,7 +109,9 @@ func PlaySpecificEffectAnimation(roadType : Globals.RoadType):
 			_firstTimeSink = true
 		Globals.RoadType.WALL:
 			if (_effectsPlayer.current_animation == "Sink_Anim"):
-				_player.ReturnSpriteGraphic().self_modulate.a = 0
+				var pspr := _player.ReturnSpriteGraphic()
+				if pspr != null:
+					pspr.self_modulate.a = 0.0
 			else:
 				_effectsPlayer.get_parent().visible = false
 		Globals.RoadType.SINK:
@@ -129,7 +127,6 @@ func PlaySpecificEffectAnimation(roadType : Globals.RoadType):
 
 	_previousHandledRoadType = roadType
 
-	# only play if valid & not already the same
 	if animName != "" and _effectsPlayer.has_animation(animName):
 		if animName != _effectsPlayer.current_animation:
 			_effectsPlayer.stop()
@@ -141,10 +138,14 @@ func PlayerRoadBounceAnimation():
 		_currBounceTime = 0.0
 		_bouncedUp = !_bouncedUp
 
+	var spr := _player.ReturnSpriteGraphic()
+	if spr == null:
+		return
+
 	if _bouncedUp:
-		_player.ReturnSpriteGraphic().position.y = _originalPlayerSpriteYPos - _roadRoughness
+		spr.position.y = _originalPlayerSpriteYPos - _roadRoughness
 	else:
-		_player.ReturnSpriteGraphic().position.y = _originalPlayerSpriteYPos
+		spr.position.y = _originalPlayerSpriteYPos
 
 func SetFirstTimeSink(input : bool): _firstTimeSink = input
 func PlaySinkAnimation(): _effectsPlayer.play("Sink_Anim")

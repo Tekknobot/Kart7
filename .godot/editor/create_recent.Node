@@ -1,4 +1,6 @@
-CharacterBody2D
+Node
+Sprite2D
 Node2D
+CharacterBody2D
 SubViewport
 AudioStreamPlayer2D

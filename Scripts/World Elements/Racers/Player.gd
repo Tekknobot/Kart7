@@ -94,22 +94,83 @@ var _spin_timer := 0.0
 var _spin_phase := 0.0
 var _post_spin_lock := 0.0
 
+# === Item (Mushroom) Boost ===
+const ITEM_BOOST_MULT := 3.75     # how strong the mushroom boost is
+const ITEM_BOOST_TIME := 0.35     # how long it lasts (seconds)
+const ITEM_COOLDOWN := 3       # small cooldown before you can use another
+
+var _item_boost_timer := 0.0
+var _item_cooldown_timer := 0.0
+
+var _has_base_sprite_offset: bool = false
+
+func _spr_or_null() -> CanvasItem:
+	return ReturnSpriteGraphic()
+
+func _set_frame_idx(dir_idx: int) -> void:
+	var spr := _spr_or_null()
+	if spr == null: return
+
+	if spr is Sprite2D:
+		var s := spr as Sprite2D
+		if sheet_uses_mirroring:
+			# 6 columns on sheet; use flip for the other 6
+			var HALF := 6
+			var idx := (dir_idx % (HALF * 2) + (HALF * 2)) % (HALF * 2)
+			var left_side := idx >= HALF
+			var col := idx % HALF
+			if s.hframes != HALF:
+				s.hframes = HALF
+				s.vframes = 1
+			s.frame = col
+			s.flip_h = left_side
+		else:
+			# full 12 unique frames — no flip needed
+			if s.hframes != DIRECTIONS:
+				s.hframes = DIRECTIONS
+				s.vframes = 1
+			s.flip_h = false
+			s.frame = clamp(dir_idx, 0, DIRECTIONS - 1)
+	elif "frame" in spr:
+		spr.frame = clamp(dir_idx, 0, DIRECTIONS - 1)
+
 func _ready() -> void:
-	_register_default_actions()
-	_base_sprite_offset_y = ReturnSpriteGraphic().offset.y
+	_register_default_actions()  # <-- add this FIRST so inputs exist
 	var spr := ReturnSpriteGraphic()
-	spr.region_enabled = true
+	if spr == null:
+		await get_tree().process_frame
+		spr = ReturnSpriteGraphic()
+	if spr == null:
+		push_error("Player.gd: sprite_graphic_path is not set or node missing: %s" % str(get("sprite_graphic_path")))
+		return
+	_base_sprite_offset_y = spr.offset.y
 
 func _process(_dt: float) -> void:
 	# publish camera/player position for pseudo-3D projection
 	Globals.set_camera_map_position(get_player_map_position())
+	if Engine.get_process_frames() % 30 == 0:
+		var v := ReturnPlayerInput()
+		print("INPUT steer=", v.x, " throttle=", v.y)
 
 func _set_frame(idx: int) -> void:
-	idx = clamp(idx, 0, FRAMES_PER_ROW - 1)
 	var spr := ReturnSpriteGraphic()
-	spr.region_enabled = true
-	var x := idx * FRAME_W
-	spr.region_rect = Rect2(x, 0, FRAME_W, FRAME_H)
+	if spr == null:
+		return   # sprite not ready this frame
+
+	# Sprite2D sheet (preferred)
+	if spr is Sprite2D:
+		var s := spr as Sprite2D
+		# ensure grid; safe to repeat
+		if s.hframes != DIRECTIONS:
+			s.hframes = DIRECTIONS
+			s.vframes = 1
+		# DO NOT touch s.region_enabled here; not needed for hframes/vframes
+		s.frame = clamp(idx, 0, DIRECTIONS - 1)
+		return
+
+	# AnimatedSprite2D fallback
+	if spr.has_method("set_frame"):
+		spr.frame = clamp(idx, 0, DIRECTIONS - 1)
 
 func _set_turn_amount_in_range(right_amount: float, is_left: bool, range_max: int) -> void:
 	right_amount = clamp(right_amount, 0.0, 1.0)
@@ -126,10 +187,21 @@ func _set_turn_amount_in_range(right_amount: float, is_left: bool, range_max: in
 
 	_set_frame(idx)
 
+	# SAFELY set flip (no direct ReturnSpriteGraphic().flip_h)
 	if _is_drifting or _drift_release_timer > 0.0 or _post_settle_time > 0.0:
-		ReturnSpriteGraphic().flip_h = not is_left
+		_set_flip_h(not is_left)
 	else:
-		ReturnSpriteGraphic().flip_h = is_left
+		_set_flip_h(is_left)
+
+# --- helper: null-safe flip ---
+func _set_flip_h(val: bool) -> void:
+	var spr := ReturnSpriteGraphic()
+	if spr == null:
+		return
+	if spr is Sprite2D:
+		(spr as Sprite2D).flip_h = val
+	elif "flip_h" in spr:
+		spr.flip_h = val
 
 func _choose_and_apply_frame(dt: float) -> void:
 	var steer := _inputDir.x
@@ -157,7 +229,6 @@ func _choose_and_apply_frame(dt: float) -> void:
 		var delta := step
 		var inc_right := TURN_INCREASES_TO_RIGHT
 		var base := TURN_STRAIGHT_INDEX
-
 		var idx := base
 
 		if first_half:
@@ -166,15 +237,15 @@ func _choose_and_apply_frame(dt: float) -> void:
 				idx = base + (delta if inc_right else -delta)
 			else:
 				idx = base - (delta if inc_right else -delta)
-			ReturnSpriteGraphic().flip_h = false
+			_set_flip_h(false)
 		else:
-			# reverse: extreme -> straight, but flipped to fake the other side of the kart
+			# reverse: extreme -> straight, but flipped to fake the other side
 			var back := steps - step  # 11..0
 			if dir_right_first:
 				idx = base + (back if inc_right else -back)
 			else:
 				idx = base - (back if inc_right else -back)
-			ReturnSpriteGraphic().flip_h = true
+			_set_flip_h(true)
 
 		# clamp for safety and apply
 		idx = clamp(idx, 0, FRAMES_PER_ROW - 1)
@@ -257,9 +328,30 @@ func Update(mapForward : Vector3) -> void:
 	_spinout_update_meter(dt, input_vec)
 	_spinout_tick(dt)
 
+	# --- Item boost trigger ---
+	if _item_cooldown_timer > 0.0:
+		_item_cooldown_timer = max(0.0, _item_cooldown_timer - dt)
+
+	if Input.is_action_just_pressed("Item"):
+		# Optional: block during spin so you can't cheese out of it.
+		if not _is_spinning and _item_cooldown_timer <= 0.0:
+			_item_boost_timer = ITEM_BOOST_TIME
+			_item_cooldown_timer = ITEM_BOOST_TIME + ITEM_COOLDOWN
+			# (Optional FX)
+			_emit_sparks(true)
+			_set_sparks_color(Color(0.6, 1.0, 0.4)) # greenish boost flash
+
 	# if spinning, block the hop/drift system entirely
 	if not _is_spinning:
 		_handle_hop_and_drift(input_vec)
+
+	# --- Maintain item boost multiplier (never force 1.0; just raise the ceiling) ---
+	if _item_boost_timer > 0.0:
+		_item_boost_timer -= dt
+		_speedMultiplier = max(_speedMultiplier, ITEM_BOOST_MULT)
+		if _item_boost_timer <= 0.0:
+			# Let drift/turbo/hop logic decide sparks; we won’t force them off here
+			pass
 
 	var nextPos : Vector3 = _mapPosition + ReturnVelocity()
 	var nextPixelPos : Vector2i = Vector2i(ceil(nextPos.x), ceil(nextPos.z))
@@ -322,78 +414,110 @@ func ReturnPlayerInput() -> Vector2:
 func _handle_hop_and_drift(input_vec : Vector2) -> void:
 	var dt := get_process_delta_time()
 
+	# --- Inputs / gates ---
 	var hop_pressed := Input.is_action_just_pressed("Hop")
 	var drift_down := Input.is_action_pressed("Drift")
 	var moving_fast := _movementSpeed >= DRIFT_MIN_SPEED
 	var steer_abs = abs(input_vec.x)
+	var steer_sign = sign(input_vec.x)
 
+	# --- Hop: arm a short window where drift can begin (SNES-style) ---
 	if hop_pressed and not _is_drifting:
 		_hop_timer = HOP_DURATION
 		_hop_boost_timer = HOP_DURATION
 		_speedMultiplier = max(_speedMultiplier, HOP_SPEED_BOOST)
 		_drift_arm_timer = DRIFT_ARM_WINDOW
 
+		# tiny lateral impulse to "set" the slide feel (one frame, outward once you choose a side)
+		# we won't apply until drift actually starts; this only preps the arm window
+		# (handled on actual drift start below)
+
+	# decay hop boost
 	if _hop_boost_timer > 0.0:
 		_hop_boost_timer -= dt
 		if _hop_boost_timer <= 0.0:
 			_speedMultiplier = 1.0
 
+	# keep arm window alive briefly after hop
 	if _drift_arm_timer > 0.0:
 		_drift_arm_timer = max(0.0, _drift_arm_timer - dt)
 
+	# --- Start DRIFT: only if armed by hop, fast enough, and steering clearly ---
 	if (not _is_drifting) and drift_down and (_drift_arm_timer > 0.0) and moving_fast and (steer_abs >= DRIFT_STEER_DEADZONE):
-		_is_drifting = true
-		if input_vec.x < 0.0:
-			_drift_dir = -1
-		else:
-			_drift_dir = 1
-		_drift_wobble_phase = 0.0
-		_drift_break_timer = 0.0
-		_drift_charge = 0.0
-		_lean_left_visual = (_drift_dir < 0)
-		_post_settle_time = 0.0
+		var dir := 1
+		if steer_sign < 0.0:
+			dir = -1
+		_start_drift_snes(dir)
 
+
+	# --- While DRIFTING (SNES-style fixed slip) ---
 	if _is_drifting and drift_down:
+		# Keep speed almost intact while drifting (classic SMK keeps momentum)
 		_speedMultiplier = DRIFT_SPEED_MULT
 
+		# Fixed steering target: bias is constant; we do NOT keep pulling input through
 		var bias := float(_drift_dir) * DRIFT_MIN_TURN_BIAS
-		var steer_mod := input_vec.x * DRIFT_STEER_INFLUENCE
-		var raw_target = clamp(bias + steer_mod, -1.0, 1.0)
+		var raw_target = clamp(bias, -1.0, 1.0)
 
-		if sign(input_vec.x) == -_drift_dir:
-			raw_target *= DRIFT_COUNTERSTEER_GAIN
-		raw_target = clamp(raw_target, -1.0, 1.0)
-
-		var grip_t = clamp(get_process_delta_time() * (DRIFT_GRIP * 10.0), 0.0, 1.0)
+		# Small grip lerp for stability
+		var grip_t = clamp(dt * (DRIFT_GRIP * 10.0), 0.0, 1.0)
 		_inputDir.x = lerp(_inputDir.x, raw_target * DRIFT_STEER_MULT, grip_t)
 
-		_drift_charge += abs(input_vec.x) * DRIFT_BUILD_RATE * get_process_delta_time()
+		# Build charge mostly with TIME (classic feel), slightly helped by steer pressure
+		_drift_charge += (0.75 + 0.25 * steer_abs) * DRIFT_BUILD_RATE * dt
 
-		var steer_sign = sign(input_vec.x)
-		if steer_sign != 0 and steer_sign == -_drift_dir and abs(input_vec.x) >= DRIFT_REVERSE_BREAK:
+		# Snappy cancel: opposite steer OR easing off steer for a short grace ends it
+		if steer_sign != 0 and steer_sign == -_drift_dir and steer_abs >= DRIFT_REVERSE_BREAK:
 			_cancel_drift_no_award(POST_DRIFT_SETTLE_TIME_BREAK)
-		elif abs(input_vec.x) < DRIFT_BREAK_DEADZONE:
-			_drift_break_timer += get_process_delta_time()
+		elif steer_abs < DRIFT_BREAK_DEADZONE:
+			_drift_break_timer += dt
 			if _drift_break_timer >= DRIFT_BREAK_GRACE:
 				_cancel_drift_no_award(POST_DRIFT_SETTLE_TIME_BREAK)
 		else:
 			_drift_break_timer = 0.0
 
+	# --- Release drift button: award mini-boost / turbo ---
 	if _is_drifting and not drift_down:
 		_end_drift_with_award()
 
+	# --- Global turbo decay ---
 	if _turbo_timer > 0.0:
 		_turbo_timer -= dt
 		if _turbo_timer <= 0.0:
 			_speedMultiplier = 1.0
 
+# SNES-like drift start: lock direction, fixed slip "set", reset counters.
+func _start_drift_snes(dir: int) -> void:
+	_is_drifting = true
+
+	if dir < 0:
+		_drift_dir = -1
+	else:
+		_drift_dir = 1
+
+	_drift_wobble_phase = 0.0
+	_drift_break_timer = 0.0
+	_drift_charge = 0.0
+	_lean_left_visual = (_drift_dir < 0)
+	_post_settle_time = 0.0
+
+	# Fixed outward slip feel (stronger for SNES vibe; adjust to taste)
+	# You already add side-slip in Update(), so seed it harder at start:
+	var outward_sign := 1.0
+	if _drift_dir >= 0:
+		outward_sign = -1.0
+	_drift_side_slip += outward_sign * 0.65  # one-off impulse
+
+	# Keep speed nearly intact while drifting
+	_speedMultiplier = DRIFT_SPEED_MULT
+
 func _register_default_actions() -> void:
-	# Ensure actions exist
-	for action in ["Forward", "Left", "Right", "Brake", "Hop", "Drift"]:
+	# Ensure actions exist once
+	for action in ["Forward", "Left", "Right", "Brake", "Hop", "Drift", "Item"]:
 		if not InputMap.has_action(action):
 			InputMap.add_action(action)
 
-	# --- Gamepad bindings (keep your originals) ---
+	# Gamepad
 	var jb := InputEventJoypadButton.new()
 	jb.button_index = JOY_BUTTON_A
 	InputMap.action_add_event("Forward", jb.duplicate())
@@ -403,45 +527,64 @@ func _register_default_actions() -> void:
 	InputMap.action_add_event("Hop", jb.duplicate())
 	jb.button_index = JOY_BUTTON_RIGHT_SHOULDER
 	InputMap.action_add_event("Drift", jb.duplicate())
+
 	jb.button_index = JOY_BUTTON_DPAD_LEFT
 	InputMap.action_add_event("Left", jb.duplicate())
 	jb.button_index = JOY_BUTTON_DPAD_RIGHT
 	InputMap.action_add_event("Right", jb.duplicate())
 
-	# --- Keyboard bindings (inline, no helper) ---
+	# Keyboard
 	var ev: InputEventKey
 
 	# Forward: W, Up
-	ev = InputEventKey.new(); ev.keycode = KEY_W;  InputMap.action_add_event("Forward", ev)
-	ev = InputEventKey.new(); ev.keycode = KEY_UP; InputMap.action_add_event("Forward", ev)
+	ev = InputEventKey.new(); ev.keycode = KEY_W;       InputMap.action_add_event("Forward", ev)
+	ev = InputEventKey.new(); ev.keycode = KEY_UP;      InputMap.action_add_event("Forward", ev)
 
 	# Brake: S, Down
-	ev = InputEventKey.new(); ev.keycode = KEY_S;    InputMap.action_add_event("Brake", ev)
-	ev = InputEventKey.new(); ev.keycode = KEY_DOWN; InputMap.action_add_event("Brake", ev)
+	ev = InputEventKey.new(); ev.keycode = KEY_S;       InputMap.action_add_event("Brake", ev)
+	ev = InputEventKey.new(); ev.keycode = KEY_DOWN;    InputMap.action_add_event("Brake", ev)
 
-	# Left: A, Left
-	ev = InputEventKey.new(); ev.keycode = KEY_A;     InputMap.action_add_event("Left", ev)
-	ev = InputEventKey.new(); ev.keycode = KEY_LEFT;  InputMap.action_add_event("Left", ev)
-
-	# Right: D, Right
-	ev = InputEventKey.new(); ev.keycode = KEY_D;      InputMap.action_add_event("Right", ev)
-	ev = InputEventKey.new(); ev.keycode = KEY_RIGHT;  InputMap.action_add_event("Right", ev)
+	# Left / Right: A/D, ←/→
+	ev = InputEventKey.new(); ev.keycode = KEY_A;       InputMap.action_add_event("Left", ev)
+	ev = InputEventKey.new(); ev.keycode = KEY_LEFT;    InputMap.action_add_event("Left", ev)
+	ev = InputEventKey.new(); ev.keycode = KEY_D;       InputMap.action_add_event("Right", ev)
+	ev = InputEventKey.new(); ev.keycode = KEY_RIGHT;   InputMap.action_add_event("Right", ev)
 
 	# Hop: Space
-	ev = InputEventKey.new(); ev.keycode = KEY_SPACE; InputMap.action_add_event("Hop", ev)
+	ev = InputEventKey.new(); ev.keycode = KEY_SPACE;   InputMap.action_add_event("Hop", ev)
 
-	# Drift: either Shift (add both sides for reliability)
-	ev = InputEventKey.new(); ev.keycode = KEY_SPACE;    InputMap.action_add_event("Drift", ev)
+	# Drift: Shift (both)
+	ev = InputEventKey.new(); ev.keycode = KEY_SHIFT;  InputMap.action_add_event("Drift", ev)
+
+	# Item: E (keyboard) / B (pad)
+	ev = InputEventKey.new(); ev.keycode = KEY_E;       InputMap.action_add_event("Item", ev)
+	jb.button_index = JOY_BUTTON_B
+	InputMap.action_add_event("Item", jb.duplicate())
 
 func _apply_hop_sprite_offset() -> void:
-	var dt := get_process_delta_time()
+	var spr := ReturnSpriteGraphic()
+	if spr == null:
+		return  # sprite not ready yet; try next frame
+
+	# lazily capture the base offset once
+	if not _has_base_sprite_offset:
+		_base_sprite_offset_y = spr.offset.y
+		_has_base_sprite_offset = true
+
+	var dt: float = get_process_delta_time()
+
 	if _hop_timer > 0.0:
-		_hop_timer -= dt
-		var t = clamp(1.0 - (_hop_timer / HOP_DURATION), 0.0, 1.0)
-		var y := sin(PI * t) * HOP_HEIGHT
-		ReturnSpriteGraphic().offset.y = _base_sprite_offset_y - y
+		_hop_timer = max(0.0, _hop_timer - dt)
+		var t: float = clamp(1.0 - (_hop_timer / HOP_DURATION), 0.0, 1.0)
+		var y: float = sin(PI * t) * HOP_HEIGHT
+
+		var off: Vector2 = spr.offset
+		off.y = _base_sprite_offset_y - y
+		spr.offset = off
 	else:
-		ReturnSpriteGraphic().offset.y = _base_sprite_offset_y
+		var off: Vector2 = spr.offset
+		off.y = _base_sprite_offset_y
+		spr.offset = off
 
 func _try_get_node(path: String) -> Node:
 	if has_node(path):

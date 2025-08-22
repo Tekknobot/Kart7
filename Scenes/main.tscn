@@ -1,4 +1,4 @@
-[gd_scene load_steps=29 format=3 uid="uid://d2glnv32t8md1"]
+[gd_scene load_steps=30 format=3 uid="uid://d2glnv32t8md1"]
 
 [ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_emb0w"]
 [ext_resource type="Script" uid="uid://cex362lk6utnk" path="res://Scripts/On Screen Elements/BackgroundEffects.gd" id="2_330he"]
@@ -17,6 +17,7 @@
 [ext_resource type="Texture2D" uid="uid://dwtfoow25238t" path="res://Textures/Racers/Particles/Road_Type_Effects_Sheet.png" id="11_w61pk"]
 [ext_resource type="Texture2D" uid="uid://cpbay01qhxufs" path="res://Textures/Tracks/MarioTrack - Road Type.png" id="12_hibaj"]
 [ext_resource type="Script" uid="uid://bomqe0y8c30wy" path="res://Scripts/General/AnimationHandler.gd" id="13_6hxns"]
+[ext_resource type="Script" uid="uid://cq2qm30peuh2" path="res://Scripts/World Elements/Racers/Opponent.gd" id="16_hibaj"]
 [ext_resource type="Texture2D" uid="uid://d1nvgl514d4vw" path="res://Textures/Hazards/Orange_Pipes.png" id="16_t3snl"]
 [ext_resource type="Script" uid="uid://bkg7bm4cb65tt" path="res://Scripts/AI/PathOverlay2D.gd" id="21_pdsj5"]
 
@@ -1087,11 +1088,14 @@ _collisionMap = ExtResource("12_hibaj")
 _wallColor = Color(0.4, 0.4, 0.4, 1)
 _roadTypeColors = Array[Color]([Color(0, 0, 0, 1), Color(1, 1, 1, 1), Color(0.8, 0.8, 0.8, 1), Color(0.603922, 0.603922, 0.603922, 1), Color(0.4, 0.4, 0.4, 1), Color(0.2, 0.2, 0.2, 1)])
 
-[node name="Sprite Handler" type="Node2D" parent="." node_paths=PackedStringArray("_hazards")]
+[node name="Sprite Handler" type="Node2D" parent="." node_paths=PackedStringArray("_hazards", "_opponents")]
 script = ExtResource("7_wmybs")
 _hazards = [NodePath("Hazards/Bridge/Green Pipe"), NodePath("Hazards/Bridge/Green Pipe2"), NodePath("Hazards/Bridge/Green Pipe3"), NodePath("Hazards/Bridge/Green Pipe4"), NodePath("Hazards/Shortcut/Green Pipe"), NodePath("Hazards/Shortcut/Green Pipe2"), NodePath("Hazards/Shortcut/Green Pipe3"), NodePath("Hazards/Shortcut/Green Pipe4"), NodePath("Hazards/Lake/Green Pipe"), NodePath("Hazards/Lake/Green Pipe2"), NodePath("Hazards/Lake/Green Pipe3"), NodePath("Hazards/Lake/Green Pipe4"), NodePath("Hazards/Last Turn/Green Pipe"), NodePath("Hazards/Last Turn/Green Pipe2"), NodePath("Hazards/Last Turn/Green Pipe3"), NodePath("Hazards/Last Turn/Green Pipe4")]
+_opponents = [NodePath("Racers/Racer01")]
 pseudo3d_node = NodePath("Racers/Player")
 path_overlay_node = NodePath("../SubViewport/PathOverlay2D")
+sprite_graphic_path = NodePath("Racers/Racer01/GFX/AngleSprite")
+collect_under = NodePath("Racers")
 
 [node name="Racers" type="Node2D" parent="Sprite Handler"]
 
@@ -1103,6 +1107,7 @@ _collisionHandler = NodePath("../../../Map/Collision Handler")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
 pseudo3d_ref = NodePath("../../../Map")
 angle_sprite_path = NodePath("GFX")
+sheet_uses_mirroring = true
 _spriteGFX = NodePath("GFX")
 
 [node name="GFX" type="Sprite2D" parent="Sprite Handler/Racers/Player"]
@@ -1159,6 +1164,17 @@ offset = Vector2(8, 0)
 flip_h = true
 region_enabled = true
 region_rect = Rect2(96, 0, 16, 16)
+
+[node name="Racer01" type="Node2D" parent="Sprite Handler/Racers"]
+script = ExtResource("16_hibaj")
+player_ref = NodePath("../Player")
+path_ref = NodePath("../../../SubViewport/PathOverlay2D")
+pseudo3d_ref = NodePath("../../../Map")
+
+[node name="GFX" type="Node" parent="Sprite Handler/Racers/Racer01"]
+
+[node name="AngleSprite" type="Sprite2D" parent="Sprite Handler/Racers/Racer01/GFX"]
+texture = ExtResource("5_lfi8c")
 
 [node name="Hazards" type="Node2D" parent="Sprite Handler"]
 visible = false

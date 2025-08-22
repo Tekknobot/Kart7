@@ -1,5 +1,5 @@
 ea4bc82a6ad023ab7ee23ee620429895
-::res://::1755822068
+::res://::1755838667
 Donut Plains - Pipe Locations.txt::TextFile/TextFile::-1::1741535471::0::1::::<><><>0<>0<><>::
 export_presets.cfg::TextFile/TextFile::-1::1741535471::0::1::::<><><>0<>0<><>::
 README.md::TextFile/TextFile::-1::1755616299::0::1::::<><><>0<>0<><>::
@@ -8,32 +8,32 @@ engine_loop.wav::AudioStreamWAV/AudioStreamWAV::447446301014443851::1755641674::
 tire_loop.wav::AudioStreamWAV/AudioStreamWAV::6947860780481075687::1755641674::1755651404::1::::<><><>0<>0<>a58c4be8c0e6c1c05b46714934dc6992<>res://.godot/imported/tire_loop.wav-2677278b9451e5462ab59865499cec08.sample::
 turbo_whoosh.wav::AudioStreamWAV/AudioStreamWAV::6169372177695684415::1755641676::1755651404::1::::<><><>0<>0<>8b9470a30722e415af93d497f62dd339<>res://.godot/imported/turbo_whoosh.wav-5555899c78a9d9b6af951817937068c8.sample::
 ::res://Build/::1741535471
-::res://Scenes/::1755822023
-main.tscn::PackedScene::9067439345570065480::1755822023::0::1::::<><><>0<>0<><>::uid://b1lbny31w132j::::res://Scripts/General/Game.gd<>uid://cex362lk6utnk::::res://Scripts/On Screen Elements/BackgroundEffects.gd<>uid://b7ri4tesomgep::::res://Temp/Background Color_Black.png<>uid://cefyc1o8c12cw::::res://Textures/Tracks/Donut Plains 1 - Sky Line.png<>uid://hpt6elsw8vyg::::res://Scripts/Shaders/ModeSeven.gdshader<>uid://b2p41drytlkxt::::res://Textures/Tracks/Donut Plains 1 - Tree Line.png<>uid://cnp7d7djiq0dd::::res://Textures/Tracks/Grass_Tile.png<>uid://4oyj7tns2kqe::::res://Scripts/World Elements/Pseudo3D.gd<>uid://bvioi2jfn2hmv::::res://Textures/Racers/Yoshi Back.png<>uid://dhfy5381d720i::::res://Scripts/General/Collision.gd<>uid://5uqme7h2yul3::::res://Scripts/On Screen Elements/SpriteHandler.gd<>uid://blxkqrqmapowt::::res://Textures/Tracks/MarioTrack.png<>uid://by6cg8pjfml46::::res://Scripts/World Elements/Racers/Player.gd<>uid://crr8fhlnitj4a::::res://Scripts/World Elements/Hazard.gd<>uid://dwtfoow25238t::::res://Textures/Racers/Particles/Road_Type_Effects_Sheet.png<>uid://cpbay01qhxufs::::res://Textures/Tracks/MarioTrack - Road Type.png<>uid://bomqe0y8c30wy::::res://Scripts/General/AnimationHandler.gd<>uid://d1nvgl514d4vw::::res://Textures/Hazards/Orange_Pipes.png<>uid://bkg7bm4cb65tt::::res://Scripts/AI/PathOverlay2D.gd
+::res://Scenes/::1755838651
+main.tscn::PackedScene::9067439345570065480::1755838651::0::1::::<><><>0<>0<><>::uid://b1lbny31w132j::::res://Scripts/General/Game.gd<>uid://cex362lk6utnk::::res://Scripts/On Screen Elements/BackgroundEffects.gd<>uid://b7ri4tesomgep::::res://Temp/Background Color_Black.png<>uid://cefyc1o8c12cw::::res://Textures/Tracks/Donut Plains 1 - Sky Line.png<>uid://hpt6elsw8vyg::::res://Scripts/Shaders/ModeSeven.gdshader<>uid://b2p41drytlkxt::::res://Textures/Tracks/Donut Plains 1 - Tree Line.png<>uid://cnp7d7djiq0dd::::res://Textures/Tracks/Grass_Tile.png<>uid://4oyj7tns2kqe::::res://Scripts/World Elements/Pseudo3D.gd<>uid://bvioi2jfn2hmv::::res://Textures/Racers/Yoshi Back.png<>uid://dhfy5381d720i::::res://Scripts/General/Collision.gd<>uid://5uqme7h2yul3::::res://Scripts/On Screen Elements/SpriteHandler.gd<>uid://blxkqrqmapowt::::res://Textures/Tracks/MarioTrack.png<>uid://by6cg8pjfml46::::res://Scripts/World Elements/Racers/Player.gd<>uid://crr8fhlnitj4a::::res://Scripts/World Elements/Hazard.gd<>uid://dwtfoow25238t::::res://Textures/Racers/Particles/Road_Type_Effects_Sheet.png<>uid://cpbay01qhxufs::::res://Textures/Tracks/MarioTrack - Road Type.png<>uid://bomqe0y8c30wy::::res://Scripts/General/AnimationHandler.gd<>uid://cq2qm30peuh2::::res://Scripts/World Elements/Racers/Opponent.gd<>uid://d1nvgl514d4vw::::res://Textures/Hazards/Orange_Pipes.png<>uid://bkg7bm4cb65tt::::res://Scripts/AI/PathOverlay2D.gd
 ::res://Scripts/::1755820860
-::res://Scripts/AI/::1755820855
-PathOverlay2D.gd::GDScript::3102640791333206041::1755801913::0::1::::<>Node2D<><>0<>0<><>::
-::res://Scripts/General/::1755803893
+::res://Scripts/AI/::1755826572
+PathOverlay2D.gd::GDScript/GDScript::3102640791333206041::1755826572::0::1::::<>Node2D<><>0<>0<><>::
+::res://Scripts/General/::1755826365
 AnimationHandler.gd::GDScript/GDScript::3394816994396386184::1755661526::0::1::::<>Node<><>0<>0<><>::
 Collision.gd::GDScript/GDScript::7662418149778340342::1755620484::0::1::::<>Node<><>0<>0<><>::
-Game.gd::GDScript::4234124010916833407::1755803893::0::1::::<>Node2D<><>0<>0<><>::
+Game.gd::GDScript/GDScript::4234124010916833407::1755826365::0::1::::<>Node2D<><>0<>0<><>::
 Globals.gd::GDScript/GDScript::8244448299010129701::1755794179::0::1::::<>Node<><>0<>0<><>::
-::res://Scripts/On Screen Elements/::1755820608
+::res://Scripts/On Screen Elements/::1755838597
 BackgroundEffects.gd::GDScript/GDScript::5102834301310110880::1755607025::0::1::::<>Node2D<><>0<>0<><>::
 DriftCloud.gd::GDScript/GDScript::618047163678589716::1755617574::0::1::::<>GPUParticles2D<><>0<>0<><>::
 SkidTrail.gd::GDScript/GDScript::8102787343292609673::1755617218::0::1::::<>Line2D<><>0<>0<><>::
-SpriteHandler.gd::GDScript::2147946025515526962::1755820608::0::1::::<>Node2D<><>0<>0<><>::
-::res://Scripts/Shaders/::1755822023
-GasDistort.gdshader::Shader::2607723553934212141::1755822023::0::1::::<><><>0<>0<><>::
-ModeSeven.gdshader::Shader::523496782185546226::1755822023::0::1::::<><><>0<>0<><>::
+SpriteHandler.gd::GDScript/GDScript::2147946025515526962::1755838597::0::1::::<>Node2D<><>0<>0<><>::
+::res://Scripts/Shaders/::1755838658
+GasDistort.gdshader::Shader::2607723553934212141::1755838658::0::1::::<><><>0<>0<><>::
+ModeSeven.gdshader::Shader::523496782185546226::1755838658::0::1::::<><><>0<>0<><>::
 ::res://Scripts/World Elements/::1755820608
 Hazard.gd::GDScript/GDScript::6003159106040995574::1755620484::0::1::::Hazard<>WorldElement<><>0<>0<><>::
-Pseudo3D.gd::GDScript::2065852744745591588::1755820608::0::1::::<>Sprite2D<><>0<>0<><>::
-WorldElement.gd::GDScript::8380419385673741142::1755820608::0::1::::WorldElement<>Node2D<><>0<>0<><>::
-::res://Scripts/World Elements/Racers/::1755820608
-Opponent.gd::GDScript::175076337539030665::1755820608::0::1::::<>Node2D<><>0<>0<><>::
-Player.gd::GDScript::4135082546989400501::1755820608::0::1::::<>WorldElement<><>0<>0<><>::
-Racer.gd::GDScript::5250713216991393359::1755820608::0::1::::Racer<>WorldElement<><>0<>0<><>::
+Pseudo3D.gd::GDScript/GDScript::2065852744745591588::1755820608::0::1::::<>Sprite2D<><>0<>0<><>::
+WorldElement.gd::GDScript/GDScript::8380419385673741142::1755820608::0::1::::WorldElement<>Node2D<><>0<>0<><>::
+::res://Scripts/World Elements/Racers/::1755838249
+Opponent.gd::GDScript/GDScript::175076337539030665::1755838249::0::1::::<>WorldElement<><>0<>0<><>::
+Player.gd::GDScript/GDScript::4135082546989400501::1755836611::0::1::::<>WorldElement<><>0<>0<><>::
+Racer.gd::GDScript/GDScript::5250713216991393359::1755820608::0::1::::Racer<>WorldElement<><>0<>0<><>::
 ::res://Temp/::1755624614
 Background Color.png::CompressedTexture2D/CompressedTexture2D::5490622543840600871::1741535471::1755620251::1::::<><><>0<>0<>bf6d28cd4e6b50bc18bb05512371eac0<>res://.godot/imported/Background Color.png-1a38f6fa832b42096eda3e122dc8d4b1.ctex::
 Background Color_Black.png::CompressedTexture2D/CompressedTexture2D::4668096630854422703::1755624608::1755624614::1::::<><><>0<>0<>82d93364ebec48fab91a85169979ecc4<>res://.godot/imported/Background Color_Black.png-41f1a178ab508b1936d6d9194a30cd36.ctex::
