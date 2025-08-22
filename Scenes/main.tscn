@@ -1101,15 +1101,13 @@ depth_gain = 32.0
 shrink_deadzone_abs = 0.001
 scale_half_life = 0.01
 scale_max_rate = 64.0
-player_radius_uv = 0.001
-opponent_radius_uv = 0.001
 separate_fraction = 2.0
-scale_max_rate_up = 0.1
 turn_freeze_deg_per_s = 90.0
 growth_damp_gain = 16.0
 turn_half_life = 0.12
 ref_distance_uv = 0.001
 radius_from_sprite_factor = 0.001
+min_radius_uv_auto = 0.002
 
 [node name="Racers" type="Node2D" parent="Sprite Handler"]
 
@@ -1200,7 +1198,7 @@ path_ref = NodePath("../../../SubViewport/PathOverlay2D")
 pseudo3d_ref = NodePath("../../../Map")
 ai_auto_launch = false
 ai_launch_time_s = 20.0
-ai_target_speed = 190.0
+ai_target_speed = 150.0
 _spriteGFX = NodePath("GFX/AngleSprite")
 
 [node name="GFX" type="Node" parent="Sprite Handler/Racers/Racer01"]
@@ -1214,6 +1212,7 @@ script = ExtResource("16_hibaj")
 player_ref = NodePath("../Player")
 target_speed = 200.0
 accel = 200.0
+max_speed_override = 190.0
 catchup_gain_speed = 120.0
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
 pseudo3d_ref = NodePath("../../../Map")

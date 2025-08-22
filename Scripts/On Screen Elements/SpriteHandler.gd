@@ -60,8 +60,8 @@ var _d_abs_smooth := {}  # id -> float
 
 # --- Player↔Opponent collision (map-space circle) ---
 @export var enable_player_opponent_collision := true
-@export var player_radius_uv   : float = 0.035   # in UV units (0..1 across the map)
-@export var opponent_radius_uv : float = 0.035   # in UV units (per opponent)
+@export var player_radius_uv   : float = 0.001   # in UV units (0..1 across the map)
+@export var opponent_radius_uv : float = 0.001   # in UV units (per opponent)
 @export var separate_fraction  : float = 1.0     # 1.0 = full separation this frame
 @export var bump_on_collision  : bool = true
 @export var bump_strength_sign := 1.0            # 1.0 forward along normal, -1.0 opposite

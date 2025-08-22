@@ -54,6 +54,32 @@ const DIRECTIONS: int = 12
 var _ai_timer_s    : float = -1.0
 var _ai_launched   : bool  = false
 
+# --- scale stabilizers (for pseudo-3D) ---
+@export var scale_near_soft   : float = 128.0   # px of "soft near plane" for scale
+@export var scale_use_abs     : bool  = false   # true = scale by |depth| (symmetric forward/back)
+@export var scale_half_life_s : float = 0.12   # smooth scale target (seconds to move half the gap)
+
+var _sc_smooth: float = 0.0
+var _nodes_ready := false
+
+var _seg_i: int = 0         # cached segment index for _s
+var _last_s: float = -1.0   # last distance used (px), to detect direction
+
+func _ensure_nodes() -> void:
+	if _nodes_ready:
+		return
+	_path = get_node_or_null(path_ref)
+	_pseudo = get_node_or_null(pseudo3d_ref)
+	if angle_sprite_path != NodePath():
+		_ang = get_node_or_null(angle_sprite_path)
+	_nodes_ready = true
+
+func _smooth_scalar(prev: float, target: float, dt: float, half_life: float) -> float:
+	if half_life <= 0.0:
+		return target
+	var a := 1.0 - pow(0.5, dt / half_life)
+	return prev + (target - prev) * a
+
 func _spr_or_null() -> CanvasItem:
 	return ReturnSpriteGraphic()
 
@@ -97,15 +123,13 @@ func _ready() -> void:
 	if angle_sprite_path != NodePath():
 		_ang = get_node_or_null(angle_sprite_path)
 
-func _process(_dt: float) -> void:
-	var d := _get_nodes()
-	var pseudo = d["pseudo"]
-	if pseudo != null:
+func _process(dt: float) -> void:
+	_ensure_nodes()
+	if _pseudo != null:
 		var cam_pos := Globals.get_camera_map_position()
 		update_screen_transform(cam_pos)
 		update_angle_sprite()
-	
-	_tick_auto_throttle(_dt)	
+	_tick_auto_throttle(dt)
 
 func set_points_uv(uv: PackedVector2Array) -> void:
 	_uv_points = uv
@@ -153,7 +177,8 @@ func _camera_components(camera_pos: Vector2, cam_f: Vector2, world: Vector2) -> 
 func update_screen_transform(camera_pos: Vector2) -> void:
 	var d := _get_nodes()
 	var pseudo = d["pseudo"]
-	if pseudo == null:
+	_ensure_nodes()
+	if _pseudo == null:
 		return
 
 	var cam_f: Vector2 = pseudo.get_camera_forward_map()
@@ -170,12 +195,27 @@ func update_screen_transform(camera_pos: Vector2) -> void:
 
 	var lateral_val = comps["lateral"]
 
-	var screen_x =  (lateral_val * focal) / depth_val
-	var screen_y =  horizon_y + (focal / depth_val)
-	var sc = pseudo.depth_scale(comps["depth"])
+	# --- projection (unchanged, but guard tiny depth) ---
+	var depth_proj = depth_val
+	if depth_proj < 0.0001:
+		depth_proj = 0.0001   # avoid division blow-up for screen placement
+
+	var screen_x =  (lateral_val * focal) / depth_proj
+	var screen_y =  horizon_y + (focal / depth_proj)
+
+	# --- scale: use soft-clamped depth, optionally absolute, then smooth ---
+	var depth_for_scale = depth_val
+	if scale_use_abs:
+		depth_for_scale = abs(depth_for_scale)
+	if depth_for_scale < scale_near_soft:
+		depth_for_scale = scale_near_soft
+
+	var sc_target = pseudo.depth_scale(depth_for_scale)
+	_sc_smooth = _smooth_scalar(_sc_smooth, sc_target, get_process_delta_time(), scale_half_life_s)
 
 	global_position = pseudo.global_position + Vector2(screen_x, screen_y)
-	scale = Vector2.ONE * sc
+	scale = Vector2.ONE * _sc_smooth
+
 
 	var zi := int(100000.0 - comps["depth"])
 	z_index = zi
@@ -348,37 +388,26 @@ func _ensure_path_cached() -> void:
 
 func _path_point_at_distance(s: float) -> Vector2:
 	_ensure_path_cached()
-	if not _path_ready:
+	if not _path_ready or _path_pts.size() == 0:
 		return Vector2.ZERO
-	var n := _path_pts.size()
-	if n == 0:
-		return Vector2.ZERO
-	var ss := fposmod(s, _path_total)
-	var i := 0
-	while i < _path_len.size() - 1 and _path_len[i + 1] < ss:
-		i += 1
+
+	_seek_segment_for_s(s)
+	var i := _seg_i
 	var a := _path_len[i]
 	var b := _path_len[i + 1] if (i + 1) < _path_len.size() else _path_total
-	var denom := b - a
-	if denom < 0.0001:
-		denom = 0.0001
-	var t := (ss - a) / denom
+	var denom = max(b - a, 0.0001)
+	var t = (fposmod(s, _path_total) - a) / denom
 	var p0 := _path_pts[i]
-	var p1 := _path_pts[(i + 1) % n]
+	var p1 := _path_pts[(i + 1) % _path_pts.size()]
 	return p0.lerp(p1, t)
 
 func _path_tangent_at_distance(s: float) -> Vector2:
 	_ensure_path_cached()
-	if not _path_ready:
+	if not _path_ready or _path_tan.size() == 0:
 		return Vector2.RIGHT
-	var n := _path_pts.size()
-	if n == 0:
-		return Vector2.RIGHT
-	var ss := fposmod(s, _path_total)
-	var i := 0
-	while i < _path_len.size() - 1 and _path_len[i + 1] < ss:
-		i += 1
-	return _path_tangent_at_index(i)
+
+	_seek_segment_for_s(s)
+	return _path_tan[_seg_i]
 
 func _path_tangent_at_index(i: int) -> Vector2:
 	_ensure_path_cached()
@@ -405,18 +434,49 @@ func _tick_auto_throttle(dt: float) -> void:
 	if not ai_auto_throttle:
 		return
 
-	# wait for the arm delay
 	if _ai_timer_s > 0.0:
 		_ai_timer_s = max(0.0, _ai_timer_s - dt)
 		return
 
-	# begin/continue ramp
+	if _movementSpeed >= ai_target_speed:
+		_ai_launched = false
+		return
+
 	if not _ai_launched:
 		_ai_launched = true
+		_currentMoveDirection = 1
+		if _inputDir.y != 1.0:
+			_inputDir.y = 1.0
 
-	_currentMoveDirection = 1
-	_inputDir.y = 1.0   # pretend throttle is pressed
+	# ramp
+	_movementSpeed = min(ai_target_speed, _movementSpeed + ai_accel_per_sec * dt)
 
-	# ramp movementSpeed towards target
-	if _movementSpeed < ai_target_speed:
-		_movementSpeed = min(ai_target_speed, _movementSpeed + ai_accel_per_sec * dt)
+func _seek_segment_for_s(s: float) -> void:
+	_ensure_path_cached()
+	if not _path_ready or _path_len.size() <= 1:
+		_seg_i = 0
+		return
+
+	var total := _path_total
+	var ss := fposmod(s, total)
+
+	# If first time, binary-ish find (coarse); else step locally
+	if _last_s < 0.0:
+		_seg_i = 0
+		while _seg_i < _path_len.size() - 1 and _path_len[_seg_i + 1] < ss:
+			_seg_i += 1
+	else:
+		# Move forward or backward a few steps
+		if ss >= _last_s:
+			# advancing
+			while _seg_i < _path_len.size() - 1 and _path_len[_seg_i + 1] < ss:
+				_seg_i += 1
+		else:
+			# going backward
+			while _seg_i > 0 and _path_len[_seg_i] > ss:
+				_seg_i -= 1
+
+	# Guard bounds
+	if _seg_i < 0: _seg_i = 0
+	if _seg_i > _path_len.size() - 2: _seg_i = _path_len.size() - 2
+	_last_s = ss
