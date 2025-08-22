@@ -432,9 +432,13 @@ func Update(mapForward : Vector3) -> void:
 	if not _is_spinning:
 		_handle_hop_and_drift(input_vec)
 
-	# --- Item boost timer decay (no direct writes to _speedMultiplier here) ---
+	# --- Timers decay (do NOT write _speedMultiplier here) ---
 	if _item_boost_timer > 0.0:
-		_item_boost_timer -= dt
+		_item_boost_timer = max(0.0, _item_boost_timer - dt)
+
+	# ✅ TURBO DECAY (the missing bit that caused speed creep)
+	if _turbo_timer > 0.0:
+		_turbo_timer = max(0.0, _turbo_timer - dt)
 
 	# unify ALL stacking here (hop/item/turbo/drift/spin)
 	_recompute_speed_multiplier()
@@ -467,18 +471,8 @@ func Update(mapForward : Vector3) -> void:
 		SetCollisionBump(Vector3(0.0, 0.0, -sign(ReturnVelocity().z)))
 	HandleRoadType(nextPixelPos, _collisionHandler.ReturnCurrentRoadType(nextPixelPos))
 
-	# Write new position first
 	SetMapPosition(nextPos)
-
-	# ---- TEMP CAP WRAP (allow speed above normal max while boosted) ----
-	var saved_cap := _maxMovementSpeed
-	_maxMovementSpeed = _compute_temp_cap(saved_cap)
-
-	UpdateMovementSpeed()   # clamps to the raised (temporary) cap this frame
-
-	_maxMovementSpeed = saved_cap  # restore immediately (no permanent change)
-	# -------------------------------------------------------------------
-
+	UpdateMovementSpeed()
 	UpdateVelocity(mapForward)
 
 	_apply_hop_sprite_offset()
@@ -853,7 +847,7 @@ func _recompute_speed_multiplier() -> void:
 		# pick the bigger turbo mult based on what you last awarded
 		var maybe_turbo = max(TURBO_SMALL_MULT, TURBO_BIG_MULT)
 		if boost < maybe_turbo:
-			boost = maybe_turbo
+			boost = maybe_turbo		
 
 	# drift: treat as a floor (classic slight slow), but don't suppress stronger boosts
 	if _is_drifting:

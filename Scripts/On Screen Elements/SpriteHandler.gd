@@ -133,6 +133,44 @@ const _YOSHI_COLORS := {
 	"white":      Color(0.95, 0.95, 0.95)
 }
 
+@export var force_player_on_top_unless_front: bool = true
+@export var player_front_epsilon: float = 1.0   # “how much closer” counts as being in front (map px)
+
+@export var player_front_screen_epsilon: float = 2.0  # pixels: how much lower counts as “in front”
+
+# Depth along the camera forward (positive = in front of the player's position, negative = behind)
+func _depth_along_camera(el: WorldElement) -> float:
+	var p3d := get_node_or_null(pseudo3d_node)
+	if p3d == null or not p3d.has_method("get_camera_forward_map"):
+		return 0.0
+	var cam_f: Vector2 = (p3d.call("get_camera_forward_map") as Vector2)
+	var cf_len := cam_f.length()
+	if cf_len > 0.00001:
+		cam_f /= cf_len
+	# Use the player's map position as the camera origin proxy (matches how Opponent does it)
+	var pl: WorldElement = _player
+	if pl == null:
+		return 0.0
+	var my3 := el.ReturnMapPosition()
+	var pl3 := pl.ReturnMapPosition()
+	return Vector2(my3.x - pl3.x, my3.z - pl3.z).dot(cam_f)
+
+func _someone_in_front_of_player() -> bool:
+	if _player == null:
+		return false
+	var p_depth := _depth_along_camera(_player)
+	for opp in _opponents:
+		if not is_instance_valid(opp):
+			continue
+		if opp == _player:
+			continue
+		var o_depth := _depth_along_camera(opp)
+		# Closer to camera == “smaller” depth (because player is the origin)
+		# If opponent is in front (closer by more than epsilon), return true
+		if o_depth < p_depth - player_front_epsilon:
+			return true
+	return false
+
 # -----------------------------------------------------------------------------
 # Lifecycle from your game script:
 #   Setup(_map.ReturnWorldMatrix(), map_tex_size, _player)
@@ -330,27 +368,35 @@ func HandleSpriteDetail(target: WorldElement) -> void:
 func HandleYLayerSorting() -> void:
 	_worldElements = _worldElements.filter(func(e): return is_instance_valid(e))
 
-	# Sort visible only to reduce N (cheap guard)
+	# Sort by screen.y so lower-on-screen naturally goes on top.
 	_worldElements.sort_custom(Callable(self, "SortByScreenY"))
 
 	var base_i := 0
 	for i in range(_worldElements.size()):
 		var spr := _worldElements[i].ReturnSpriteGraphic()
 		if spr == null: continue
+		# Assign increasing z_index; later elements (lower on screen) get higher z
 		if spr.z_index != base_i:
 			spr.z_index = base_i
 		base_i += 1
 
+	# Player special rule:
+	# "Player is on top unless there is a driver closer to the bottom of the screen."
 	if force_player_on_top and is_instance_valid(_player):
 		var pspr := _player.ReturnSpriteGraphic()
 		if pspr != null:
-			var want := _worldElements.size() + player_on_top_margin
-			if pspr.z_index != want:
-				pspr.z_index = want
-				
+			if _someone_lower_on_screen_than_player():
+				# Someone is lower -> do not lift the player; natural order stands
+				pass
+			else:
+				# No one lower -> float the player above all others by a small margin
+				var want := _worldElements.size() + player_on_top_margin
+				if pspr.z_index != want:
+					pspr.z_index = want
+
+	# (keep your existing refresh throttle)
 	if (Engine.get_frames_drawn() % 2) != 0:
 		return
-				
 
 func SortByScreenY(a: WorldElement, b: WorldElement) -> int:
 	var aPosY: float = a.ReturnScreenPosition().y
@@ -1062,3 +1108,24 @@ func _attach_yoshi_shader(opp: WorldElement, color_key: String) -> void:
 		s.material = mat
 	elif "material" in spr:
 		spr.material = mat
+
+func _someone_lower_on_screen_than_player() -> bool:
+	if _player == null:
+		return false
+
+	var p_pos := _player.ReturnScreenPosition()
+	# ignore when player is offscreen
+	if p_pos.y < 0.0:
+		return false
+
+	for we in _worldElements:
+		if not is_instance_valid(we) or we == _player:
+			continue
+		var sp := we.ReturnScreenPosition()
+		# consider only visible-ish sprites
+		if sp.y < 0.0:
+			continue
+		# If any opponent is lower (larger y) than player by epsilon → they should be on top
+		if sp.y > p_pos.y + player_front_screen_epsilon:
+			return true
+	return false

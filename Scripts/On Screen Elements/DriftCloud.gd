@@ -6,10 +6,10 @@ extends GPUParticles2D
 @export var min_speed_to_emit: float = 8.0
 
 # Tuning
-@export var particle_lifetime: float = 0.35   # node lifetime (renamed from 'lifetime')
-@export var base_rate: float = 70.0
-@export var speed_min: float = 20.0
-@export var speed_max: float = 42.0
+@export var particle_lifetime: float = 0.1   # node lifetime (renamed from 'lifetime')
+@export var base_rate: float = 100.0
+@export var speed_min: float = 100.0
+@export var speed_max: float = 100.0
 @export var spread_deg: float = 55.0
 @export var gravity_y: float = 180.0
 @export var scale_min: float = 0.5
