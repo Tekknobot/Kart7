@@ -70,6 +70,32 @@ var _d_abs_smooth := {}  # id -> float
 var _last_collision_time := {}   # id_pair_string -> float
 @export var collision_cooldown_s := 0.12
 
+# --- NEW: asymmetric rate caps ---
+@export var scale_max_rate_up   : float = 2.0   # units/s when getting bigger
+@export var scale_max_rate_down : float = 6.0   # units/s when getting smaller
+
+@export var turn_damp_enabled    := true
+@export var turn_freeze_deg_per_s: float = 200.0  # above this, growth is heavily clamped
+@export var growth_damp_gain     : float = 2.0    # stronger -> less growth while turning
+
+var _cam_dir_prev : Vector2 = Vector2(0, 1)
+var _turn_rate_s  : float   = 0.0
+@export var turn_half_life  : float = 0.10
+
+var _inv_world     : Basis
+var _screen_cached : Vector2 = Vector2(640, 360)
+var _dt_cached     : float = 0.016
+var _right_axis    : Vector2 = Vector2(1, 0)
+
+# --- intuitive scaling (pick model) ---
+@export var scale_model: int = 0        # 0 = PerspectiveRatio, 1 = DistanceFalloff
+@export var ref_distance_uv: float = 0.08  # only used for DistanceFalloff
+
+@export var collision_radius_mode : int = 1  # 0=fixed (current), 1=auto from sprite, 2=custom per-entity
+@export var radius_from_sprite_factor : float = 0.40  # ~40% of sprite height feels like “body”
+@export var min_radius_uv_auto      : float = 0.010   # floor so tiny sprites still collide
+@export var radius_scale_global     : float = 1.00    # quick global tweak (0.8 to shrink, 1.2 to grow)
+
 # -----------------------------------------------------------------------------
 # Lifecycle from your game script:
 #   Setup(_map.ReturnWorldMatrix(), map_tex_size, _player)
@@ -78,8 +104,10 @@ var _last_collision_time := {}   # id_pair_string -> float
 
 func Setup(worldMatrix: Basis, mapSize: int, player: Racer) -> void:
 	_worldMatrix = worldMatrix
+	_inv_world = _worldMatrix.inverse()      # NEW: cache inverse immediately
 	_mapSize = mapSize
 	_player = player
+	_screen_cached = _screen_size()          # NEW: prime screen cache
 
 	_worldElements.clear()
 	if is_instance_valid(player): _worldElements.append(player)
@@ -104,24 +132,49 @@ func Setup(worldMatrix: Basis, mapSize: int, player: Racer) -> void:
 	_smoothed_scale.clear()
 
 func Update(worldMatrix: Basis) -> void:
-	if _is_updating:
-		return
+	if _is_updating: return
 	_is_updating = true
 
 	_worldMatrix = worldMatrix
+	_inv_world = _worldMatrix.inverse()        # <- compute once
+	_dt_cached = get_process_delta_time()      # <- compute once
+	_screen_cached = _screen_size()            # <- compute once
 
-	for we in _worldElements:
-		if not is_instance_valid(we):
-			continue
-		HandleSpriteDetail(we)
-		WorldToScreenPosition(we)
+	# Camera forward + turn rate (once)
+	var p3d := get_node_or_null(pseudo3d_node)
+	var cam_f_target := Vector2(0, 1)
+	if p3d != null and p3d.has_method("get_camera_forward_map"):
+		cam_f_target = (p3d.call("get_camera_forward_map") as Vector2)
+	if cam_f_target.length() <= 0.0:
+		cam_f_target = Vector2(0, 1)
+	_cam_f_smooth = _exp_smooth_vec2(_cam_f_smooth, cam_f_target, _dt_cached, cam_half_life)
+	_right_axis = Vector2(_cam_f_smooth.y, -_cam_f_smooth.x)
 
-	# Resolve player↔opponent collisions in map space
+	# Turn rate (once)
+	var curr_angle := atan2(_cam_f_smooth.y, _cam_f_smooth.x)
+	var prev_angle := atan2(_cam_dir_prev.y, _cam_dir_prev.x)
+	var dtheta := curr_angle - prev_angle
+	if dtheta > PI:  dtheta -= TAU
+	if dtheta < -PI: dtheta += TAU
+	var turn_rate = abs(dtheta) / max(0.0001, _dt_cached)
+	_turn_rate_s = _exp_smooth_scalar(_turn_rate_s, turn_rate, _dt_cached, turn_half_life)
+	_cam_dir_prev = _cam_f_smooth
+
+	# Update elements (stagger heavy work a bit; see §3)
+	var batch_mod := 4  # try 3 if many sprites
+	for i in range(_worldElements.size()):
+		if (i % batch_mod) == (Engine.get_frames_drawn() % batch_mod):
+			HandleSpriteDetail(_worldElements[i])
+		WorldToScreenPosition(_worldElements[i])
+
+
+	# Collisions, overlay, sorting
 	if enable_player_opponent_collision:
 		_resolve_player_opponent_collisions()
 
-	# Defer overlay update to avoid recursion
-	call_deferred("_notify_overlay")
+	# Update overlay less often to reduce churn
+	if (Engine.get_frames_drawn() % 2) == 0:
+		call_deferred("_notify_overlay")
 
 	HandleYLayerSorting()
 	_is_updating = false
@@ -213,19 +266,28 @@ func HandleSpriteDetail(target: WorldElement) -> void:
 
 func HandleYLayerSorting() -> void:
 	_worldElements = _worldElements.filter(func(e): return is_instance_valid(e))
+
+	# Sort visible only to reduce N (cheap guard)
 	_worldElements.sort_custom(Callable(self, "SortByScreenY"))
 
-	# Apply z_index in sorted order
+	var base_i := 0
 	for i in range(_worldElements.size()):
 		var spr := _worldElements[i].ReturnSpriteGraphic()
-		if spr != null:
-			spr.z_index = i
+		if spr == null: continue
+		if spr.z_index != base_i:
+			spr.z_index = base_i
+		base_i += 1
 
-	# Force the player to the very top if requested
 	if force_player_on_top and is_instance_valid(_player):
 		var pspr := _player.ReturnSpriteGraphic()
 		if pspr != null:
-			pspr.z_index = _worldElements.size() + player_on_top_margin
+			var want := _worldElements.size() + player_on_top_margin
+			if pspr.z_index != want:
+				pspr.z_index = want
+				
+	if (Engine.get_frames_drawn() % 2) != 0:
+		return
+				
 
 func SortByScreenY(a: WorldElement, b: WorldElement) -> int:
 	var aPosY: float = a.ReturnScreenPosition().y
@@ -237,25 +299,16 @@ func SortByScreenY(a: WorldElement, b: WorldElement) -> int:
 	else:
 		return 0
 
-func WorldToScreenPosition(worldElement : WorldElement) -> void:
+func WorldToScreenPosition(worldElement: WorldElement) -> void:
 	if worldElement == null or _player == null:
 		return
 
 	var spr := worldElement.ReturnSpriteGraphic()
 	var mp  := worldElement.ReturnMapPosition()   # UV (0..1)
-	var dt  := get_process_delta_time()
+	var dt  := _dt_cached
 	var id  := worldElement.get_instance_id()
 
-	# ---- camera forward (smoothed) ----
-	var p3d := get_node_or_null(pseudo3d_node)
-	var cam_f_target := Vector2(0, 1)
-	if p3d != null and p3d.has_method("get_camera_forward_map"):
-		cam_f_target = (p3d.call("get_camera_forward_map") as Vector2)
-	if cam_f_target.length() <= 0.0:
-		cam_f_target = Vector2(0, 1)
-	_cam_f_smooth = _exp_smooth_vec2(_cam_f_smooth, cam_f_target, dt, cam_half_life)
-
-	# ---- scale: player fixed, opponent depth-based with turn damping ----
+	# ---- scaling (uses cached camera vectors & turn rate) ----
 	if spr != null:
 		var base3 := player_base_scale_abs
 		var floor_abs := opponent_min_scale_abs
@@ -263,67 +316,36 @@ func WorldToScreenPosition(worldElement : WorldElement) -> void:
 		if worldElement == _player:
 			(spr as Node2D).scale = Vector2(base3, base3)
 		else:
-			# relative vector in map space
-			var pl_uv := Vector2(_player.ReturnMapPosition().x, _player.ReturnMapPosition().z)
 			var el_uv := Vector2(mp.x, mp.z)
-			var rel   := el_uv - pl_uv
 
-			# camera depth & lateral
-			var depth_raw   := rel.dot(_cam_f_smooth)
-			var right_axis  := Vector2(_cam_f_smooth.y, -_cam_f_smooth.x)
-			var lateral_abs = abs(rel.dot(right_axis))
+			# --- intuitive target scale ---
+			var target_scale := _scale_for_element(el_uv, base3, floor_abs)
 
-			# angle weight: reduce depth influence when mostly lateral (corners)
-			var depth_abs = abs(depth_raw)
-			var denom = depth_abs + lateral_abs + 0.0001
-			var ratio = depth_abs / denom                      # ~cos(theta)
-			var angle_w := pow(ratio, angle_power)
-			if angle_w < min_angle_weight:
-				angle_w = min_angle_weight
-
-			# effective absolute distance (weighted)
-			var d_abs = depth_abs * angle_w
-
-			# smooth the distance itself to avoid spikes
-			if _d_abs_smooth.has(id):
-				d_abs = _exp_smooth_scalar(float(_d_abs_smooth[id]), d_abs, dt, depth_half_life)
-			_d_abs_smooth[id] = d_abs
-
-			# DEAD-ZONE: keep full size until clearly separated
-			var d_eff = d_abs - shrink_deadzone_abs
-			if d_eff < 0.0:
-				d_eff = 0.0
-
-			# smooth shrink curve (never > 1.0)
-			var k := depth_gain
-			if k <= 0.0:
-				k = 0.0001
-			var s_depth = 1.0 / (1.0 + k * d_eff)
-			if s_depth > 1.0:
-				s_depth = 1.0
-
-			# target absolute scale
-			var target_scale = base3 * s_depth
-			if target_scale < floor_abs:
-				target_scale = floor_abs
-			if target_scale > base3:
-				target_scale = base3
-
-			# temporal smoothing + rate limit to avoid pops
+			# --- smoothing + asymmetric rate limit you already have ---
 			var sm := _smooth_scale_to(id, target_scale, dt)
-			if sm < floor_abs: sm = floor_abs
-			if sm > base3:     sm = base3
+
+			# (Optional) keep your turn-growth clamp if you like its feel:
+			if turn_damp_enabled and sm > float(_smoothed_scale.get(id, sm)):
+				var freeze_rad_s := deg_to_rad(turn_freeze_deg_per_s)
+				var turn_norm = clamp(_turn_rate_s / max(0.0001, freeze_rad_s), 0.0, 1.0)
+				var extra_clamp = growth_damp_gain * turn_norm * dt
+				var allowed_up  = max(scale_max_rate_up * dt - extra_clamp, 0.0)
+				var prev_scale  = float(_smoothed_scale[id])
+				if sm - prev_scale > allowed_up:
+					sm = prev_scale + allowed_up
+
 			(spr as Node2D).scale = Vector2(sm, sm)
 
-	# ---- project to screen (unchanged) ----
-	var transformed : Vector3 = _worldMatrix.inverse() * Vector3(mp.x, mp.z, 1.0)
+
+	# ---- project to screen (fast: reuse _inv_world & _screen_cached) ----
+	var transformed: Vector3 = _inv_world * Vector3(mp.x, mp.z, 1.0)
 	if transformed.z < 0.0:
 		worldElement.SetScreenPosition(Vector2(-1000, -1000))
 		if spr != null: spr.visible = false
 		return
 
-	var screen : Vector2 = Vector2(transformed.x / transformed.z, transformed.y / transformed.z)
-	screen = (screen + Vector2(0.5, 0.5)) * _screen_size()
+	var screen: Vector2 = Vector2(transformed.x / transformed.z, transformed.y / transformed.z)
+	screen = (screen + Vector2(0.5, 0.5)) * _screen_cached
 
 	if spr != null:
 		var h := 0.0
@@ -331,15 +353,16 @@ func WorldToScreenPosition(worldElement : WorldElement) -> void:
 		if h <= 0.0: h = 32.0
 		screen.y -= (h * (spr as Node2D).scale.y) / 2.0
 
-	if (screen.floor().x > _screen_size().x or screen.x < 0.0 or
-		screen.floor().y > _screen_size().y or screen.y < 0.0):
+	if (screen.x < 0.0 or screen.y < 0.0 or
+		screen.floor().x > _screen_cached.x or screen.floor().y > _screen_cached.y):
 		worldElement.SetScreenPosition(Vector2(-1000, -1000))
 		if spr != null: spr.visible = false
 		return
 
-	worldElement.SetScreenPosition(screen.floor())
+	screen = screen.floor()
+	worldElement.SetScreenPosition(screen)
 	if spr != null:
-		(spr as Node2D).global_position = screen.floor()
+		(spr as Node2D).global_position = screen
 		spr.visible = true
 
 # -----------------------------------------------------------------------------
@@ -383,21 +406,20 @@ func _smooth_scale_to(id: int, target: float, dt: float) -> float:
 		_smoothed_scale[id] = target
 		return target
 
-	# Exponential smoothing with half-life: alpha = 1 - 0.5^(dt/half_life)
 	var hl := scale_half_life
 	if hl <= 0.0:
 		hl = 0.0001
 	var alpha := 1.0 - pow(0.5, dt / hl)
-
 	var raw := prev + (target - prev) * alpha
 
-	# Rate limit so big jumps are clamped per frame
-	var max_step := scale_max_rate * dt
+	# Asymmetric rate limiting (stop "pop bigger")
+	var up_cap   = max(scale_max_rate_up,   0.0001) * dt
+	var down_cap = max(scale_max_rate_down, 0.0001) * dt
 	var delta := raw - prev
-	if delta >  max_step:
-		raw = prev + max_step
-	elif delta < -max_step:
-		raw = prev - max_step
+	if delta > up_cap:
+		raw = prev + up_cap
+	elif delta < -down_cap:
+		raw = prev - down_cap
 
 	_smoothed_scale[id] = raw
 	return raw
@@ -431,33 +453,34 @@ func _resolve_player_opponent_collisions() -> void:
 	if _player == null or _opponents == null or _opponents.size() == 0:
 		return
 
-	# --- Player vs opponents (your existing code) ---
 	var p3 := _player.ReturnMapPosition()
 	var p_uv := Vector2(p3.x, p3.z)
-	var r_p = max(0.0001, player_radius_uv)
+	var r_p := _get_collision_radius_uv(_player, true)
 
 	for opp in _opponents:
 		if not is_instance_valid(opp) or opp == _player:
 			continue
 		var o3 := opp.ReturnMapPosition()
 		var o_uv := Vector2(o3.x, o3.z)
-		_resolve_circle_overlap(_player, p_uv, r_p, opp, o_uv, opponent_radius_uv, p3.y, o3.y)
+		var r_o := _get_collision_radius_uv(opp, false)
+		_resolve_circle_overlap(_player, p_uv, r_p, opp, o_uv, r_o, p3.y, o3.y)
 
-	# --- Opponent vs opponent (new) ---
+	# opponent ↔ opponent
 	for i in range(_opponents.size()):
 		var a = _opponents[i]
 		if not is_instance_valid(a): continue
 		var a3 := a.ReturnMapPosition()
 		var a_uv := Vector2(a3.x, a3.z)
+		var r_a := _get_collision_radius_uv(a, false)
 
 		for j in range(i + 1, _opponents.size()):
 			var b = _opponents[j]
 			if not is_instance_valid(b): continue
 			var b3 := b.ReturnMapPosition()
 			var b_uv := Vector2(b3.x, b3.z)
+			var r_b := _get_collision_radius_uv(b, false)
 
-			_resolve_circle_overlap(a, a_uv, opponent_radius_uv, b, b_uv, opponent_radius_uv, a3.y, b3.y)
-
+			_resolve_circle_overlap(a, a_uv, r_a, b, b_uv, r_b, a3.y, b3.y)
 
 func _resolve_circle_overlap(a: WorldElement, a_uv: Vector2, a_r: float,
 							 b: WorldElement, b_uv: Vector2, b_r: float,
@@ -503,3 +526,54 @@ func _apply_separation_uv(el: WorldElement, delta_uv: Vector2, y_uv: float) -> v
 	var new_px := _uv_to_px(new_uv)
 	var y_px := y_uv * _mapSize
 	el.SetMapPosition(Vector3(new_px.x, y_px, new_px.y))
+
+func _scale_for_element(el_uv: Vector2, base3: float, floor_abs: float) -> float:
+	# Perspective ratio (no tuning): scale = base * (z_player / z_elem)
+	if scale_model == 0:
+		var p3 := _player.ReturnMapPosition()
+		var p_uv := Vector2(p3.x, p3.z)
+		var Hp := _inv_world * Vector3(p_uv.x, p_uv.y, 1.0)
+		var He := _inv_world * Vector3(el_uv.x, el_uv.y, 1.0)
+		# if either behind/cull, just clamp to floor to be safe
+		if Hp.z <= 0.0 or He.z <= 0.0:
+			return floor_abs
+		var s := base3 * (Hp.z / He.z)
+		return clamp(s, floor_abs, base3)
+
+	# Distance falloff (single intuitive knob): base * R/(R + d)
+	# R is the distance at which size is ~0.5*base.
+	else:
+		var p3 := _player.ReturnMapPosition()
+		var p_uv := Vector2(p3.x, p3.z)
+		var d := (el_uv - p_uv).length()   # UV units
+		var R = max(ref_distance_uv, 0.0001)
+		var s = base3 * (R / (R + d))
+		return clamp(s, floor_abs, base3)
+
+func _get_collision_radius_uv(el: WorldElement, is_player: bool) -> float:
+	# Mode 2: ask the element (per-entity)
+	if collision_radius_mode == 2:
+		if el.has_method("ReturnCollisionRadiusUV"):
+			var r := float(el.call("ReturnCollisionRadiusUV"))
+			return max(0.0001, r) * radius_scale_global
+
+	# Mode 1: derive from sprite height in pixels -> UV
+	if collision_radius_mode == 1:
+		var spr := el.ReturnSpriteGraphic()
+		if spr != null:
+			var s2 := spr as Sprite2D
+			var h_px := 0.0
+			if "region_rect" in s2 and s2.region_rect.size.y > 0.0:
+				h_px = s2.region_rect.size.y
+			else:
+				h_px = 32.0
+			# use current on-screen scale so radius matches visual size
+			var sc := (s2 as Node2D).scale.y
+			var h_visual_px := h_px * sc
+			var r_px := (h_visual_px * radius_from_sprite_factor)
+			var r_uv := r_px / float(_mapSize)
+			r_uv = max(min_radius_uv_auto, r_uv)
+			return r_uv * radius_scale_global
+
+	# Mode 0 (fallback): use fixed exports
+	return (player_radius_uv if is_player else opponent_radius_uv) * radius_scale_global

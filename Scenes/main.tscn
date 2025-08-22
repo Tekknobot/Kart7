@@ -1101,9 +1101,15 @@ depth_gain = 32.0
 shrink_deadzone_abs = 0.001
 scale_half_life = 0.01
 scale_max_rate = 64.0
-player_radius_uv = 0.003
-opponent_radius_uv = 0.003
+player_radius_uv = 0.001
+opponent_radius_uv = 0.001
 separate_fraction = 2.0
+scale_max_rate_up = 0.1
+turn_freeze_deg_per_s = 90.0
+growth_damp_gain = 16.0
+turn_half_life = 0.12
+ref_distance_uv = 0.001
+radius_from_sprite_factor = 0.001
 
 [node name="Racers" type="Node2D" parent="Sprite Handler"]
 
@@ -1185,6 +1191,8 @@ texture = ExtResource("5_lfi8c")
 [node name="Racer01" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_spriteGFX")]
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Player")
+target_speed = 160.0
+accel = 150.0
 max_speed_override = 150.0
 catchup_gain_speed = 120.0
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
@@ -1202,7 +1210,7 @@ script = ExtResource("16_hibaj")
 player_ref = NodePath("../Player")
 start_offset_px = 32.0
 lane_offset_px = 16.0
-target_speed = 220.0
+target_speed = 200.0
 accel = 200.0
 max_speed_override = 150.0
 catchup_gain_speed = 120.0
@@ -1222,8 +1230,8 @@ texture = ExtResource("5_lfi8c")
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Player")
 start_offset_px = -16.0
-lane_offset_px = 24.0
-target_speed = 280.0
+lane_offset_px = -24.0
+target_speed = 220.0
 max_speed_override = 150.0
 catchup_gain_speed = 120.0
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
