@@ -115,6 +115,24 @@ var _right_axis    : Vector2 = Vector2(1, 0)
 
 var _launch_profiles := {}  # id -> { "target": float, "accel": float, "dir": Vector3 }
 
+# --- Yoshi color shader (per-AI recolor) ---
+@export var yoshi_shader_path: String = "res://Scripts/Shaders/YoshiSwap.gdshader"
+
+@export var yoshi_keys: PackedStringArray = PackedStringArray([
+	"green","red","yellow","lightblue","pink","purple","black","white"
+])
+
+const _YOSHI_COLORS := {
+	"green":      Color(0.60, 1.00, 0.60),
+	"red":        Color(1.00, 0.40, 0.40),
+	"yellow":     Color(1.00, 0.95, 0.40),
+	"lightblue":  Color(0.50, 0.85, 1.00),
+	"pink":       Color(1.00, 0.65, 0.90),
+	"purple":     Color(0.75, 0.50, 1.00),
+	"black":      Color(0.20, 0.20, 0.20),
+	"white":      Color(0.95, 0.95, 0.95)
+}
+
 # -----------------------------------------------------------------------------
 # Lifecycle from your game script:
 #   Setup(_map.ReturnWorldMatrix(), map_tex_size, _player)
@@ -861,7 +879,12 @@ func SpawnOpponentsOnDefaultPath() -> void:
 		else:
 			# fallback (if some AI isn’t using Opponent.gd):
 			_place_world_element_uv(opp, uv)
+			
 		_face_along_path_if_possible(opp, pts, idx_free)
+
+		# <<< RIGHT HERE is the safe place >>>
+		var key := yoshi_keys[ai_i % yoshi_keys.size()]
+		_attach_yoshi_shader(opp, key)		
 
 		# debug name (no ternary)
 		var name_str := ""
@@ -1002,3 +1025,40 @@ func _unique_loop_points(pts: PackedVector2Array) -> PackedVector2Array:
 				out.append(pts[i])
 			return out
 	return pts
+
+func _attach_yoshi_shader(opp: WorldElement, color_key: String) -> void:
+	if opp == null:
+		return
+	var spr := opp.ReturnSpriteGraphic()
+	if spr == null:
+		return
+
+	var sh := load(yoshi_shader_path)
+	if sh == null:
+		push_warning("Yoshi shader not found: " + yoshi_shader_path)
+		return
+
+	var mat := ShaderMaterial.new()
+	mat.shader = sh
+
+	var col := Color(0.60, 1.00, 0.60)
+	if _YOSHI_COLORS.has(color_key):
+		col = _YOSHI_COLORS[color_key]
+	mat.set_shader_parameter("target_color", col)
+
+	# Defaults tuned for “green” source paint; tweak if your sheet differs
+	mat.set_shader_parameter("src_hue", 0.33)
+	mat.set_shader_parameter("hue_tol", 0.12)
+	mat.set_shader_parameter("sat_min", 0.25)
+	mat.set_shader_parameter("val_min", 0.12)
+	mat.set_shader_parameter("edge_soft", 0.20)
+	mat.set_shader_parameter("sat_boost", 1.00)
+	mat.set_shader_parameter("val_mix", 0.50)
+
+	# Apply to Sprite2D (grid frames, not regions)
+	if spr is Sprite2D:
+		var s := spr as Sprite2D
+		s.region_enabled = false
+		s.material = mat
+	elif "material" in spr:
+		spr.material = mat

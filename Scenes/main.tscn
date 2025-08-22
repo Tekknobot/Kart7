@@ -1114,7 +1114,7 @@ min_radius_uv_auto = 0.002
 [node name="Player" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 position = Vector2(-1.52588e-05, 0)
 script = ExtResource("8_lejxo")
-_movementAccel = 100.0
+_movementAccel = 40.0
 _movementDeaccel = 150.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")

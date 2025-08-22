@@ -96,7 +96,7 @@ var _post_spin_lock := 0.0
 
 # === Item (Mushroom) Boost ===
 const ITEM_BOOST_MULT := 6.75     # how strong the mushroom boost is
-const ITEM_BOOST_TIME := 0.25     # how long it lasts (seconds)
+const ITEM_BOOST_TIME := 0.35     # how long it lasts (seconds)
 const ITEM_COOLDOWN := 3       # small cooldown before you can use another
 
 var _item_boost_timer := 0.0
@@ -117,6 +117,35 @@ var _has_base_sprite_offset: bool = false
 
 var _wall_hit_cd := 0.0
 var _primed_sprite := false
+
+@export var ITEM_TEMP_CAP_FACTOR  := 1.60  # temporary headroom while item is active
+@export var TURBO_TEMP_CAP_FACTOR := 1.45  # temporary headroom while turbo is active
+@export var HOP_TEMP_CAP_FACTOR   := 1.10  # tiny headroom while hop is active
+
+func _compute_temp_cap(base_cap: float) -> float:
+	var cap := base_cap
+
+	# raise cap only for the duration of the boost; we don't touch the saved base cap
+	if _item_boost_timer > 0.0:
+		var c := base_cap * ITEM_TEMP_CAP_FACTOR
+		if cap < c:
+			cap = c
+	if _turbo_timer > 0.0:
+		var c := base_cap * TURBO_TEMP_CAP_FACTOR
+		if cap < c:
+			cap = c
+	if _hop_timer > 0.0:
+		var c := base_cap * HOP_TEMP_CAP_FACTOR
+		if cap < c:
+			cap = c
+
+	# spin should never be fast — temporarily *lower* cap if spinning
+	if _is_spinning:
+		var c := base_cap * SPIN_SPEED_MULT
+		if cap > c:
+			cap = c
+
+	return cap
 
 func _prime_sprite_grid_once() -> void:
 	if _primed_sprite:
@@ -407,7 +436,7 @@ func Update(mapForward : Vector3) -> void:
 	if _item_boost_timer > 0.0:
 		_item_boost_timer -= dt
 
-	# unify ALL stacking here
+	# unify ALL stacking here (hop/item/turbo/drift/spin)
 	_recompute_speed_multiplier()
 
 	var nextPos : Vector3 = _mapPosition + ReturnVelocity()
@@ -438,8 +467,18 @@ func Update(mapForward : Vector3) -> void:
 		SetCollisionBump(Vector3(0.0, 0.0, -sign(ReturnVelocity().z)))
 	HandleRoadType(nextPixelPos, _collisionHandler.ReturnCurrentRoadType(nextPixelPos))
 
+	# Write new position first
 	SetMapPosition(nextPos)
-	UpdateMovementSpeed()
+
+	# ---- TEMP CAP WRAP (allow speed above normal max while boosted) ----
+	var saved_cap := _maxMovementSpeed
+	_maxMovementSpeed = _compute_temp_cap(saved_cap)
+
+	UpdateMovementSpeed()   # clamps to the raised (temporary) cap this frame
+
+	_maxMovementSpeed = saved_cap  # restore immediately (no permanent change)
+	# -------------------------------------------------------------------
+
 	UpdateVelocity(mapForward)
 
 	_apply_hop_sprite_offset()
