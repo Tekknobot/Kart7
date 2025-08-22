@@ -60,6 +60,16 @@ var _screen_size: Vector2 = Vector2.ZERO
 @export var show_debug_markers := true
 var _debug_markers_uv: Array[Vector2] = []
 
+# === Follow-the-path debug dot ===
+@export var follow_enabled := true           # turn the green dot on/off
+@export var follow_speed_px_sec := 140.0     # speed along the path in *texture pixels/sec*
+@export var follow_loop := true              # loop when reaching the end
+
+var _follow_total_len_px := 0.0
+var _follow_s_px := 0.0                      # current distance along path (pixels)
+var _follow_segments: Array = []             # [{a_uv:Vector2, b_uv:Vector2, len_px:float, cum_px:float}, ...]
+var _follow_dirty := true                    # rebuild segments when points/transform change
+
 # =========================
 # Lifecycle
 # =========================
@@ -67,7 +77,8 @@ func _ready() -> void:
 	visible = true
 	set_z_index(z_index_on_top)
 	set_z_as_relative(false)
-
+	set_process(true)                 # <-- needed to advance the dot
+	
 	# If you want an initial sample:
 	# if points.is_empty():
 	#     points = DEFAULT_POINTS.duplicate()
@@ -334,4 +345,83 @@ func clear_debug_markers() -> void:
 
 func add_debug_marker_uv(uv: Vector2) -> void:
 	_debug_markers_uv.append(uv)
+	queue_redraw()
+	
+func _rebuild_follow_path() -> void:
+	_follow_segments.clear()
+	_follow_total_len_px = 0.0
+
+	var uv_loop := get_path_points_uv_transformed()
+	if uv_loop.size() < 2:
+		return
+
+	for i in range(uv_loop.size() - 1):
+		var a := uv_loop[i]
+		var b := uv_loop[i + 1]
+		var seg_len_px := a.distance_to(b) * pos_scale_px
+		if seg_len_px <= 0.0:
+			continue
+		_follow_total_len_px += seg_len_px
+		_follow_segments.append({
+			"a_uv": a,
+			"b_uv": b,
+			"len_px": seg_len_px,
+			"cum_px": _follow_total_len_px
+		})
+
+	# keep current progress inside range
+	if _follow_total_len_px > 0.0:
+		_follow_s_px = fposmod(_follow_s_px, _follow_total_len_px)
+	_follow_dirty = false
+	
+func _sample_uv_at_distance(s_px: float) -> Vector2:
+	if _follow_segments.is_empty():
+		return Vector2(0.5, 0.5)
+
+	# clamp or wrap
+	if follow_loop and _follow_total_len_px > 0.0:
+		s_px = fposmod(s_px, _follow_total_len_px)
+	else:
+		s_px = clamp(s_px, 0.0, _follow_total_len_px)
+
+	# find the segment
+	for seg in _follow_segments:
+		var end_cum = seg["cum_px"]
+		var start_cum = end_cum - seg["len_px"]
+		if s_px <= end_cum:
+			var t = (s_px - start_cum) / seg["len_px"]  # 0..1
+			var a: Vector2 = seg["a_uv"]
+			var b: Vector2 = seg["b_uv"]
+			return a.lerp(b, t)
+
+	# fallback (numerical edge): last point
+	var last: Dictionary = _follow_segments[_follow_segments.size() - 1]
+	return last["b_uv"]
+
+func _process(dt: float) -> void:
+	# mark dirty if transform knobs changed at runtime (cheap heuristic):
+	# If you allow editing in-game, you can set _follow_dirty = true when those change.
+	if _follow_dirty:
+		_rebuild_follow_path()
+
+	if follow_enabled and _follow_total_len_px > 0.0:
+		_follow_s_px += follow_speed_px_sec * dt
+
+		var uv := _sample_uv_at_distance(_follow_s_px)
+
+		# Update the green dot list (we draw all debug markers in _draw_uv_space)
+		if _debug_markers_uv.size() == 0:
+			_debug_markers_uv.append(uv)
+		else:
+			_debug_markers_uv[0] = uv
+
+		# stop at the end if not looping
+		if not follow_loop and _follow_s_px >= _follow_total_len_px:
+			_follow_s_px = _follow_total_len_px
+	else:
+		# if disabled, don’t leave old markers around
+		if _debug_markers_uv.size() > 0:
+			_debug_markers_uv.clear()
+
+	# keep the overlay fresh
 	queue_redraw()

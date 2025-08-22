@@ -71,9 +71,25 @@ func _spawn_player_at_path_index(start_index: int) -> void:
 	var dir := p1_px - p0_px
 	if dir.length() > 0.0001:
 		dir = dir.normalized()
-		var yaw := atan2(dir.x, dir.y)  # (x,z) forward = (sin(yaw), cos(yaw))
+
+		# Path tangent yaw in map space:
+		# (x,z) forward = (sin(yaw), cos(yaw)) -> yaw = atan2(x, z=y)
+		var path_yaw := 0.0
+
+		# Rotate the MAP so that the path segment becomes world +Z (straight “into” the screen).
+		# This is the important bit: apply the *negative* of the path yaw to the map.
 		if _map.has_method("SetYaw"):
-			_map.call("SetYaw", yaw)
+			_map.call("SetYaw", -path_yaw)
+
+		# Make the player face straight forward *within the now-straight map*.
+		# If your player supports yaw, zero it; otherwise this call is just skipped.
+		if _player.has_method("SetYaw"):
+			_player.call("SetYaw", 0.0)
+
+		# (Optional) If your camera/pseudo3D node has its own yaw, zero it too.
+		# if _map.has_method("SetCameraYaw"):
+		# 	_map.call("SetCameraYaw", 0.0)
+
 
 func _ready() -> void:
 	if _map == null or _player == null:
@@ -96,7 +112,7 @@ func _ready() -> void:
 
 	# Defer so the overlay is present and Pseudo3D has finished Setup()
 	call_deferred("_push_path_points_once")
-	call_deferred("_spawn_player_at_path_index", 0)
+	call_deferred("_spawn_player_at_path_index", 1)
 
 func _push_path_points_once() -> void:
 	if _map == null:
