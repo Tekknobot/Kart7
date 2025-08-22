@@ -45,7 +45,6 @@ const _AUTO_EPS := 0.0001
 
 # --- per-instance smoothed scale cache ---
 var _smoothed_scale := {}  # instance_id -> float
-@export var ahead_max_scale_ratio: float = 0.98   # opponent ≤ 98% of player when ahead
 # --- smoothing / gating exports ---
 @export var cam_half_life      : float = 0.12   # smooth camera forward
 @export var depth_half_life    : float = 0.10   # smooth depth distance
@@ -310,15 +309,6 @@ func WorldToScreenPosition(worldElement : WorldElement) -> void:
 			if target_scale > base3:
 				target_scale = base3
 
-			# ahead cap: opponent ahead must be smaller than the player
-			var ahead := depth_raw > 0.0
-			if invert_depth_scale:
-				ahead = not ahead
-			if ahead:
-				var ahead_cap := base3 * ahead_max_scale_ratio
-				if target_scale > ahead_cap:
-					target_scale = ahead_cap
-
 			# temporal smoothing + rate limit to avoid pops
 			var sm := _smooth_scale_to(id, target_scale, dt)
 			if sm < floor_abs: sm = floor_abs
@@ -441,60 +431,70 @@ func _resolve_player_opponent_collisions() -> void:
 	if _player == null or _opponents == null or _opponents.size() == 0:
 		return
 
-	# Player position (UV)
+	# --- Player vs opponents (your existing code) ---
 	var p3 := _player.ReturnMapPosition()
 	var p_uv := Vector2(p3.x, p3.z)
-
-	# Tune radii in UV
 	var r_p = max(0.0001, player_radius_uv)
 
 	for opp in _opponents:
 		if not is_instance_valid(opp) or opp == _player:
 			continue
-
 		var o3 := opp.ReturnMapPosition()
 		var o_uv := Vector2(o3.x, o3.z)
-		var r_o = max(0.0001, opponent_radius_uv)
+		_resolve_circle_overlap(_player, p_uv, r_p, opp, o_uv, opponent_radius_uv, p3.y, o3.y)
 
-		var d_uv := o_uv - p_uv
-		var dist := d_uv.length()
-		var sum_r = r_p + r_o
+	# --- Opponent vs opponent (new) ---
+	for i in range(_opponents.size()):
+		var a = _opponents[i]
+		if not is_instance_valid(a): continue
+		var a3 := a.ReturnMapPosition()
+		var a_uv := Vector2(a3.x, a3.z)
 
-		if dist <= 0.0:
-			# overlapping at same spot; choose a gentle arbitrary normal
-			d_uv = Vector2(1.0, 0.0)
-			dist = 0.00001
+		for j in range(i + 1, _opponents.size()):
+			var b = _opponents[j]
+			if not is_instance_valid(b): continue
+			var b3 := b.ReturnMapPosition()
+			var b_uv := Vector2(b3.x, b3.z)
 
-		if dist < sum_r:
-			# simple circle separation
-			var n := d_uv / dist
-			var overlap = sum_r - dist
-			var push_uv = n * (overlap * 0.5 * separate_fraction)
+			_resolve_circle_overlap(a, a_uv, opponent_radius_uv, b, b_uv, opponent_radius_uv, a3.y, b3.y)
 
-			# cooldown (avoid hammering every frame)
-			var key := _pair_key(_player.get_instance_id(), opp.get_instance_id())
-			var tnow := _now()
-			var last := -1000.0
-			if _last_collision_time.has(key):
-				last = float(_last_collision_time[key])
-			if (tnow - last) < collision_cooldown_s:
-				# still separate positions smoothly even during cooldown
-				_apply_separation_uv(_player, -push_uv, p3.y)
-				_apply_separation_uv(opp,     push_uv, o3.y)
-				continue
-			_last_collision_time[key] = tnow
 
-			# move both out in UV -> convert to pixels for SetMapPosition
-			_apply_separation_uv(_player, -push_uv, p3.y)
-			_apply_separation_uv(opp,     push_uv, o3.y)
+func _resolve_circle_overlap(a: WorldElement, a_uv: Vector2, a_r: float,
+							 b: WorldElement, b_uv: Vector2, b_r: float,
+							 a_y: float, b_y: float) -> void:
+	var d_uv := b_uv - a_uv
+	var dist := d_uv.length()
+	var sum_r := a_r + b_r
+	if dist <= 0.0:
+		d_uv = Vector2(1, 0)
+		dist = 0.00001
 
-			# optional bump using your Racer API (impulse-like)
-			if bump_on_collision:
-				var bump_dir := Vector3(n.x * bump_strength_sign, 0.0, n.y * bump_strength_sign)
-				if _player.has_method("SetCollisionBump"):
-					_player.call("SetCollisionBump", -bump_dir)  # player gets opposite
-				if opp.has_method("SetCollisionBump"):
-					opp.call("SetCollisionBump", bump_dir)
+	if dist < sum_r:
+		var n := d_uv / dist
+		var overlap := sum_r - dist
+		var push_uv := n * (overlap * 0.5 * separate_fraction)
+
+		# cooldown check
+		var key := _pair_key(a.get_instance_id(), b.get_instance_id())
+		var tnow := _now()
+		var last := -1000.0
+		if _last_collision_time.has(key):
+			last = float(_last_collision_time[key])
+		if (tnow - last) < collision_cooldown_s:
+			_apply_separation_uv(a, -push_uv, a_y)
+			_apply_separation_uv(b,  push_uv, b_y)
+			return
+		_last_collision_time[key] = tnow
+
+		# push both out
+		_apply_separation_uv(a, -push_uv, a_y)
+		_apply_separation_uv(b,  push_uv, b_y)
+
+		# optional bump
+		if bump_on_collision:
+			var bump_dir := Vector3(n.x * bump_strength_sign, 0.0, n.y * bump_strength_sign)
+			if a.has_method("SetCollisionBump"): a.call("SetCollisionBump", -bump_dir)
+			if b.has_method("SetCollisionBump"): b.call("SetCollisionBump",  bump_dir)
 
 func _apply_separation_uv(el: WorldElement, delta_uv: Vector2, y_uv: float) -> void:
 	# Read current UV, convert to pixels, add delta
