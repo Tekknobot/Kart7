@@ -237,7 +237,17 @@ func HandleSpriteDetail(target: WorldElement) -> void:
 		return
 
 	var s := spr as Sprite2D
-	s.region_enabled = true       # safe now
+	if s == null:
+		return
+
+	# --- DO NOT enable region if this sprite uses hframes/vframes (grid sheets) ---
+	var uses_grid := (s.hframes > 1) or (s.vframes > 1)
+
+	# Only use region rows for LOD when not using a grid
+	if not uses_grid:
+		s.region_enabled = true
+	else:
+		s.region_enabled = false  # <- crucial: let _set_frame_idx() control frames
 
 	var player_pos := Vector2(_player.ReturnMapPosition().x, _player.ReturnMapPosition().z)
 	var target_pos := Vector2(target.ReturnMapPosition().x, target.ReturnMapPosition().z)
@@ -245,6 +255,10 @@ func HandleSpriteDetail(target: WorldElement) -> void:
 
 	s.visible = (distance < _showSpriteInRangeOf)
 	if not s.visible:
+		return
+
+	# If this sprite uses grid frames, skip region-row LOD logic entirely.
+	if uses_grid:
 		return
 
 	var detail_states := 1
@@ -257,10 +271,19 @@ func HandleSpriteDetail(target: WorldElement) -> void:
 	var exp_factor := pow(normalized, 0.75)
 	var detail_level := int(clamp(exp_factor * float(detail_states), 0.0, float(detail_states - 1)))
 
-	# shift the region vertically by rows
+	# --- row shift only for region-based sprites ---
+	var rr := s.region_rect
+
+	# If region_rect height isn’t initialized, derive a sane row height once.
+	if rr.size.y <= 0.0 and s.texture:
+		# assume full texture split into 'detail_states' vertical rows
+		rr.size = Vector2(s.texture.get_width(), float(s.texture.get_height()) / float(detail_states))
+		rr.position = Vector2(0, 0)
+		s.region_rect = rr
+
 	var row_h := int(s.region_rect.size.y)
 	var new_y := row_h * detail_level
-	var rr := s.region_rect
+	rr = s.region_rect
 	rr.position.y = float(new_y)
 	s.region_rect = rr
 

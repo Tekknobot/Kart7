@@ -115,7 +115,7 @@ func _set_frame_idx(dir_idx: int) -> void:
 		var s := spr as Sprite2D
 		if sheet_uses_mirroring:
 			# 6 columns on sheet; use flip for the other 6
-			var HALF := 6
+			var HALF := 12
 			var idx := (dir_idx % (HALF * 2) + (HALF * 2)) % (HALF * 2)
 			var left_side := idx >= HALF
 			var col := idx % HALF
@@ -211,44 +211,50 @@ func _choose_and_apply_frame(dt: float) -> void:
 
 	# SPIN VISUAL: play left turn frames, then a flipped version, repeatedly.
 	if _is_spinning:
-		# phase in [0,1); first half = forward frames, second half = reverse frames (flipped)
+		# phase in [0,1); first half = sweep A, second half = sweep B
 		var ph := fposmod(_spin_phase, 1.0)
 		var first_half := ph < 0.5
-		var t := (ph * 2.0) if first_half else ((ph - 0.5) * 2.0)  # 0..1 within each half
+		var t := 0.0
+		if first_half:
+			t = ph * 2.0
+		else:
+			t = (ph - 0.5) * 2.0  # 0..1 within each half
 
-		# how many frames we’ll sweep across (use the full sprite row)
 		var frames := FRAMES_PER_ROW
-		var steps := frames - 1                        # e.g., 11 when frames=12
-		var step := int(floor(t * steps + 0.0001))    # 0..steps
+		var steps := frames - 1
+		var step := int(floor(t * steps + 0.0001))  # 0..steps
 
-		# Which direction do we sweep on the first half?
-		# Use drift direction to decide spin direction: right-first if _drift_dir>=0, left-first otherwise.
+		# Decide direction: right-first = forward (0..11), left-first = backward (11..0)
 		var dir_right_first := (_drift_dir >= 0)
 
-		# compute the delta from TURN_STRAIGHT_INDEX toward the extreme frame
-		var delta := step
-		var inc_right := TURN_INCREASES_TO_RIGHT
-		var base := TURN_STRAIGHT_INDEX
-		var idx := base
+		var seq_a := 0         # first-half sweep
+		var seq_b := 0         # second-half sweep (reverse of A)
 
-		if first_half:
-			# straight -> extreme in spin direction (no flip)
-			if dir_right_first:
-				idx = base + (delta if inc_right else -delta)
-			else:
-				idx = base - (delta if inc_right else -delta)
-			_set_flip_h(false)
+		if dir_right_first:
+			# RIGHT-FIRST: 0..11 then 11..0
+			seq_a = step
+			seq_b = steps - step
 		else:
-			# reverse: extreme -> straight, but flipped to fake the other side
-			var back := steps - step  # 11..0
-			if dir_right_first:
-				idx = base + (back if inc_right else -back)
-			else:
-				idx = base - (back if inc_right else -back)
-			_set_flip_h(true)
+			# LEFT-FIRST: 11..0 then 0..11
+			seq_a = steps - step
+			seq_b = step
 
-		# clamp for safety and apply
-		idx = clamp(idx, 0, FRAMES_PER_ROW - 1)
+		var seq := 0
+		if first_half:
+			seq = seq_a
+		else:
+			seq = seq_b
+
+		# Map to actual sheet direction (if your sheet increases to the right or left)
+		var inc_right := TURN_INCREASES_TO_RIGHT
+		var idx := seq
+		if not inc_right:
+			idx = steps - seq
+
+		# Safety
+		idx = clamp(idx, 0, steps)
+
+		# Use mirroring-aware setter so 6+flip sheets animate correctly
 		_set_frame(idx)
 		return
 
@@ -675,28 +681,54 @@ func get_player_camera_forward(pseudo3d: Node) -> Vector2:
 	return pseudo3d.get_camera_forward_map()
 
 func _spinout_update_meter(dt: float, input_vec: Vector2) -> void:
-	# only builds while actively drifting and steering hard
 	if _is_spinning:
 		return
-	if _is_drifting and abs(input_vec.x) >= SPIN_MIN_STEER:
-		var add = SPIN_BUILD_BASE + SPIN_BUILD_STEER_GAIN * abs(input_vec.x)
+
+	# Require active drift AND real steering pressure to build meter
+	var steer := input_vec.x
+	var steer_abs = abs(steer)
+
+	if _is_drifting and steer_abs >= SPIN_MIN_STEER:
+		var add = SPIN_BUILD_BASE + SPIN_BUILD_STEER_GAIN * steer_abs
 		_spin_meter += add * dt
+
 		if _spin_meter >= SPIN_THRESHOLD:
+			# require a non-zero steer to trip; define spin direction now
+			if steer > 0.0:
+				_drift_dir = 1
+			elif steer < 0.0:
+				_drift_dir = -1
+			else:
+				_spin_meter = SPIN_THRESHOLD - 0.01
+				return
 			_spinout_start()
 	else:
-		_spin_meter = max(0.0, _spin_meter - 30.0 * dt) # quick forgiveness
+		# quick forgiveness when you’re not applying enough steer or not drifting
+		_spin_meter = max(0.0, _spin_meter - 30.0 * dt)
 
 func _spinout_start() -> void:
 	# end drift immediately, no turbo award
 	_cancel_drift_no_award(0.0)
+
+	# if somehow unset, derive from current steer so left/right is defined
+	if _drift_dir == 0:
+		var steer_now := ReturnPlayerInput().x
+		if steer_now > 0.0:
+			_drift_dir = 1
+		elif steer_now < 0.0:
+			_drift_dir = -1
+		else:
+			_drift_dir = 1  # safe default
+
 	_is_spinning = true
 	_spin_timer = SPIN_DURATION
 	_spin_phase = 0.0
 	_spin_meter = 0.0
 	_speedMultiplier = SPIN_SPEED_MULT
+
 	_emit_dust(true)
 	_emit_sparks(true)
-	_set_sparks_color(Color(1.0, 0.95, 0.65)) # bright flash
+	_set_sparks_color(Color(1.0, 0.95, 0.65))
 
 func _spinout_tick(dt: float) -> void:
 	if not _is_spinning:

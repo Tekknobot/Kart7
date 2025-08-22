@@ -11,3 +11,5 @@ res://Scripts/World Elements/Racers/Racer.gd
 res://Scripts/World Elements/Racers/Opponent.gd
 res://addons/CheapTrig.gd
 res://addons/CollisionSampler.gd
+res://Scripts/On Screen Elements/DriftCloud.gd
+res://Scripts/General/AnimationHandler.gd
