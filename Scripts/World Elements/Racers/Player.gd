@@ -139,27 +139,46 @@ func _choose_and_apply_frame(dt: float) -> void:
 
 	# SPIN VISUAL: play left turn frames, then a flipped version, repeatedly.
 	if _is_spinning:
-		# local phase in [0,1)
-		var ph := fmod(_spin_phase, 1.0)
-		var half := ph < 0.5
-		var t := (ph if half else ph - 0.5) * 2.0  # 0..1 within each half
+		# phase in [0,1); first half = forward frames, second half = reverse frames (flipped)
+		var ph := fposmod(_spin_phase, 1.0)
+		var first_half := ph < 0.5
+		var t := (ph * 2.0) if first_half else ((ph - 0.5) * 2.0)  # 0..1 within each half
 
-		# ease for nicer sweep across frames
-		var eased := t * t * (3.0 - 2.0 * t) # smoothstep
+		# how many frames we’ll sweep across (use the full sprite row)
+		var frames := FRAMES_PER_ROW
+		var steps := frames - 1                        # e.g., 11 when frames=12
+		var step := int(floor(t * steps + 0.0001))    # 0..steps
 
-		# map to turn frames using your DRIFT_MAX range
-		var steps := float(DRIFT_MAX + 3)
-		var idx_delta := int(floor(eased * steps + 0.0001))
-		idx_delta = clamp(idx_delta, 0, DRIFT_MAX)
-		var idx := (TURN_STRAIGHT_INDEX + idx_delta) if TURN_INCREASES_TO_RIGHT else (TURN_STRAIGHT_INDEX - idx_delta)
+		# Which direction do we sweep on the first half?
+		# Use drift direction to decide spin direction: right-first if _drift_dir>=0, left-first otherwise.
+		var dir_right_first := (_drift_dir >= 0)
 
+		# compute the delta from TURN_STRAIGHT_INDEX toward the extreme frame
+		var delta := step
+		var inc_right := TURN_INCREASES_TO_RIGHT
+		var base := TURN_STRAIGHT_INDEX
+
+		var idx := base
+
+		if first_half:
+			# straight -> extreme in spin direction (no flip)
+			if dir_right_first:
+				idx = base + (delta if inc_right else -delta)
+			else:
+				idx = base - (delta if inc_right else -delta)
+			ReturnSpriteGraphic().flip_h = false
+		else:
+			# reverse: extreme -> straight, but flipped to fake the other side of the kart
+			var back := steps - step  # 11..0
+			if dir_right_first:
+				idx = base + (back if inc_right else -back)
+			else:
+				idx = base - (back if inc_right else -back)
+			ReturnSpriteGraphic().flip_h = true
+
+		# clamp for safety and apply
+		idx = clamp(idx, 0, FRAMES_PER_ROW - 1)
 		_set_frame(idx)
-
-		# first half: show as LEFT turn frames; second half: show the flipped version (RIGHT)
-		var spr := ReturnSpriteGraphic()
-		spr.flip_h = (not half) # half=false => right half => flip true
-
-		# no dust/sparks decisions here; effects handled by spin start/stop
 		return
 
 	if _is_drifting:
