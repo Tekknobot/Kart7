@@ -1,7 +1,10 @@
-res://Scripts/World Elements/Racers/Opponent.gd
 res://Scenes/main.tscn
 res://Scripts/Shaders/ModeSeven.gdshader
 res://Scripts/Shaders/GasDistort.gdshader
-res://Scripts/World Elements/Pseudo3D.gd
-res://Scripts/AI/PathOverlay2D.gd
+res://Scripts/World Elements/Racers/Racer.gd
+res://Scripts/World Elements/Racers/Player.gd
+res://Scripts/World Elements/Racers/OpponentRacer.gd
 res://Scripts/On Screen Elements/SpriteHandler.gd
+res://Scripts/AI/AngleSprite.gd
+res://Scripts/World Elements/Pseudo3D.gd
+res://Scripts/World Elements/WorldElement.gd
