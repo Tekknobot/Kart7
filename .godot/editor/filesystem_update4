@@ -2,4 +2,3 @@ res://Scenes/main.tscn
 res://Scripts/Shaders/ModeSeven.gdshader
 res://Scripts/Shaders/GasDistort.gdshader
 res://Scripts/World Elements/Racers/Player.gd
-res://Scripts/On Screen Elements/SpriteHandler.gd

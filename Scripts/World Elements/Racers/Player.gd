@@ -78,6 +78,22 @@ const DRIFT_SLIP_GAIN := 0.9
 const DRIFT_SLIP_DAMP := 6.0
 var _drift_side_slip := 0.0
 
+# === Drift Spin-out ===
+const SPIN_MIN_STEER := 0.55          # must steer at least this hard while drifting
+const SPIN_BUILD_BASE := 10.0         # base fill per second while drifting
+const SPIN_BUILD_STEER_GAIN := 26.0   # extra fill scaled by |steer|
+const SPIN_THRESHOLD := 100.0         # trip point
+const SPIN_DURATION := 0.80           # total time of the spin state
+const SPIN_SPEED_MULT := 0.60         # slow-down while spinning
+const SPIN_ANIM_CYCLES := 2.0         # how many “L→R” swaps during SPIN_DURATION
+const SPIN_RECOVER_STEER_LOCK := 0.12 # brief steer lock after recovery
+
+var _spin_meter := 0.0
+var _is_spinning := false
+var _spin_timer := 0.0
+var _spin_phase := 0.0
+var _post_spin_lock := 0.0
+
 func _ready() -> void:
 	_register_default_actions()
 	_base_sprite_offset_y = ReturnSpriteGraphic().offset.y
@@ -120,6 +136,31 @@ func _choose_and_apply_frame(dt: float) -> void:
 	var target_left := steer > 0.0
 	var target_mag = abs(steer)
 	var max_range := BASIC_MAX
+
+	# SPIN VISUAL: play left turn frames, then a flipped version, repeatedly.
+	if _is_spinning:
+		# local phase in [0,1)
+		var ph := fmod(_spin_phase, 1.0)
+		var half := ph < 0.5
+		var t := (ph if half else ph - 0.5) * 2.0  # 0..1 within each half
+
+		# ease for nicer sweep across frames
+		var eased := t * t * (3.0 - 2.0 * t) # smoothstep
+
+		# map to turn frames using your DRIFT_MAX range
+		var steps := float(DRIFT_MAX + 3)
+		var idx_delta := int(floor(eased * steps + 0.0001))
+		idx_delta = clamp(idx_delta, 0, DRIFT_MAX)
+		var idx := (TURN_STRAIGHT_INDEX + idx_delta) if TURN_INCREASES_TO_RIGHT else (TURN_STRAIGHT_INDEX - idx_delta)
+
+		_set_frame(idx)
+
+		# first half: show as LEFT turn frames; second half: show the flipped version (RIGHT)
+		var spr := ReturnSpriteGraphic()
+		spr.flip_h = (not half) # half=false => right half => flip true
+
+		# no dust/sparks decisions here; effects handled by spin start/stop
+		return
 
 	if _is_drifting:
 		_lean_left_visual = (_drift_dir < 0)
@@ -186,15 +227,28 @@ func Update(mapForward : Vector3) -> void:
 	if _isPushedBack:
 		ApplyCollisionBump()
 
+	var dt := get_process_delta_time()
+
+	if _post_spin_lock > 0.0:
+		_post_spin_lock = max(0.0, _post_spin_lock - dt)
+
 	var input_vec := ReturnPlayerInput()
-	_handle_hop_and_drift(input_vec)
+
+	# build spin meter only while drifting
+	_spinout_update_meter(dt, input_vec)
+	_spinout_tick(dt)
+
+	# if spinning, block the hop/drift system entirely
+	if not _is_spinning:
+		_handle_hop_and_drift(input_vec)
 
 	var nextPos : Vector3 = _mapPosition + ReturnVelocity()
 	var nextPixelPos : Vector2i = Vector2i(ceil(nextPos.x), ceil(nextPos.z))
 
 	var right_vec := Vector3(-mapForward.z, 0.0, mapForward.x).normalized()
-	var dt := get_process_delta_time()
-	if _is_drifting:
+
+	# keep your drift side-slip, but never add extra while spinning
+	if _is_drifting and not _is_spinning:
 		var speed := ReturnVelocity().length()
 		var steer_amt = abs(_inputDir.x)
 		var feed = DRIFT_SLIP_GAIN * speed * steer_amt
@@ -207,15 +261,15 @@ func Update(mapForward : Vector3) -> void:
 
 	nextPos += right_vec * _drift_side_slip * dt
 
+	# (collision & movement unchanged)
 	if _collisionHandler.IsCollidingWithWall(Vector2i(ceil(nextPos.x), ceil(_mapPosition.z))):
 		nextPos.x = _mapPosition.x 
 		SetCollisionBump(Vector3(-sign(ReturnVelocity().x), 0.0, 0.0))
 	if _collisionHandler.IsCollidingWithWall(Vector2i(ceil(_mapPosition.x), ceil(nextPos.z))):
 		nextPos.z = _mapPosition.z
 		SetCollisionBump(Vector3(0.0, 0.0, -sign(ReturnVelocity().z)))
-	
 	HandleRoadType(nextPixelPos, _collisionHandler.ReturnCurrentRoadType(nextPixelPos))
-	
+
 	SetMapPosition(nextPos)
 	UpdateMovementSpeed()
 	UpdateVelocity(mapForward)
@@ -228,11 +282,21 @@ func ReturnPlayerInput() -> Vector2:
 	var forward := Input.get_action_strength("Forward")
 	var brake := Input.get_action_strength("Brake")
 
+	# brief steer lock after a spin
+	if _post_spin_lock > 0.0:
+		steer = 0.0
+
 	var throttle := -forward
 	if brake > 0.01:
 		throttle = -brake
 
 	steer *= STEER_SIGN
+
+	# while spinning, ignore steer/throttle so the kart coasts under damped speed
+	if _is_spinning:
+		_inputDir = Vector2(0.0, 0.0)
+		return _inputDir
+
 	_inputDir = Vector2(steer, throttle)
 	return _inputDir
 
@@ -447,3 +511,41 @@ func get_player_map_position() -> Vector2:
 # Return the camera forward vector in map space
 func get_player_camera_forward(pseudo3d: Node) -> Vector2:
 	return pseudo3d.get_camera_forward_map()
+
+func _spinout_update_meter(dt: float, input_vec: Vector2) -> void:
+	# only builds while actively drifting and steering hard
+	if _is_spinning:
+		return
+	if _is_drifting and abs(input_vec.x) >= SPIN_MIN_STEER:
+		var add = SPIN_BUILD_BASE + SPIN_BUILD_STEER_GAIN * abs(input_vec.x)
+		_spin_meter += add * dt
+		if _spin_meter >= SPIN_THRESHOLD:
+			_spinout_start()
+	else:
+		_spin_meter = max(0.0, _spin_meter - 30.0 * dt) # quick forgiveness
+
+func _spinout_start() -> void:
+	# end drift immediately, no turbo award
+	_cancel_drift_no_award(0.0)
+	_is_spinning = true
+	_spin_timer = SPIN_DURATION
+	_spin_phase = 0.0
+	_spin_meter = 0.0
+	_speedMultiplier = SPIN_SPEED_MULT
+	_emit_dust(true)
+	_emit_sparks(true)
+	_set_sparks_color(Color(1.0, 0.95, 0.65)) # bright flash
+
+func _spinout_tick(dt: float) -> void:
+	if not _is_spinning:
+		return
+	_spin_timer -= dt
+	# advance phase so we can swap left/right a few times over the duration
+	_spin_phase += (SPIN_ANIM_CYCLES / SPIN_DURATION) * dt  # cycles per duration
+
+	if _spin_timer <= 0.0:
+		_is_spinning = false
+		_speedMultiplier = 1.0
+		_emit_dust(false)
+		_emit_sparks(false)
+		_post_spin_lock = SPIN_RECOVER_STEER_LOCK
