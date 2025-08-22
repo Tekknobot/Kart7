@@ -12,7 +12,6 @@ var _worldMatrix : Basis
 # --- ADD near top of SpriteHandler.gd ---
 @export var pseudo3d_node: NodePath                    # your Pseudo3D Sprite2D
 @export var auto_load_path := true
-@export var path_json := "user://ai_path.json"
 @export var path_overlay_node: NodePath   # assign your PathOverlay2D node
 
 # --- MODIFY Setup(...) to auto-apply path after world init ---
@@ -101,32 +100,3 @@ func _apply_path_from_json() -> void:
 	if not p3d.has_method("SetPathPoints"):
 		push_warning("SpriteHandler: Pseudo3D is missing SetPathPoints().")
 		return
-
-	var pts := _load_points_from_json(path_json)
-	if pts.size() == 0:
-		push_warning("SpriteHandler: no points in " + path_json)
-		return
-
-	p3d.SetPathPoints(pts)  # <- this paints into the SubViewport
-
-func _load_points_from_json(path: String) -> PackedVector2Array:
-	var out := PackedVector2Array()
-	if not FileAccess.file_exists(path):
-		return out
-	var txt := FileAccess.get_file_as_string(path)
-	var data := JSON.parse_string(txt) as Dictionary
-	if data == null or not data.has("points"):
-		return out
-	var arr: Array = data["points"]
-	out.resize(arr.size())
-	var i := 0
-	for item in arr:
-		if item is Array and (item as Array).size() >= 2:
-			var a := item as Array
-			out[i] = Vector2(float(a[0]), float(a[1]))
-		elif item is Vector2:
-			out[i] = (item as Vector2)
-		else:
-			out[i] = Vector2.ZERO
-		i += 1
-	return out

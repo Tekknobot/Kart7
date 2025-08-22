@@ -224,22 +224,11 @@ func Update(mapForward : Vector3) -> void:
 	_choose_and_apply_frame(get_process_delta_time())
 
 func ReturnPlayerInput() -> Vector2:
-	var steer := 0.0
-	var throttle := 0.0
-	var brake := 0.0
+	var steer := Input.get_action_strength("Right") - Input.get_action_strength("Left")
+	var forward := Input.get_action_strength("Forward")
+	var brake := Input.get_action_strength("Brake")
 
-	var pads := Input.get_connected_joypads()
-	if pads.size() > 0:
-		var dev := pads[0]
-		if Input.is_joy_button_pressed(dev, JOY_BUTTON_DPAD_LEFT):
-			steer = -1.0
-		elif Input.is_joy_button_pressed(dev, JOY_BUTTON_DPAD_RIGHT):
-			steer = 1.0
-		if Input.is_joy_button_pressed(dev, JOY_BUTTON_A):
-			throttle = -1.0
-		if Input.is_joy_button_pressed(dev, JOY_BUTTON_X):
-			brake = 1.0
-
+	var throttle := -forward
 	if brake > 0.01:
 		throttle = -brake
 
@@ -316,19 +305,12 @@ func _handle_hop_and_drift(input_vec : Vector2) -> void:
 			_speedMultiplier = 1.0
 
 func _register_default_actions() -> void:
-	if not InputMap.has_action("Forward"):
-		InputMap.add_action("Forward")
-	if not InputMap.has_action("Left"):
-		InputMap.add_action("Left")
-	if not InputMap.has_action("Right"):
-		InputMap.add_action("Right")
-	if not InputMap.has_action("Brake"):
-		InputMap.add_action("Brake")
-	if not InputMap.has_action("Hop"):
-		InputMap.add_action("Hop")
-	if not InputMap.has_action("Drift"):
-		InputMap.add_action("Drift")
+	# Ensure actions exist
+	for action in ["Forward", "Left", "Right", "Brake", "Hop", "Drift"]:
+		if not InputMap.has_action(action):
+			InputMap.add_action(action)
 
+	# --- Gamepad bindings (keep your originals) ---
 	var jb := InputEventJoypadButton.new()
 	jb.button_index = JOY_BUTTON_A
 	InputMap.action_add_event("Forward", jb.duplicate())
@@ -342,6 +324,31 @@ func _register_default_actions() -> void:
 	InputMap.action_add_event("Left", jb.duplicate())
 	jb.button_index = JOY_BUTTON_DPAD_RIGHT
 	InputMap.action_add_event("Right", jb.duplicate())
+
+	# --- Keyboard bindings (inline, no helper) ---
+	var ev: InputEventKey
+
+	# Forward: W, Up
+	ev = InputEventKey.new(); ev.keycode = KEY_W;  InputMap.action_add_event("Forward", ev)
+	ev = InputEventKey.new(); ev.keycode = KEY_UP; InputMap.action_add_event("Forward", ev)
+
+	# Brake: S, Down
+	ev = InputEventKey.new(); ev.keycode = KEY_S;    InputMap.action_add_event("Brake", ev)
+	ev = InputEventKey.new(); ev.keycode = KEY_DOWN; InputMap.action_add_event("Brake", ev)
+
+	# Left: A, Left
+	ev = InputEventKey.new(); ev.keycode = KEY_A;     InputMap.action_add_event("Left", ev)
+	ev = InputEventKey.new(); ev.keycode = KEY_LEFT;  InputMap.action_add_event("Left", ev)
+
+	# Right: D, Right
+	ev = InputEventKey.new(); ev.keycode = KEY_D;      InputMap.action_add_event("Right", ev)
+	ev = InputEventKey.new(); ev.keycode = KEY_RIGHT;  InputMap.action_add_event("Right", ev)
+
+	# Hop: Space
+	ev = InputEventKey.new(); ev.keycode = KEY_SPACE; InputMap.action_add_event("Hop", ev)
+
+	# Drift: either Shift (add both sides for reliability)
+	ev = InputEventKey.new(); ev.keycode = KEY_SPACE;    InputMap.action_add_event("Drift", ev)
 
 func _apply_hop_sprite_offset() -> void:
 	var dt := get_process_delta_time()
