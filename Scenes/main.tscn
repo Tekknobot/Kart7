@@ -1100,7 +1100,11 @@ opponent_min_scale_abs = 0.01
 depth_gain = 32.0
 shrink_deadzone_abs = 0.001
 scale_max_rate = 32.0
-ahead_max_scale_ratio = 1.0
+ahead_max_scale_ratio = 0.78
+player_radius_uv = 0.003
+opponent_radius_uv = 0.003
+separate_fraction = 2.0
+bump_strength_sign = 2.0
 
 [node name="Racers" type="Node2D" parent="Sprite Handler"]
 
@@ -1118,6 +1122,7 @@ sprite_graphic_path = NodePath("GFX2/AngleSprite")
 
 [node name="GFX" type="Sprite2D" parent="Sprite Handler/Racers/Player"]
 visible = false
+z_index = 4096
 z_as_relative = false
 texture_filter = 1
 scale = Vector2(3, 3)
@@ -1175,6 +1180,7 @@ region_rect = Rect2(96, 0, 16, 16)
 [node name="GFX2" type="Node" parent="Sprite Handler/Racers/Player"]
 
 [node name="AngleSprite" type="Sprite2D" parent="Sprite Handler/Racers/Player/GFX2"]
+z_index = 4096
 texture = ExtResource("5_lfi8c")
 
 [node name="Racer01" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_spriteGFX")]
@@ -1189,6 +1195,7 @@ _spriteGFX = NodePath("GFX/AngleSprite")
 [node name="GFX" type="Node" parent="Sprite Handler/Racers/Racer01"]
 
 [node name="AngleSprite" type="Sprite2D" parent="Sprite Handler/Racers/Racer01/GFX"]
+z_index = -1
 texture = ExtResource("5_lfi8c")
 
 [node name="Hazards" type="Node2D" parent="Sprite Handler"]

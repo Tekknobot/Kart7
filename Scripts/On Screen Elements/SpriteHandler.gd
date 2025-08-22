@@ -52,9 +52,24 @@ var _smoothed_scale := {}  # instance_id -> float
 @export var angle_power        : float = 1.40   # lateral suppression strength
 @export var min_angle_weight   : float = 0.55   # never suppress more than this
 
-# runtime state
 var _cam_f_smooth : Vector2 = Vector2(0, 1)
 var _d_abs_smooth := {}  # id -> float
+
+# --- Z-order: keep player on top ---
+@export var force_player_on_top := true
+@export var player_on_top_margin := 10  # how far above the next sprite
+
+# --- Player↔Opponent collision (map-space circle) ---
+@export var enable_player_opponent_collision := true
+@export var player_radius_uv   : float = 0.035   # in UV units (0..1 across the map)
+@export var opponent_radius_uv : float = 0.035   # in UV units (per opponent)
+@export var separate_fraction  : float = 1.0     # 1.0 = full separation this frame
+@export var bump_on_collision  : bool = true
+@export var bump_strength_sign := 1.0            # 1.0 forward along normal, -1.0 opposite
+
+# internal helpers
+var _last_collision_time := {}   # id_pair_string -> float
+@export var collision_cooldown_s := 0.12
 
 # -----------------------------------------------------------------------------
 # Lifecycle from your game script:
@@ -102,11 +117,14 @@ func Update(worldMatrix: Basis) -> void:
 		HandleSpriteDetail(we)
 		WorldToScreenPosition(we)
 
-	# Defer overlay notification to avoid recursion during Update
+	# Resolve player↔opponent collisions in map space
+	if enable_player_opponent_collision:
+		_resolve_player_opponent_collisions()
+
+	# Defer overlay update to avoid recursion
 	call_deferred("_notify_overlay")
 
 	HandleYLayerSorting()
-
 	_is_updating = false
 
 # -----------------------------------------------------------------------------
@@ -198,10 +216,17 @@ func HandleYLayerSorting() -> void:
 	_worldElements = _worldElements.filter(func(e): return is_instance_valid(e))
 	_worldElements.sort_custom(Callable(self, "SortByScreenY"))
 
+	# Apply z_index in sorted order
 	for i in range(_worldElements.size()):
 		var spr := _worldElements[i].ReturnSpriteGraphic()
-		if spr != null:   # only if there’s a valid sprite
+		if spr != null:
 			spr.z_index = i
+
+	# Force the player to the very top if requested
+	if force_player_on_top and is_instance_valid(_player):
+		var pspr := _player.ReturnSpriteGraphic()
+		if pspr != null:
+			pspr.z_index = _worldElements.size() + player_on_top_margin
 
 func SortByScreenY(a: WorldElement, b: WorldElement) -> int:
 	var aPosY: float = a.ReturnScreenPosition().y
@@ -399,3 +424,82 @@ func _exp_smooth_vec2(prev: Vector2, target: Vector2, dt: float, half_life: floa
 	var alpha := 1.0 - pow(0.5, dt / half_life)
 	var v := prev + (target - prev) * alpha
 	return v.normalized() if v.length() > 0.00001 else prev
+
+func _now() -> float:
+	return Time.get_ticks_msec() / 1000.0
+
+func _pair_key(a: int, b: int) -> String:
+	return str(mini(a, b), "_", maxi(a, b))
+
+func _uv_to_px(v: Vector2) -> Vector2:
+	return Vector2(v.x * _mapSize, v.y * _mapSize)
+
+func _px_to_uv(v: Vector2) -> Vector2:
+	return Vector2(v.x / _mapSize, v.y / _mapSize)
+
+func _resolve_player_opponent_collisions() -> void:
+	if _player == null or _opponents == null or _opponents.size() == 0:
+		return
+
+	# Player position (UV)
+	var p3 := _player.ReturnMapPosition()
+	var p_uv := Vector2(p3.x, p3.z)
+
+	# Tune radii in UV
+	var r_p = max(0.0001, player_radius_uv)
+
+	for opp in _opponents:
+		if not is_instance_valid(opp) or opp == _player:
+			continue
+
+		var o3 := opp.ReturnMapPosition()
+		var o_uv := Vector2(o3.x, o3.z)
+		var r_o = max(0.0001, opponent_radius_uv)
+
+		var d_uv := o_uv - p_uv
+		var dist := d_uv.length()
+		var sum_r = r_p + r_o
+
+		if dist <= 0.0:
+			# overlapping at same spot; choose a gentle arbitrary normal
+			d_uv = Vector2(1.0, 0.0)
+			dist = 0.00001
+
+		if dist < sum_r:
+			# simple circle separation
+			var n := d_uv / dist
+			var overlap = sum_r - dist
+			var push_uv = n * (overlap * 0.5 * separate_fraction)
+
+			# cooldown (avoid hammering every frame)
+			var key := _pair_key(_player.get_instance_id(), opp.get_instance_id())
+			var tnow := _now()
+			var last := -1000.0
+			if _last_collision_time.has(key):
+				last = float(_last_collision_time[key])
+			if (tnow - last) < collision_cooldown_s:
+				# still separate positions smoothly even during cooldown
+				_apply_separation_uv(_player, -push_uv, p3.y)
+				_apply_separation_uv(opp,     push_uv, o3.y)
+				continue
+			_last_collision_time[key] = tnow
+
+			# move both out in UV -> convert to pixels for SetMapPosition
+			_apply_separation_uv(_player, -push_uv, p3.y)
+			_apply_separation_uv(opp,     push_uv, o3.y)
+
+			# optional bump using your Racer API (impulse-like)
+			if bump_on_collision:
+				var bump_dir := Vector3(n.x * bump_strength_sign, 0.0, n.y * bump_strength_sign)
+				if _player.has_method("SetCollisionBump"):
+					_player.call("SetCollisionBump", -bump_dir)  # player gets opposite
+				if opp.has_method("SetCollisionBump"):
+					opp.call("SetCollisionBump", bump_dir)
+
+func _apply_separation_uv(el: WorldElement, delta_uv: Vector2, y_uv: float) -> void:
+	# Read current UV, convert to pixels, add delta
+	var curr := el.ReturnMapPosition()
+	var new_uv := Vector2(curr.x, curr.z) + delta_uv
+	var new_px := _uv_to_px(new_uv)
+	var y_px := y_uv * _mapSize
+	el.SetMapPosition(Vector3(new_px.x, y_px, new_px.y))

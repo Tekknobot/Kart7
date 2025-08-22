@@ -33,6 +33,7 @@ var _s_px: float = 0.0
 @export var catchup_deadzone_uv: float = 0.02      # ignore tiny gaps
 @export var min_ratio_vs_player: float = 1.05      # always at least 5% faster than player
 
+
 # --- convenience accessors to inherited exports ---
 func _path_node() -> Node:
 	return get_node_or_null(path_ref)        # path_ref is inherited from Racer.gd
