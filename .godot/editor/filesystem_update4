@@ -9,3 +9,5 @@ res://Scripts/General/Game.gd
 res://Scripts/On Screen Elements/SpriteHandler.gd
 res://Scripts/World Elements/Racers/Racer.gd
 res://Scripts/World Elements/Racers/Opponent.gd
+res://addons/CheapTrig.gd
+res://addons/CollisionSampler.gd

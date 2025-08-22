@@ -1453,4 +1453,5 @@ script = ExtResource("21_pdsj5")
 line_width = 2.0
 color = Color(1, 0, 0, 0)
 points = PackedVector2Array(920, 586, 933, 425, 250, 73, 131, 86, 75, 191, 78, 708, 151, 749, 469, 589, 551, 606, 692, 874, 818, 918, 931, 857, 920, 586)
+show_debug_markers = false
 follow_speed_px_sec = 160.0

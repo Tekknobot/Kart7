@@ -70,6 +70,12 @@ var _follow_s_px := 0.0                      # current distance along path (pixe
 var _follow_segments: Array = []             # [{a_uv:Vector2, b_uv:Vector2, len_px:float, cum_px:float}, ...]
 var _follow_dirty := true                    # rebuild segments when points/transform change
 
+@export var dot_min_px_change := 1.0          # redraw only if dot moves ≥ this many pixels
+@export var dot_updates_per_second := 0       # 0 = on-change; >0 = throttle Hz (e.g., 10)
+
+var _dot_last_px := Vector2.INF               # cached last drawn pixel position
+var _dot_accum := 0.0                         # throttle accumulator
+
 # =========================
 # Lifecycle
 # =========================
@@ -141,10 +147,16 @@ func get_path_points() -> PackedVector2Array:
 
 # Call this every frame from Pseudo3D.gd so we share the same matrix as the shader
 func set_world_and_screen(m: Basis, screen_size: Vector2) -> void:
-	_world_matrix = m
-	_screen_size = screen_size
-	#if debug: prints("[Overlay] set_world_and_screen screen:", _screen_size, " preview_mode:", preview_mode)
-	queue_redraw()
+	var need_redraw := false
+	if _world_matrix != m:
+		_world_matrix = m
+		need_redraw = true
+	if _screen_size != screen_size:
+		_screen_size = screen_size
+		need_redraw = true
+	if need_redraw:
+		queue_redraw()
+
 
 # =========================
 # Drawing
@@ -399,29 +411,45 @@ func _sample_uv_at_distance(s_px: float) -> Vector2:
 	return last["b_uv"]
 
 func _process(dt: float) -> void:
-	# mark dirty if transform knobs changed at runtime (cheap heuristic):
-	# If you allow editing in-game, you can set _follow_dirty = true when those change.
 	if _follow_dirty:
 		_rebuild_follow_path()
+
+	var changed := false
 
 	if follow_enabled and _follow_total_len_px > 0.0:
 		_follow_s_px += follow_speed_px_sec * dt
 
-		var uv := _sample_uv_at_distance(_follow_s_px)
+		# throttle if requested
+		var can_emit := true
+		if dot_updates_per_second > 0:
+			_dot_accum += dt
+			var interval := 1.0 / float(max(1, dot_updates_per_second))
+			if _dot_accum < interval:
+				can_emit = false
+			else:
+				_dot_accum = 0.0
 
-		# Update the green dot list (we draw all debug markers in _draw_uv_space)
-		if _debug_markers_uv.size() == 0:
-			_debug_markers_uv.append(uv)
-		else:
-			_debug_markers_uv[0] = uv
+		if can_emit:
+			var uv := _sample_uv_at_distance(_follow_s_px)
+			var px := uv * pos_scale_px
+
+			# draw-on-change guard
+			if _dot_last_px == Vector2.INF or _dot_last_px.distance_squared_to(px) >= dot_min_px_change * dot_min_px_change:
+				_dot_last_px = px
+				if _debug_markers_uv.size() == 0:
+					_debug_markers_uv.append(uv)
+				else:
+					_debug_markers_uv[0] = uv
+				changed = true
 
 		# stop at the end if not looping
 		if not follow_loop and _follow_s_px >= _follow_total_len_px:
 			_follow_s_px = _follow_total_len_px
 	else:
-		# if disabled, don’t leave old markers around
 		if _debug_markers_uv.size() > 0:
 			_debug_markers_uv.clear()
+			_dot_last_px = Vector2.INF
+			changed = true
 
-	# keep the overlay fresh
-	queue_redraw()
+	if changed:
+		queue_redraw()

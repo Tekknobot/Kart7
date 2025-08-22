@@ -9,6 +9,23 @@ extends Node2D
 
 var _player_freeze_frames := 0  # frames to skip calling _player.Update after spawn
 
+@onready var _smoother := preload("res://addons/FrameSmoother.gd").new()
+
+func _process(delta: float) -> void:
+	var dt := _smoother.smooth_delta(delta)
+
+	_map.Update(_player)  # unchanged API
+	if _player_freeze_frames > 0:
+		_player_freeze_frames -= 1
+	else:
+		# if Update expects only forward vec, keep as-is,
+		# but inside Player.gd use dt (from get_process_delta_time()) or store dt in Globals.
+		_player.Update(_map.ReturnForward())
+
+	_spriteHandler.Update(_map.ReturnWorldMatrix())
+	_animationHandler.Update()
+	_backgroundElements.Update(_map.ReturnMapRotation())
+
 func _uniq_path_points_uv(overlay: Node) -> Array:
 	var out: Array = []
 	if overlay == null or not overlay.has_method("get_path_points_uv"):
@@ -142,15 +159,3 @@ func _push_path_points_once() -> void:
 func _on_overlay_points_changed(uv: PackedVector2Array) -> void:
 	if uv.size() > 1:
 		_map.SetPathPoints(uv)
-
-func _process(delta: float) -> void:
-	_map.Update(_player)
-
-	if _player_freeze_frames > 0:
-		_player_freeze_frames -= 1
-	else:
-		_player.Update(_map.ReturnForward())
-
-	_spriteHandler.Update(_map.ReturnWorldMatrix())
-	_animationHandler.Update()
-	_backgroundElements.Update(_map.ReturnMapRotation())
