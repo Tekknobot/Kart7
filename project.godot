@@ -18,12 +18,12 @@ run/max_fps=60
 [autoload]
 
 Globals="*res://Scripts/General/Globals.gd"
+FullscreenWeb="*res://Scripts/FullscreenWeb.gd"
 
 [display]
 
 window/size/viewport_width=480
 window/size/viewport_height=360
-window/size/mode=2
 window/size/always_on_top=true
 window/stretch/mode="canvas_items"
 window/stretch/scale_mode="integer"
