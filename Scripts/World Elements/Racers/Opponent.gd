@@ -22,6 +22,11 @@ var _cum_len_px: PackedFloat32Array = PackedFloat32Array()
 var _total_len_px: float = 0.0
 var _s_px: float = 0.0
 
+# ---------------- visuals ----------------
+@export var angle_offset_deg: float = 0.0
+@export var clockwise: bool = true
+@export var frame0_is_front: bool = true  # set true if atlas frame 0 is a FRONT view
+
 # --- convenience accessors to inherited exports ---
 func _path_node() -> Node:
 	return get_node_or_null(path_ref)        # path_ref is inherited from Racer.gd
@@ -93,37 +98,59 @@ func _process(delta: float) -> void:
 	if Engine.get_process_frames() % 30 == 0:
 		var sp := ReturnSpriteGraphic()
 		prints("AI sprite:", sp, " path:", str(get("sprite_graphic_path")))
-	
 
-# ---------------- visuals ----------------
-@export var angle_offset_deg: float = 0.0
-@export var clockwise: bool = true
-
+# Assumes: const DIRECTIONS := 12 (12 right-side frames laid out in one row)
+# The sheet is a HALF-CIRCLE (right side only). We mirror with flip_h for the left side.
 func _update_angle_sprite() -> void:
 	var sp := get_node_or_null(angle_sprite_path)
-	if sp == null: return
+	if sp == null:
+		return
 	var p3d := _p3d()
-	if p3d == null: return
+	if p3d == null:
+		return
 
+	# Camera yaw in map space
 	var cam_f: Vector2 = (p3d.call("get_camera_forward_map") as Vector2)
 	var cam_yaw: float = atan2(cam_f.y, cam_f.x)
 
+	# Signed bearing (kart heading relative to camera), degrees in [-180, 180)
 	var theta_cam: float = wrapf(_heading - cam_yaw, -PI, PI)
 	var deg: float = rad_to_deg(theta_cam)
-	deg = wrapf(deg + angle_offset_deg, 0.0, 360.0)
-	if deg < 0.0: deg += 360.0
-	if not clockwise: deg = 360.0 - deg
 
-	var step: float = 360.0 / float(DIRECTIONS)
-	var idx: int = int(floor((deg + step * 0.5) / step)) % DIRECTIONS
+	# Apply atlas offset and handedness
+	deg = wrapf(deg + angle_offset_deg, -180.0, 180.0)
+	if not clockwise:
+		deg = -deg
 
+	# We only have RIGHT-side art; mirror for LEFT with flip_h.
+	# Define: Right side => deg < 0 ; Left side => deg > 0
+	var left_side := deg > 0.0
+
+	# Map absolute bearing [0..180] to 12 frames (0 = aligned-with-camera, 180 = facing camera)
+	var absdeg: float = clamp(abs(deg), 0.0, 179.999)
+	var step: float = 180.0 / float(DIRECTIONS)   # 15° per frame
+	var idx: int = int(floor((absdeg + step * 0.5) / step))
+	if idx >= DIRECTIONS:
+		idx = DIRECTIONS - 1
+
+	# --- FRONT/BACK ORIENTATION FIX ---
+	# If your atlas frame 0 is a FRONT view, reverse the index so behind-you uses a BACK frame.
+	# (This flips 0↔11, 1↔10, etc.)
+	if frame0_is_front:
+		idx = (DIRECTIONS - 1) - idx
+
+	# Apply to the sprite
 	if sp is Sprite2D:
 		var s := sp as Sprite2D
-		s.hframes = DIRECTIONS
-		s.vframes = 1
+		if s.hframes != DIRECTIONS:
+			s.hframes = DIRECTIONS
+			s.vframes = 1
 		s.frame = idx
+		s.flip_h = left_side
 	elif sp.has_method("set_frame"):
 		sp.frame = idx
+		if "flip_h" in sp:
+			sp.flip_h = left_side
 
 func _update_depth_sort() -> void:
 	var p3d := _p3d()

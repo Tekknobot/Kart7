@@ -22,6 +22,7 @@ var _is_updating: bool = false
 @export var auto_collect_world_elements := true
 @export var collect_under: NodePath       # set this to your "Racers" node (folder)
 @export var debug_show_all := true        # TEMP: show sprites regardless of distance
+@export var invert_depth_scale := true  # <- TRUE = larger when near, smaller when far
 
 # -----------------------------------------------------------------------------
 # Lifecycle from your game script:
@@ -179,13 +180,45 @@ func SortByScreenY(a: WorldElement, b: WorldElement) -> int:
 	else:
 		return 0
 
-# SpriteHandler.gd
 func WorldToScreenPosition(worldElement : WorldElement):
 	if worldElement == null or _player == null:
 		return
-	var spr := worldElement.ReturnSpriteGraphic()
 
+	var spr := worldElement.ReturnSpriteGraphic()
 	var mp := worldElement.ReturnMapPosition()  # normalized UV (0..1)
+
+	# ---- depth-based SCALE first ----
+	var p3d := get_node_or_null(pseudo3d_node)
+	if spr != null:
+		var cam_f := Vector2(0, 1)
+		if p3d != null and p3d.has_method("get_camera_forward_map"):
+			cam_f = (p3d.call("get_camera_forward_map") as Vector2).normalized()
+
+		var pl_uv := Vector2(_player.ReturnMapPosition().x, _player.ReturnMapPosition().z)
+		var el_uv := Vector2(mp.x, mp.z)
+
+		# Flip sign if you want near = larger
+		var forward_dot := (el_uv - pl_uv).dot(cam_f)
+		if invert_depth_scale:
+			forward_dot = -forward_dot
+
+		var d = max(forward_dot, 0.0)
+
+		var s: float = 1.0
+		if p3d != null and p3d.has_method("depth_scale"):
+			# reuse your Pseudo3D curve but with our 'd'
+			# (depth_scale clamps internally)
+			s = float(p3d.call("depth_scale", d))
+		else:
+			# fallback curve
+			var size_k := 0.9
+			var size_min := 0.35
+			var size_max := 2.0
+			s = clamp(size_k / (size_k + d), size_min, size_max)
+
+		spr.scale = Vector2(s, s)
+
+	# ---- project to screen ----
 	var transformed : Vector3 = _worldMatrix.inverse() * Vector3(mp.x, mp.z, 1.0)
 	if transformed.z < 0.0:
 		worldElement.SetScreenPosition(Vector2(-1000, -1000))
@@ -195,11 +228,13 @@ func WorldToScreenPosition(worldElement : WorldElement):
 	var screen : Vector2 = Vector2(transformed.x / transformed.z, transformed.y / transformed.z)
 	screen = (screen + Vector2(0.5, 0.5)) * _screen_size()
 
+	# foot anchor (after scale)
 	if spr != null:
-		# anchor to feet; use Y scale
-		screen.y -= (spr.region_rect.size.y * spr.scale.y) / 2.0
+		var h = spr.region_rect.size.y
+		if h <= 0.0: h = 32.0
+		screen.y -= (h * spr.scale.y) / 2.0
 
-	# Off-screen cull (keep gentle while debugging)
+	# cull
 	if (screen.floor().x > _screen_size().x or screen.x < 0.0 or screen.floor().y > _screen_size().y or screen.y < 0.0):
 		worldElement.SetScreenPosition(Vector2(-1000, -1000))
 		if spr != null: spr.visible = false
@@ -209,7 +244,6 @@ func WorldToScreenPosition(worldElement : WorldElement):
 	if spr != null:
 		spr.global_position = screen.floor()
 		spr.visible = true
-
 # -----------------------------------------------------------------------------
 # Utils
 # -----------------------------------------------------------------------------
