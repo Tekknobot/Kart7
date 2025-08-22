@@ -1091,7 +1091,7 @@ _roadTypeColors = Array[Color]([Color(0, 0, 0, 1), Color(1, 1, 1, 1), Color(0.8,
 [node name="Sprite Handler" type="Node2D" parent="." node_paths=PackedStringArray("_hazards", "_opponents")]
 script = ExtResource("7_wmybs")
 _hazards = [NodePath("Hazards/Bridge/Green Pipe"), NodePath("Hazards/Bridge/Green Pipe2"), NodePath("Hazards/Bridge/Green Pipe3"), NodePath("Hazards/Bridge/Green Pipe4"), NodePath("Hazards/Shortcut/Green Pipe"), NodePath("Hazards/Shortcut/Green Pipe2"), NodePath("Hazards/Shortcut/Green Pipe3"), NodePath("Hazards/Shortcut/Green Pipe4"), NodePath("Hazards/Lake/Green Pipe"), NodePath("Hazards/Lake/Green Pipe2"), NodePath("Hazards/Lake/Green Pipe3"), NodePath("Hazards/Lake/Green Pipe4"), NodePath("Hazards/Last Turn/Green Pipe"), NodePath("Hazards/Last Turn/Green Pipe2"), NodePath("Hazards/Last Turn/Green Pipe3"), NodePath("Hazards/Last Turn/Green Pipe4")]
-_opponents = [NodePath("Racers/Racer01"), NodePath("Racers/Racer02")]
+_opponents = [NodePath("Racers/Racer01"), NodePath("Racers/Racer02"), NodePath("Racers/Racer03"), NodePath("Racers/Racer04"), NodePath("Racers/Racer05"), NodePath("Racers/Racer06"), NodePath("Racers/Racer07"), NodePath("Racers/Racer08")]
 pseudo3d_node = NodePath("Racers/Player")
 path_overlay_node = NodePath("../SubViewport/PathOverlay2D")
 sprite_graphic_path = NodePath("Racers/Racer01/GFX/AngleSprite")
@@ -1114,6 +1114,7 @@ min_radius_uv_auto = 0.002
 [node name="Player" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 position = Vector2(-1.52588e-05, 0)
 script = ExtResource("8_lejxo")
+_movementAccel = 100.0
 _movementDeaccel = 150.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
@@ -1189,16 +1190,18 @@ texture = ExtResource("5_lfi8c")
 [node name="Racer01" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_spriteGFX")]
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Player")
-lane_offset_px = -8.0
-target_speed = 180.0
-accel = 150.0
+target_speed = 150.0
+accel = 10.0
 max_speed_override = 150.0
 catchup_gain_speed = 120.0
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
 pseudo3d_ref = NodePath("../../../Map")
 ai_auto_launch = false
-ai_launch_time_s = 20.0
-ai_target_speed = 150.0
+ai_launch_delay_s = 20.0
+ai_target_speed = 220.0
+ai_auto_throttle = true
+ai_throttle_delay_s = 1.0
+ai_accel_per_sec = 10.0
 _spriteGFX = NodePath("GFX/AngleSprite")
 
 [node name="GFX" type="Node" parent="Sprite Handler/Racers/Racer01"]
@@ -1210,16 +1213,19 @@ texture = ExtResource("5_lfi8c")
 [node name="Racer02" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_spriteGFX")]
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Player")
-target_speed = 200.0
-accel = 200.0
+target_speed = 160.0
+accel = 10.0
 max_speed_override = 190.0
 catchup_gain_speed = 120.0
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
 pseudo3d_ref = NodePath("../../../Map")
 lane_offset = 16.0
 ai_auto_launch = false
-ai_launch_time_s = 7.0
-ai_target_speed = 170.0
+ai_launch_delay_s = 20.0
+ai_target_speed = 200.0
+ai_auto_throttle = true
+ai_throttle_delay_s = 1.0
+ai_accel_per_sec = 20.0
 _spriteGFX = NodePath("GFX/AngleSprite")
 _mapPosition = Vector3(933, 0, 435)
 
@@ -1233,21 +1239,151 @@ texture = ExtResource("5_lfi8c")
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Player")
 lane_offset_px = 16.0
-target_speed = 220.0
+target_speed = 170.0
+accel = 10.0
 max_speed_override = 150.0
 catchup_gain_speed = 120.0
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
 pseudo3d_ref = NodePath("../../../Map")
 lane_offset = 16.0
 ai_auto_launch = false
-ai_launch_time_s = 9.0
+ai_launch_delay_s = 20.0
 ai_target_speed = 180.0
+ai_auto_throttle = true
+ai_throttle_delay_s = 1.0
+ai_accel_per_sec = 30.0
 _spriteGFX = NodePath("GFX/AngleSprite")
 _mapPosition = Vector3(933, 0, 435)
 
 [node name="GFX" type="Node" parent="Sprite Handler/Racers/Racer03"]
 
 [node name="AngleSprite" type="Sprite2D" parent="Sprite Handler/Racers/Racer03/GFX"]
+z_index = -1
+texture = ExtResource("5_lfi8c")
+
+[node name="Racer04" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_spriteGFX")]
+script = ExtResource("16_hibaj")
+player_ref = NodePath("../Player")
+lane_offset_px = 16.0
+target_speed = 180.0
+accel = 10.0
+max_speed_override = 150.0
+catchup_gain_speed = 120.0
+path_ref = NodePath("../../../SubViewport/PathOverlay2D")
+pseudo3d_ref = NodePath("../../../Map")
+lane_offset = 16.0
+ai_auto_launch = false
+ai_launch_delay_s = 20.0
+ai_target_speed = 170.0
+ai_auto_throttle = true
+ai_throttle_delay_s = 1.0
+ai_accel_per_sec = 40.0
+_spriteGFX = NodePath("GFX/AngleSprite")
+_mapPosition = Vector3(933, 0, 435)
+
+[node name="GFX" type="Node" parent="Sprite Handler/Racers/Racer04"]
+
+[node name="AngleSprite" type="Sprite2D" parent="Sprite Handler/Racers/Racer04/GFX"]
+z_index = -1
+texture = ExtResource("5_lfi8c")
+
+[node name="Racer05" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_spriteGFX")]
+script = ExtResource("16_hibaj")
+player_ref = NodePath("../Player")
+target_speed = 170.0
+accel = 10.0
+max_speed_override = 150.0
+catchup_gain_speed = 120.0
+path_ref = NodePath("../../../SubViewport/PathOverlay2D")
+pseudo3d_ref = NodePath("../../../Map")
+lane_offset = 16.0
+ai_auto_launch = false
+ai_launch_delay_s = 20.0
+ai_target_speed = 160.0
+ai_auto_throttle = true
+ai_throttle_delay_s = 1.0
+ai_accel_per_sec = 50.0
+_spriteGFX = NodePath("GFX/AngleSprite")
+_mapPosition = Vector3(933, 0, 435)
+
+[node name="GFX" type="Node" parent="Sprite Handler/Racers/Racer05"]
+
+[node name="AngleSprite" type="Sprite2D" parent="Sprite Handler/Racers/Racer05/GFX"]
+z_index = -1
+texture = ExtResource("5_lfi8c")
+
+[node name="Racer06" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_spriteGFX")]
+script = ExtResource("16_hibaj")
+player_ref = NodePath("../Player")
+target_speed = 200.0
+accel = 10.0
+max_speed_override = 150.0
+catchup_gain_speed = 120.0
+path_ref = NodePath("../../../SubViewport/PathOverlay2D")
+pseudo3d_ref = NodePath("../../../Map")
+lane_offset = 16.0
+ai_auto_launch = false
+ai_launch_delay_s = 20.0
+ai_target_speed = 150.0
+ai_auto_throttle = true
+ai_throttle_delay_s = 1.0
+ai_accel_per_sec = 60.0
+_spriteGFX = NodePath("GFX/AngleSprite")
+_mapPosition = Vector3(933, 0, 435)
+
+[node name="GFX" type="Node" parent="Sprite Handler/Racers/Racer06"]
+
+[node name="AngleSprite" type="Sprite2D" parent="Sprite Handler/Racers/Racer06/GFX"]
+z_index = -1
+texture = ExtResource("5_lfi8c")
+
+[node name="Racer07" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_spriteGFX")]
+script = ExtResource("16_hibaj")
+player_ref = NodePath("../Player")
+target_speed = 210.0
+accel = 10.0
+max_speed_override = 150.0
+catchup_gain_speed = 120.0
+path_ref = NodePath("../../../SubViewport/PathOverlay2D")
+pseudo3d_ref = NodePath("../../../Map")
+lane_offset = 16.0
+ai_auto_launch = false
+ai_launch_delay_s = 20.0
+ai_target_speed = 150.0
+ai_auto_throttle = true
+ai_throttle_delay_s = 1.0
+ai_accel_per_sec = 70.0
+_spriteGFX = NodePath("GFX/AngleSprite")
+_mapPosition = Vector3(933, 0, 435)
+
+[node name="GFX" type="Node" parent="Sprite Handler/Racers/Racer07"]
+
+[node name="AngleSprite" type="Sprite2D" parent="Sprite Handler/Racers/Racer07/GFX"]
+z_index = -1
+texture = ExtResource("5_lfi8c")
+
+[node name="Racer08" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_spriteGFX")]
+script = ExtResource("16_hibaj")
+player_ref = NodePath("../Player")
+target_speed = 150.0
+accel = 10.0
+max_speed_override = 150.0
+catchup_gain_speed = 120.0
+path_ref = NodePath("../../../SubViewport/PathOverlay2D")
+pseudo3d_ref = NodePath("../../../Map")
+lane_offset = 16.0
+ai_auto_launch = false
+ai_launch_delay_s = 20.0
+ai_target_speed = 220.0
+ai_auto_throttle = true
+ai_throttle_delay_s = 1.0
+ai_accel_per_sec = 80.0
+_spriteGFX = NodePath("GFX/AngleSprite")
+_mapPosition = Vector3(933, 0, 435)
+
+[node name="GFX" type="Node" parent="Sprite Handler/Racers/Racer08"]
+
+[node name="AngleSprite" type="Sprite2D" parent="Sprite Handler/Racers/Racer08/GFX"]
 z_index = -1
 texture = ExtResource("5_lfi8c")
 

@@ -46,6 +46,41 @@ var _angle_sprite: Node = null
 # Cached path data
 var _seg_tan: PackedVector2Array = PackedVector2Array()  # per-vertex unit tangents
 
+var _spawn_locked: bool = false
+
+# Apply a spawn directly from a path index (and optional lane px), and lock it so _ready() won't overwrite it.
+func ApplySpawnFromPathIndex(idx: int, lane_px: float = 0.0) -> void:
+	_try_cache_nodes()
+	_cache_path()
+	if _uv_points.size() < 2 or _total_len_px <= 0.0:
+		push_warning("Opponent.ApplySpawnFromPathIndex: path not ready; deferring.")
+		# best-effort: cache index to use once path is ready
+		start_index = idx
+		lane_offset_px = lane_px
+		return
+
+	start_index = clamp(idx, 0, max(0, _uv_points.size() - 2)) # -2 because last is a dup of the first
+	lane_offset_px = lane_px
+
+	_s_px = _arc_at_index(start_index) + max(0.0, start_offset_px)
+	_s_px = fposmod(_s_px, _total_len_px)
+
+	_heading = _tangent_angle_at_distance(_s_px)
+
+	var cur_uv: Vector2 = _uv_at_distance(_s_px)
+	var tan: Vector2 = _tangent_at_distance(_s_px)
+	var right: Vector2 = Vector2(-tan.y, tan.x)
+	var final_uv: Vector2 = cur_uv + (lane_offset_px / _pos_scale_px()) * right
+
+	var px: Vector2 = final_uv * _pos_scale_px()
+	SetMapPosition(Vector3(px.x, 0.0, px.y))
+
+	# allow faster AI if needed
+	if _maxMovementSpeed < max_speed_override:
+		_maxMovementSpeed = max_speed_override
+
+	_spawn_locked = true
+
 # ---------------- convenience ----------------
 func _path_node() -> Node:
 	return _pn
@@ -83,6 +118,14 @@ func _ready() -> void:
 		push_error("Opponent: path has < 2 points.")
 		return
 
+	# If external code already spawned us, keep it.
+	if _spawn_locked:
+		# still ensure AI max speed
+		if _maxMovementSpeed < max_speed_override:
+			_maxMovementSpeed = max_speed_override
+		return
+
+	# Original self-placement (only when not externally spawned)
 	_s_px = _arc_at_index(start_index) + max(0.0, start_offset_px)
 	_s_px = fposmod(_s_px, _total_len_px)
 
@@ -92,7 +135,6 @@ func _ready() -> void:
 	var px: Vector2 = uv * _pos_scale_px()
 	SetMapPosition(Vector3(px.x, 0.0, px.y))
 
-	# Ensure AI can actually reach higher speeds
 	if _maxMovementSpeed < max_speed_override:
 		_maxMovementSpeed = max_speed_override
 

@@ -96,6 +96,25 @@ var _right_axis    : Vector2 = Vector2(1, 0)
 @export var min_radius_uv_auto      : float = 0.010   # floor so tiny sprites still collide
 @export var radius_scale_global     : float = 1.00    # quick global tweak (0.8 to shrink, 1.2 to grow)
 
+# --- AI spawn knobs ---
+@export var spawn_start_offset : int   = 0     # how far along the path we begin
+@export var spawn_stride       : int   = 8     # how many path points to skip between spawns
+@export var spawn_min_sep_uv   : float = 0.015 # minimum UV separation between spawns
+@export var spawn_jitter_px    : float = 4.0   # small random jitter in px to avoid perfect overlap
+
+# --- Launch (start acceleration) knobs ---
+@export var launch_min_target_speed : float = 45.0   # px/s (or your speed unit)
+@export var launch_max_target_speed : float = 65.0
+@export var launch_min_accel_ps     : float = 60.0   # px/s^2 (or your speed unit^2)
+@export var launch_max_accel_ps     : float = 120.0
+@export var launch_bump_gain        : float = 1.0    # scale impulses if needed
+
+@export var spawn_debug : bool = true
+@export var spawn_debug_draw_markers : bool = true
+@export var spawn_debug_color : Color = Color(0, 1, 0, 1)  # green
+
+var _launch_profiles := {}  # id -> { "target": float, "accel": float, "dir": Vector3 }
+
 # -----------------------------------------------------------------------------
 # Lifecycle from your game script:
 #   Setup(_map.ReturnWorldMatrix(), map_tex_size, _player)
@@ -124,7 +143,9 @@ func Setup(worldMatrix: Basis, mapSize: int, player: Racer) -> void:
 	# Defer one frame so overlay/pseudo3D are ready before we touch them
 	if auto_apply_path:
 		call_deferred("_apply_path_from_overlay")
-		
+		# Path is now applied → spawn
+		call_deferred("SpawnOpponentsOnDefaultPath")
+
 	print("World elements:", _worldElements.size())
 	for we in _worldElements:
 		prints("  -", we.name, "spr:", we.ReturnSpriteGraphic())
@@ -177,6 +198,7 @@ func Update(worldMatrix: Basis) -> void:
 		call_deferred("_notify_overlay")
 
 	HandleYLayerSorting()
+	_tick_launch_profiles(_dt_cached)
 	_is_updating = false
 
 # -----------------------------------------------------------------------------
@@ -600,3 +622,383 @@ func _get_collision_radius_uv(el: WorldElement, is_player: bool) -> float:
 
 	# Mode 0 (fallback): use fixed exports
 	return (player_radius_uv if is_player else opponent_radius_uv) * radius_scale_global
+
+func _get_path_points_uv() -> PackedVector2Array:
+	var pts: PackedVector2Array
+	var ov := get_node_or_null(path_overlay_node)
+	if ov != null:
+		if ov.has_method("get_path_points_uv_transformed"):
+			pts = ov.call("get_path_points_uv_transformed")
+		elif ov.has_method("get_path_points_uv"):
+			pts = ov.call("get_path_points_uv")
+
+	if pts == null or pts.size() == 0:
+		pts = PackedVector2Array()
+
+	return _unique_loop_points(pts)
+
+func _is_far_enough(uv: Vector2, used: Array, min_sep_uv: float) -> bool:
+	for u in used:
+		var d = (uv - u).length()
+		if d < min_sep_uv:
+			return false
+	return true
+
+func SpawnOpponentsOnPath() -> void:
+	var pts := _get_path_points_uv()
+	if pts.size() == 0:
+		push_warning("SpawnOpponentsOnPath: no path points available.")
+		return
+	if _opponents == null or _opponents.size() == 0:
+		return
+
+	# start with the player’s current UV to avoid spawning on top of them
+	var used_uvs: Array = []
+	if is_instance_valid(_player):
+		var p3 := _player.ReturnMapPosition()
+		used_uvs.append(Vector2(p3.x, p3.z))
+
+	# derive a safe min separation from radius system (use the larger of derived and export)
+	var base_sep := spawn_min_sep_uv
+	if collision_radius_mode == 1 or collision_radius_mode == 2:
+		var r_p := _get_collision_radius_uv(_player, true)
+		base_sep = max(base_sep, r_p * 2.5)
+
+	var jitter_uv := spawn_jitter_px / float(max(1, _mapSize))
+
+	var idx := spawn_start_offset % pts.size()
+	for opp in _opponents:
+		if not is_instance_valid(opp):
+			continue
+
+		# scan forward until we find an available point
+		var tries := pts.size()
+		var placed := false
+		while tries > 0 and not placed:
+			var uv := pts[idx]
+			# tiny jitter to avoid exact overlaps
+			var jx := (randf() * 2.0 - 1.0) * jitter_uv
+			var jy := (randf() * 2.0 - 1.0) * jitter_uv
+			var uvj := Vector2(clamp(uv.x + jx, 0.0, 1.0), clamp(uv.y + jy, 0.0, 1.0))
+
+			# expand sep by opponent radius if available
+			var sep := base_sep
+			if collision_radius_mode == 1 or collision_radius_mode == 2:
+				var r_o := _get_collision_radius_uv(opp, false)
+				sep = max(sep, r_o * 2.0)
+
+			if _is_far_enough(uvj, used_uvs, sep):
+				_place_world_element_uv(opp, uvj)
+				used_uvs.append(uvj)
+				placed = true
+			else:
+				# advance and try another point
+				idx = (idx + 1) % pts.size()
+				tries -= 1
+
+		# stride forward for the next opponent even if we had to scan
+		idx = (idx + max(1, spawn_stride)) % pts.size()
+
+# ---------- PATH READ (prefer default Pseudo3D path) ----------
+
+func _get_default_path_points_uv() -> PackedVector2Array:
+	var pts: PackedVector2Array = PackedVector2Array()
+
+	var p3d := get_node_or_null(pseudo3d_node)
+	if p3d != null:
+		if p3d.has_method("GetPathPointsUV"):
+			pts = p3d.call("GetPathPointsUV")
+		elif p3d.has_method("get_path_points_uv"):
+			pts = p3d.call("get_path_points_uv")
+		elif p3d.has_method("ReturnPathPointsUV"):
+			pts = p3d.call("ReturnPathPointsUV")
+
+	if pts == null or pts.size() == 0:
+		var ov := get_node_or_null(path_overlay_node)
+		if ov != null:
+			if ov.has_method("get_path_points_uv_transformed"):
+				pts = ov.call("get_path_points_uv_transformed")
+			elif ov.has_method("get_path_points_uv"):
+				pts = ov.call("get_path_points_uv")
+
+	if pts == null:
+		pts = PackedVector2Array()
+
+	return _unique_loop_points(pts)
+
+# ---------- PLACE/ORIENT HELPERS ----------
+
+func _place_world_element_uv(el: WorldElement, uv: Vector2) -> void:
+	# Keep current Y (already in pixels in your game), only move on map plane (x,z)
+	var curr := el.ReturnMapPosition()        # Vector3 pixels
+	var y_px := curr.y                        # keep height as-is
+	var px := _uv_to_px(uv)                   # Vector2 pixels from 0..1 UV
+	el.SetMapPosition(Vector3(px.x, y_px, px.y))
+
+func _face_along_path_if_possible(el: WorldElement, pts: PackedVector2Array, idx: int) -> void:
+	var n := pts.size()
+	if n < 2:
+		return
+	var a := pts[idx]
+	var b := pts[(idx + 1) % n]
+	var tan := (b - a)
+	if tan.length() <= 0.000001:
+		return
+	# If your racer exposes a heading setter in map space, call it:
+	if el.has_method("SetHeadingFromMapTangent"):
+		el.call("SetHeadingFromMapTangent", tan.normalized())
+	elif el.has_method("set_heading_from_map_tangent"):
+		el.call("set_heading_from_map_tangent", tan.normalized())
+	# Otherwise we leave orientation to your usual update code.
+
+
+# ---------- INDEX/AVAILABILITY ----------
+
+func _nearest_free_index(pts: PackedVector2Array, start_idx: int, used: Dictionary, min_gap: int) -> int:
+	# Scan outward from start_idx, skipping used indices and enforcing integer stride gap
+	# used is a Dictionary[int] = true
+	var n := pts.size()
+	if n == 0:
+		return -1
+
+	var i := start_idx
+	var tries := n
+	while tries > 0:
+		if not used.has(i):
+			return i
+		i = (i + max(1, min_gap)) % n
+		tries -= 1
+	return -1
+
+func _index_of_closest_point(pts: PackedVector2Array, uv: Vector2) -> int:
+	var best_i := -1
+	var best_d := 1e9
+	for i in range(pts.size()):
+		var d := pts[i].distance_to(uv)
+		if d < best_d:
+			best_d = d
+			best_i = i
+	return best_i
+
+
+# ---------- PUBLIC: SPAWN OPPONENTS ON DEFAULT PATH ----------
+
+@export var spawn_stride_points : int = 6      # gap in path indices between AIs
+@export var spawn_from_player   : bool = true  # start near the player’s current position
+@export var spawn_start_index   : int = 0      # start here if not using player anchor
+
+@export var spawn_block_neighborhood : int = 1   # also mark ±this many indices as used
+
+func SpawnOpponentsOnDefaultPath() -> void:
+	# hard reset any prior launch profiles & markers
+	_launch_profiles.clear()
+	if spawn_debug_draw_markers:
+		var ov := get_node_or_null(path_overlay_node)
+		if ov != null and ov.has_method("clear_debug_markers"):
+			ov.call("clear_debug_markers")
+
+	# fresh path read (deduped closing point)
+	var pts := _get_default_path_points_uv()
+	var N := pts.size()
+	if N == 0:
+		call_deferred("SpawnOpponentsOnDefaultPath")
+		return
+	if _opponents == null or _opponents.size() == 0:
+		return
+
+	# anchor near player or explicit index
+	var anchor_idx := 0
+	if spawn_from_player and is_instance_valid(_player):
+		var p3 := _player.ReturnMapPosition()
+		var p_uv := Vector2(p3.x / float(_mapSize), p3.z / float(_mapSize))
+		anchor_idx = _index_of_closest_point(pts, p_uv)
+	else:
+		anchor_idx = clamp(spawn_start_index, 0, max(0, N - 1))
+
+	# evenly spaced desired indices
+	var M := _opponents.size()
+	var desired: Array = []
+	for k in range(M):
+		var i := int(floor(float(k) * float(N) / float(M) + 0.5))
+		var idx := (anchor_idx + i) % N
+		desired.append(idx)
+
+	# ensure none equals player's anchor; nudge +1 if needed
+	for j in range(desired.size()):
+		if desired[j] == anchor_idx:
+			desired[j] = (desired[j] + 1) % N
+
+	# boolean flags for used indices (fresh each run)
+	var used_flags: Array = []
+	used_flags.resize(N)
+	for i2 in range(N):
+		used_flags[i2] = false
+
+	# reserve anchor neighborhood once
+	_flag_neighborhood(used_flags, anchor_idx, N, spawn_block_neighborhood)
+
+	# place each opponent with guaranteed uniqueness
+	for ai_i in range(M):
+		var opp := _opponents[ai_i]
+		if not is_instance_valid(opp):
+			continue
+
+		var want = desired[ai_i]
+
+		# find next free index (scans step=1)
+		var idx_free := _next_free_index(used_flags, want, N)
+		if idx_free == -1:
+			# fully packed; fall back to want (worst-case)
+			idx_free = want
+
+		# mark index + neighborhood as used
+		_flag_neighborhood(used_flags, idx_free, N, spawn_block_neighborhood)
+
+		# place & orient
+		var uv := pts[idx_free]
+		if opp != null and opp.has_method("ApplySpawnFromPathIndex"):
+			opp.call("ApplySpawnFromPathIndex", idx_free, 0.0)  # pass lane offset if you have one
+		else:
+			# fallback (if some AI isn’t using Opponent.gd):
+			_place_world_element_uv(opp, uv)
+		_face_along_path_if_possible(opp, pts, idx_free)
+
+		# debug name (no ternary)
+		var name_str := ""
+		if opp is Node and opp.has_method("get_name"):
+			name_str = str(opp.name)
+		else:
+			name_str = "opp_" + str(opp.get_instance_id())
+
+		_spawn_dbg_print("placed " + name_str + " at idx=" + str(idx_free) + " uv=" + str(uv))
+		_spawn_dbg_marker(uv, name_str)
+
+		# seed fresh launch profile along tangent
+		var a := pts[idx_free]
+		var b := pts[(idx_free + 1) % N]
+		var tan := (b - a)
+		var fwd := Vector3(tan.x, 0.0, tan.y).normalized()
+		var target := randf_range(launch_min_target_speed, launch_max_target_speed)
+		var accel  := randf_range(launch_min_accel_ps,     launch_max_accel_ps)
+		_launch_profiles[opp.get_instance_id()] = {
+			"target": target, "accel": accel, "dir": fwd
+		}
+		_spawn_dbg_print("launch " + name_str + " target=" + str(target) + " accel=" + str(accel))
+
+	# summary (fresh only)
+	_spawn_dbg_print("path_pts=" + str(N))
+	_spawn_dbg_print("anchor_idx=" + str(anchor_idx))
+	_spawn_dbg_print("even_spread_indices=" + str(desired))
+	_spawn_dbg_print("opponent_count=" + str(M))
+
+func _flag_neighborhood(flags: Array, center: int, N: int, radius: int) -> void:
+	var r = max(0, radius)
+	for k in range(center - r, center + r + 1):
+		var i := k
+		while i < 0:
+			i += N
+		i = i % N
+		flags[i] = true
+
+func _next_free_index(flags: Array, start_idx: int, N: int) -> int:
+	var i := start_idx % N
+	for _k in range(N):
+		if not flags[i]:
+			return i
+		i = (i + 1) % N
+	return -1
+
+func _gcd(a: int, b: int) -> int:
+	a = abs(a)
+	b = abs(b)
+	while b != 0:
+		var t := b
+		b = a % t
+		a = t
+	return max(1, a)
+
+func _mark_used_with_neighborhood(used: Dictionary, center: int, N: int, radius: int) -> void:
+	var r = max(0, radius)
+	for k in range(center - r, center + r + 1):
+		var i := k
+		# wrap around [0, N)
+		while i < 0:
+			i += N
+		i = i % N
+		used[i] = true
+
+func _current_speed_of(el: WorldElement) -> float:
+	# Prefer a direct speed getter if available
+	if el.has_method("ReturnMovementSpeed"):
+		var ms_var: Variant = el.call("ReturnMovementSpeed")
+		# If it’s numeric, return as float; otherwise fall through
+		if typeof(ms_var) == TYPE_FLOAT or typeof(ms_var) == TYPE_INT:
+			return float(ms_var)
+
+	# Fallback to velocity length if available
+	if el.has_method("ReturnVelocity"):
+		var vel_var: Variant = el.call("ReturnVelocity")
+		if vel_var is Vector3:
+			var v3: Vector3 = vel_var
+			return v3.length()
+
+	return 0.0
+
+func _tick_launch_profiles(dt: float) -> void:
+	if _launch_profiles.is_empty():
+		return
+	var to_remove: Array = []
+	for id in _launch_profiles.keys():
+		var data = _launch_profiles[id]
+		var el := instance_from_id(id)
+		if el == null or not is_instance_valid(el):
+			to_remove.append(id)
+			continue
+
+		var target  := float(data["target"])
+		var accel   := float(data["accel"])
+		var fwd     := data["dir"] as Vector3
+
+		var curr_speed := _current_speed_of(el)
+
+		if curr_speed >= target:
+			to_remove.append(id)
+			continue
+
+		# apply forward impulse scaled by accel and dt
+		var impulse := fwd * (accel * dt * launch_bump_gain)
+		if el.has_method("SetCollisionBump"):
+			el.call("SetCollisionBump", impulse)
+		else:
+			# ultra-safe fallback: tiny positional nudge if no bump method
+			var curr3 = el.ReturnMapPosition()
+			el.SetMapPosition(curr3 + impulse)
+
+	for id in to_remove:
+		_launch_profiles.erase(id)
+
+func _spawn_dbg_print(msg: String) -> void:
+	if spawn_debug:
+		print("[Spawn]", msg)
+
+func _spawn_dbg_marker(uv: Vector2, label: String) -> void:
+	if not spawn_debug_draw_markers:
+		return
+	var ov := get_node_or_null(path_overlay_node)
+	if ov == null:
+		return
+	# PathOverlay2D.gd already has add_debug_marker_uv(uv)
+	if ov.has_method("add_debug_marker_uv"):
+		ov.call("add_debug_marker_uv", uv)
+		# optional: if your overlay supports colored markers, call a color-aware variant here
+
+func _unique_loop_points(pts: PackedVector2Array) -> PackedVector2Array:
+	if pts.size() >= 2:
+		var a: Vector2 = pts[0]
+		var b: Vector2 = pts[pts.size() - 1]
+		if a.is_equal_approx(b):
+			var out := PackedVector2Array()
+			for i in range(pts.size() - 1):
+				out.append(pts[i])
+			return out
+	return pts

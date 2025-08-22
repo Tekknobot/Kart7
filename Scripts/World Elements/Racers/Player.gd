@@ -95,14 +95,64 @@ var _spin_phase := 0.0
 var _post_spin_lock := 0.0
 
 # === Item (Mushroom) Boost ===
-const ITEM_BOOST_MULT := 3.75     # how strong the mushroom boost is
-const ITEM_BOOST_TIME := 0.35     # how long it lasts (seconds)
+const ITEM_BOOST_MULT := 6.75     # how strong the mushroom boost is
+const ITEM_BOOST_TIME := 0.25     # how long it lasts (seconds)
 const ITEM_COOLDOWN := 3       # small cooldown before you can use another
 
 var _item_boost_timer := 0.0
 var _item_cooldown_timer := 0.0
 
 var _has_base_sprite_offset: bool = false
+
+# --- Item boost terrain compensation (tune to taste) ---
+@export var ITEM_COMP_OFF_ROAD := 1.40   # extra “anti-slow” while boosting on OFF_ROAD
+@export var ITEM_COMP_GRAVEL  := 1.20   # extra “anti-slow” while boosting on GRAVEL
+
+# --- Wall collision tuning ---
+@export var WALL_RESTITUTION      := 0.35   # 0 = no bounce, 1 = perfectly bouncy
+@export var WALL_SLIDE_KEEP       := 0.85   # keep this fraction of tangential speed
+@export var WALL_SEPARATION_EPS   := 0.50   # small nudge away from wall (pixels)
+@export var WALL_BUMP_STRENGTH    := 1.0    # impulse fed into SetCollisionBump()
+@export var WALL_HIT_COOLDOWN_S   := 0.10   # min time between bumps
+
+var _wall_hit_cd := 0.0
+var _primed_sprite := false
+
+func _prime_sprite_grid_once() -> void:
+	if _primed_sprite:
+		return
+	var spr := ReturnSpriteGraphic()
+	if spr == null:
+		return
+
+	# Sprite2D (grid sheet)
+	if spr is Sprite2D:
+		var s := spr as Sprite2D
+		# force grid mode; showing the whole texture for a frame is the usual culprit
+		s.region_enabled = false
+		if s.hframes != DIRECTIONS:
+			s.hframes = DIRECTIONS
+			s.vframes = 1
+		s.flip_h = false
+		s.frame = TURN_STRAIGHT_INDEX  # single frame (front)
+		_primed_sprite = true
+		return
+
+	# AnimatedSprite2D (fallback)
+	if spr.has_method("stop"):
+		spr.stop()
+	if "frame" in spr:
+		spr.frame = TURN_STRAIGHT_INDEX
+	_primed_sprite = true
+	
+func _apply_item_terrain_comp(rt: int) -> void:
+	if _item_boost_timer <= 0.0:
+		return
+	# Don’t compensate for SINK/WALL; they’re “hard stops”.
+	if rt == Globals.RoadType.OFF_ROAD:
+		_speedMultiplier = max(_speedMultiplier, ITEM_BOOST_MULT * ITEM_COMP_OFF_ROAD)
+	elif rt == Globals.RoadType.GRAVEL:
+		_speedMultiplier = max(_speedMultiplier, ITEM_BOOST_MULT * ITEM_COMP_GRAVEL)
 
 func _spr_or_null() -> CanvasItem:
 	return ReturnSpriteGraphic()
@@ -135,7 +185,7 @@ func _set_frame_idx(dir_idx: int) -> void:
 		spr.frame = clamp(dir_idx, 0, DIRECTIONS - 1)
 
 func _ready() -> void:
-	_register_default_actions()  # <-- add this FIRST so inputs exist
+	_register_default_actions()
 	var spr := ReturnSpriteGraphic()
 	if spr == null:
 		await get_tree().process_frame
@@ -143,6 +193,8 @@ func _ready() -> void:
 	if spr == null:
 		push_error("Player.gd: sprite_graphic_path is not set or node missing: %s" % str(get("sprite_graphic_path")))
 		return
+
+	_prime_sprite_grid_once()   # <- ensure single frame, grid mode, no region
 	_base_sprite_offset_y = spr.offset.y
 
 func _process(_dt: float) -> void:
@@ -393,6 +445,7 @@ func Update(mapForward : Vector3) -> void:
 
 	_apply_hop_sprite_offset()
 	_choose_and_apply_frame(get_process_delta_time())
+	_wall_hit_cd = max(0.0, _wall_hit_cd - dt)
 
 func ReturnPlayerInput() -> Vector2:
 	var steer := Input.get_action_strength("Right") - Input.get_action_strength("Left")
@@ -431,18 +484,12 @@ func _handle_hop_and_drift(input_vec : Vector2) -> void:
 	if hop_pressed and not _is_drifting:
 		_hop_timer = HOP_DURATION
 		_hop_boost_timer = HOP_DURATION
-		_speedMultiplier = max(_speedMultiplier, HOP_SPEED_BOOST)
+		# NOTE: no speed boost from hop anymore
 		_drift_arm_timer = DRIFT_ARM_WINDOW
 
-		# tiny lateral impulse to "set" the slide feel (one frame, outward once you choose a side)
-		# we won't apply until drift actually starts; this only preps the arm window
-		# (handled on actual drift start below)
-
-	# decay hop boost
+	# decay hop window/timer (no speed resets)
 	if _hop_boost_timer > 0.0:
-		_hop_boost_timer -= dt
-		if _hop_boost_timer <= 0.0:
-			_speedMultiplier = 1.0
+		_hop_boost_timer = max(0.0, _hop_boost_timer - dt)
 
 	# keep arm window alive briefly after hop
 	if _drift_arm_timer > 0.0:
@@ -455,24 +502,19 @@ func _handle_hop_and_drift(input_vec : Vector2) -> void:
 			dir = -1
 		_start_drift_snes(dir)
 
-
 	# --- While DRIFTING (SNES-style fixed slip) ---
 	if _is_drifting and drift_down:
 		# Keep speed almost intact while drifting (classic SMK keeps momentum)
 		_speedMultiplier = DRIFT_SPEED_MULT
 
-		# Fixed steering target: bias is constant; we do NOT keep pulling input through
 		var bias := float(_drift_dir) * DRIFT_MIN_TURN_BIAS
 		var raw_target = clamp(bias, -1.0, 1.0)
 
-		# Small grip lerp for stability
 		var grip_t = clamp(dt * (DRIFT_GRIP * 10.0), 0.0, 1.0)
 		_inputDir.x = lerp(_inputDir.x, raw_target * DRIFT_STEER_MULT, grip_t)
 
-		# Build charge mostly with TIME (classic feel), slightly helped by steer pressure
 		_drift_charge += (0.75 + 0.25 * steer_abs) * DRIFT_BUILD_RATE * dt
 
-		# Snappy cancel: opposite steer OR easing off steer for a short grace ends it
 		if steer_sign != 0 and steer_sign == -_drift_dir and steer_abs >= DRIFT_REVERSE_BREAK:
 			_cancel_drift_no_award(POST_DRIFT_SETTLE_TIME_BREAK)
 		elif steer_abs < DRIFT_BREAK_DEADZONE:
@@ -485,12 +527,6 @@ func _handle_hop_and_drift(input_vec : Vector2) -> void:
 	# --- Release drift button: award mini-boost / turbo ---
 	if _is_drifting and not drift_down:
 		_end_drift_with_award()
-
-	# --- Global turbo decay ---
-	if _turbo_timer > 0.0:
-		_turbo_timer -= dt
-		if _turbo_timer <= 0.0:
-			_speedMultiplier = 1.0
 
 # SNES-like drift start: lock direction, fixed slip "set", reset counters.
 func _start_drift_snes(dir: int) -> void:
@@ -743,3 +779,20 @@ func _spinout_tick(dt: float) -> void:
 		_emit_dust(false)
 		_emit_sparks(false)
 		_post_spin_lock = SPIN_RECOVER_STEER_LOCK
+
+# Call this from Update() after computing nextPos and doing wall checks/side-slip:
+# _finalize_move_with_item_comp(nextPos, mapForward)
+func _finalize_move_with_item_comp(nextPos: Vector3, mapForward: Vector3) -> void:
+	var nextPixelPos := Vector2i(ceil(nextPos.x), ceil(nextPos.z))
+	var curr_rt = _collisionHandler.ReturnCurrentRoadType(nextPixelPos)
+
+	# Apply terrain effects first
+	HandleRoadType(nextPixelPos, curr_rt)
+
+	# Then compensate terrain if item boost is active (requires _apply_item_terrain_comp from step 2)
+	_apply_item_terrain_comp(curr_rt)
+
+	# Finish movement for this frame
+	SetMapPosition(nextPos)
+	UpdateMovementSpeed()
+	UpdateVelocity(mapForward)
