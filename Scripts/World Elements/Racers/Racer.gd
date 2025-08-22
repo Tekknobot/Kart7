@@ -40,6 +40,20 @@ var _ang = null
 const DIRECTIONS: int = 12
 @export var sheet_uses_mirroring := false  # set true only if you have a 6-frame sheet mirrored
 
+# --- AI auto-launch (ignored for player unless you enable it) ---
+@export var ai_auto_launch        : bool  = true     # enable for AI racers
+@export var ai_launch_delay_s     : float = 2    # wait after spawn
+@export var ai_launch_time_s      : float = 5     # time to reach target speed
+@export var ai_target_speed       : float = 1.0    # px/s (or whatever your units are)
+
+# --- AI auto-throttle (simple ramp from 0 to a target speed) ---
+@export var ai_auto_throttle      : bool  = false     # enable for AI racers
+@export var ai_throttle_delay_s   : float = 2     # wait after spawn
+@export var ai_accel_per_sec      : float = 1.0    # how fast we ramp (units/s^2)
+
+var _ai_timer_s    : float = -1.0
+var _ai_launched   : bool  = false
+
 func _spr_or_null() -> CanvasItem:
 	return ReturnSpriteGraphic()
 
@@ -90,6 +104,8 @@ func _process(_dt: float) -> void:
 		var cam_pos := Globals.get_camera_map_position()
 		update_screen_transform(cam_pos)
 		update_angle_sprite()
+	
+	_tick_auto_throttle(_dt)	
 
 func set_points_uv(uv: PackedVector2Array) -> void:
 	_uv_points = uv
@@ -373,3 +389,34 @@ func _path_tangent_at_index(i: int) -> Vector2:
 	if k < 0:
 		k += n
 	return _path_tan[k]
+
+func ArmAutoThrottle(delay_s: float = -1.0) -> void:
+	# Call this right after you place the AI on the track
+	if delay_s >= 0.0:
+		_ai_timer_s = delay_s
+	else:
+		_ai_timer_s = ai_throttle_delay_s
+	_ai_launched = false
+	_movementSpeed = 0.0
+	_currentMoveDirection = 1
+	_inputDir.y = 0.0   # hold until timer elapses
+
+func _tick_auto_throttle(dt: float) -> void:
+	if not ai_auto_throttle:
+		return
+
+	# wait for the arm delay
+	if _ai_timer_s > 0.0:
+		_ai_timer_s = max(0.0, _ai_timer_s - dt)
+		return
+
+	# begin/continue ramp
+	if not _ai_launched:
+		_ai_launched = true
+
+	_currentMoveDirection = 1
+	_inputDir.y = 1.0   # pretend throttle is pressed
+
+	# ramp movementSpeed towards target
+	if _movementSpeed < ai_target_speed:
+		_movementSpeed = min(ai_target_speed, _movementSpeed + ai_accel_per_sec * dt)
