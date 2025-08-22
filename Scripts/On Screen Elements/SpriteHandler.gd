@@ -180,70 +180,110 @@ func SortByScreenY(a: WorldElement, b: WorldElement) -> int:
 	else:
 		return 0
 
-func WorldToScreenPosition(worldElement : WorldElement):
+func WorldToScreenPosition(worldElement : WorldElement) -> void:
 	if worldElement == null or _player == null:
 		return
 
 	var spr := worldElement.ReturnSpriteGraphic()
 	var mp := worldElement.ReturnMapPosition()  # normalized UV (0..1)
 
-	# ---- depth-based SCALE first ----
+	# ---- depth-based SCALE (Player fixed at 3; Opponent shrinks when "far", clamped to [1.0, 3.0]) ----
 	var p3d := get_node_or_null(pseudo3d_node)
 	if spr != null:
+		# camera forward in map space
 		var cam_f := Vector2(0, 1)
 		if p3d != null and p3d.has_method("get_camera_forward_map"):
 			cam_f = (p3d.call("get_camera_forward_map") as Vector2).normalized()
 
+		# signed forward depth using camera-forward dot
 		var pl_uv := Vector2(_player.ReturnMapPosition().x, _player.ReturnMapPosition().z)
 		var el_uv := Vector2(mp.x, mp.z)
+		var depth_dot := (el_uv - pl_uv).dot(cam_f)
 
-		# Flip sign if you want near = larger
-		var forward_dot := (el_uv - pl_uv).dot(cam_f)
+		# far/near (non-negative), swap roles if invert_depth_scale
+		var far_raw := depth_dot
+		var near_raw := -depth_dot
+		if far_raw < 0.0:
+			far_raw = 0.0
+		if near_raw < 0.0:
+			near_raw = 0.0
 		if invert_depth_scale:
-			forward_dot = -forward_dot
+			var swap := far_raw
+			far_raw = near_raw
+			near_raw = swap
 
-		var d = max(forward_dot, 0.0)
+		# we only shrink when far
+		var d := far_raw
 
-		var s: float = 1.0
+		# convert distance to scale <= 1.0 (1.0 at pass-by)
+		var s_depth: float = 1.0
+		var size_min: float = 0.35
+		var size_max: float = 2.0
+		var size_k : float = 0.9
+		if p3d != null:
+			if "size_min" in p3d:
+				size_min = float(p3d.size_min)
+			if "size_max" in p3d:
+				size_max = float(p3d.size_max)
+
 		if p3d != null and p3d.has_method("depth_scale"):
-			# reuse your Pseudo3D curve but with our 'd'
-			# (depth_scale clamps internally)
-			s = float(p3d.call("depth_scale", d))
+			s_depth = float(p3d.call("depth_scale", d))
 		else:
-			# fallback curve
-			var size_k := 0.9
-			var size_min := 0.35
-			var size_max := 2.0
-			s = clamp(size_k / (size_k + d), size_min, size_max)
+			var denom := size_k + d
+			if denom <= 0.0:
+				denom = 0.0001
+			s_depth = size_k / denom
+			if s_depth < size_min:
+				s_depth = size_min
+			if s_depth > size_max:
+				s_depth = size_max
 
-		spr.scale = Vector2(s, s)
+		# absolute scales: player fixed at 3.0, opponent in [1.0, 3.0]
+		var player_base := 3.0
+		var final_scale := player_base
+		if worldElement != _player:
+			final_scale = player_base * s_depth
+			# clamp to [1.0, 3.0]
+			if final_scale < 1.0:
+				final_scale = 1.0
+			if final_scale > player_base:
+				final_scale = player_base
 
-	# ---- project to screen ----
+		(spr as Node2D).scale = Vector2(final_scale, final_scale)
+
+	# ---- project to screen (your original style) ----
 	var transformed : Vector3 = _worldMatrix.inverse() * Vector3(mp.x, mp.z, 1.0)
 	if transformed.z < 0.0:
 		worldElement.SetScreenPosition(Vector2(-1000, -1000))
-		if spr != null: spr.visible = false
+		if spr != null:
+			spr.visible = false
 		return
 
 	var screen : Vector2 = Vector2(transformed.x / transformed.z, transformed.y / transformed.z)
 	screen = (screen + Vector2(0.5, 0.5)) * _screen_size()
 
-	# foot anchor (after scale)
+	# foot anchor (keep your original logic)
 	if spr != null:
-		var h = spr.region_rect.size.y
-		if h <= 0.0: h = 32.0
-		screen.y -= (h * spr.scale.y) / 2.0
+		var h := 0.0
+		if "region_rect" in spr:
+			h = spr.region_rect.size.y
+		if h <= 0.0:
+			h = 32.0
+		screen.y -= (h * (spr as Node2D).scale.y) / 2.0
 
 	# cull
 	if (screen.floor().x > _screen_size().x or screen.x < 0.0 or screen.floor().y > _screen_size().y or screen.y < 0.0):
 		worldElement.SetScreenPosition(Vector2(-1000, -1000))
-		if spr != null: spr.visible = false
+		if spr != null:
+			spr.visible = false
 		return
 
+	# place parent & keep your child placement approach
 	worldElement.SetScreenPosition(screen.floor())
 	if spr != null:
-		spr.global_position = screen.floor()
+		(spr as Node2D).global_position = screen.floor()
 		spr.visible = true
+
 # -----------------------------------------------------------------------------
 # Utils
 # -----------------------------------------------------------------------------

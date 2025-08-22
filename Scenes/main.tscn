@@ -1109,8 +1109,10 @@ pseudo3d_ref = NodePath("../../../Map")
 angle_sprite_path = NodePath("GFX")
 sheet_uses_mirroring = true
 _spriteGFX = NodePath("GFX")
+sprite_graphic_path = NodePath("GFX2/AngleSprite")
 
 [node name="GFX" type="Sprite2D" parent="Sprite Handler/Racers/Player"]
+visible = false
 z_as_relative = false
 texture_filter = 1
 scale = Vector2(3, 3)
@@ -1165,11 +1167,17 @@ flip_h = true
 region_enabled = true
 region_rect = Rect2(96, 0, 16, 16)
 
-[node name="Racer01" type="Node2D" parent="Sprite Handler/Racers"]
+[node name="GFX2" type="Node" parent="Sprite Handler/Racers/Player"]
+
+[node name="AngleSprite" type="Sprite2D" parent="Sprite Handler/Racers/Player/GFX2"]
+texture = ExtResource("5_lfi8c")
+
+[node name="Racer01" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_spriteGFX")]
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Player")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
 pseudo3d_ref = NodePath("../../../Map")
+_spriteGFX = NodePath("GFX/AngleSprite")
 
 [node name="GFX" type="Node" parent="Sprite Handler/Racers/Racer01"]
 
