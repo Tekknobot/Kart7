@@ -200,7 +200,7 @@ func Setup(worldMatrix: Basis, mapSize: int, player: Racer) -> void:
 	if auto_apply_path:
 		call_deferred("_apply_path_from_overlay")
 		# Path is now applied → spawn
-		call_deferred("SpawnOpponentsOnDefaultPath")
+		call_deferred("SpawnOpponentsFromDefaults")
 
 	print("World elements:", _worldElements.size())
 	for we in _worldElements:
@@ -1129,3 +1129,70 @@ func _someone_lower_on_screen_than_player() -> bool:
 		if sp.y > p_pos.y + player_front_screen_epsilon:
 			return true
 	return false
+
+func SpawnOpponentsFromDefaults() -> void:
+	# reset any prior launch profiles & markers
+	_launch_profiles.clear()
+	if spawn_debug_draw_markers:
+		var ov := get_node_or_null(path_overlay_node)
+		if ov != null and ov.has_method("clear_debug_markers"):
+			ov.call("clear_debug_markers")
+
+	# we still read the live path to get forward tangents for launch
+	var pts := _get_default_path_points_uv()
+	var N := pts.size()
+	if N == 0:
+		# path not ready; try again next frame
+		call_deferred("SpawnOpponentsFromDefaults")
+		return
+	if _opponents == null or _opponents.size() == 0:
+		return
+
+	for i in range(_opponents.size()):
+		var opp := _opponents[i]
+		if not is_instance_valid(opp):
+			continue
+
+		# pick which DEFAULT point to use for this opponent
+		var di := i
+		if opp.has_method("DefaultCount"):
+			var cnt := int(opp.call("DefaultCount"))
+			if cnt > 0:
+				di = i % cnt
+
+		# place at DEFAULT_POINTS[di] (exact pixels) and compute _s_px from the actual path
+		if opp.has_method("ApplySpawnFromDefaultIndex"):
+			opp.call("ApplySpawnFromDefaultIndex", di, 0.0)
+		else:
+			# Fallback: if the Opponent script hasn't been updated yet, use its old index-based spawner.
+			# We project to the nearest path point to avoid crashes; it won't be exact defaults without the new method.
+			var idx_fallback = i % max(1, N)
+			if opp.has_method("ApplySpawnFromPathIndex"):
+				opp.call("ApplySpawnFromPathIndex", idx_fallback, 0.0)
+
+		# compute current UV (from placed pixel position) ONCE so it's in scope for both debug and launch
+		var scale_px := float(_mapSize)
+		var pos3: Vector3 = opp.ReturnMapPosition()
+		var uv := Vector2(pos3.x / scale_px, pos3.z / scale_px)
+
+		# debug marker at the exact default UV we just used
+		if spawn_debug_draw_markers:
+			_spawn_dbg_marker(uv, "opp_" + str(i))
+
+		# seed a launch profile along the local path tangent nearest to our UV
+		var idx := _index_of_closest_point(pts, uv)
+		if idx < 0:
+			idx = 0
+		var a := pts[idx]
+		var b := pts[(idx + 1) % N]
+		var tan := (b - a)
+		var fwd := Vector3(tan.x, 0.0, tan.y).normalized()
+		var target := randf_range(launch_min_target_speed, launch_max_target_speed)
+		var accel := randf_range(launch_min_accel_ps,     launch_max_accel_ps)
+		_launch_profiles[opp.get_instance_id()] = { "target": target, "accel": accel, "dir": fwd }
+
+		# optional debug output
+		_spawn_dbg_print("spawned opp_" + str(i) + " at default UV=" + str(uv) + " (idx≈" + str(idx) + ")")
+
+	# summary
+	_spawn_dbg_print("opponent_count=" + str(_opponents.size()))

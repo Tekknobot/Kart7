@@ -48,6 +48,16 @@ var _seg_tan: PackedVector2Array = PackedVector2Array()  # per-vertex unit tange
 
 var _spawn_locked: bool = false
 
+var DEFAULT_POINTS: PackedVector2Array = PackedVector2Array([
+	Vector2(950, 607),
+	Vector2(920, 631),
+	Vector2(950, 655),
+	Vector2(920, 679),
+	Vector2(950, 703),
+	Vector2(920, 727),
+	Vector2(950, 751)
+])
+
 # Apply a spawn directly from a path index (and optional lane px), and lock it so _ready() won't overwrite it.
 func ApplySpawnFromPathIndex(idx: int, lane_px: float = 0.0) -> void:
 	_try_cache_nodes()
@@ -454,3 +464,66 @@ func update_screen_transform(camera_pos: Vector2) -> void:
 	var sm := _smooth_scalar(my_sc, target, dt, hl)
 
 	scale = Vector2(sm, sm)
+
+func DefaultCount() -> int:
+	return DEFAULT_POINTS.size()
+
+# Spawn at DEFAULT_POINTS[idx] (pixels), then follow the current path smoothly.
+func ApplySpawnFromDefaultIndex(idx: int, lane_px: float = 0.0) -> void:
+	_try_cache_nodes()
+	_cache_path()
+	if _uv_points.size() < 2 or _total_len_px <= 0.0 or DEFAULT_POINTS.size() == 0:
+		push_warning("Opponent.ApplySpawnFromDefaultIndex: path/defaults not ready; deferring.")
+		start_index = clamp(idx, 0, max(0, _uv_points.size() - 2))
+		lane_offset_px = lane_px
+		return
+
+	# 1) Clamp index and read the pixel point
+	var di = clamp(idx, 0, max(0, DEFAULT_POINTS.size() - 1))
+	var spawn_px: Vector2 = DEFAULT_POINTS[di]
+
+	# 2) Place EXACTLY at that pixel (respecting lane offset along path tangent once we know it)
+	var scale_px := _pos_scale_px()
+	var spawn_uv := spawn_px / scale_px
+
+	# 3) Project spawn_uv to nearest path segment -> compute _s_px (arc) and heading
+	var best_i := 0
+	var best_t := 0.0
+	var best_d := 1e30
+	for i in range(_uv_points.size() - 1):
+		var a: Vector2 = _uv_points[i]
+		var b: Vector2 = _uv_points[i + 1]
+		var ab := b - a
+		var ab_len2 := ab.length_squared()
+		if ab_len2 < 1e-9:
+			continue
+		var t := (spawn_uv - a).dot(ab) / ab_len2
+		if t < 0.0:
+			t = 0.0
+		if t > 1.0:
+			t = 1.0
+		var p := a.lerp(b, t)
+		var d := (spawn_uv - p).length_squared()
+		if d < best_d:
+			best_d = d
+			best_i = i
+			best_t = t
+
+	var seg0_px := _path_len[best_i]
+	var seg1_px := _path_len[best_i + 1]
+	_s_px = fposmod(seg0_px + (seg1_px - seg0_px) * best_t, _total_len_px)
+	_heading = _tangent_angle_at_distance(_s_px)
+
+	# 4) Apply lane offset (perpendicular to path tangent)
+	var tan: Vector2 = _tangent_at_distance(_s_px)
+	var right: Vector2 = Vector2(-tan.y, tan.x) # unit
+	var final_uv: Vector2 = spawn_uv + (lane_px / scale_px) * right
+
+	# 5) Write final pixel position and lock
+	var final_px: Vector2 = final_uv * scale_px
+	SetMapPosition(Vector3(final_px.x, 0.0, final_px.y))
+
+	if _maxMovementSpeed < max_speed_override:
+		_maxMovementSpeed = max_speed_override
+
+	_spawn_locked = true

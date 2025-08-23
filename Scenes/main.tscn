@@ -1091,7 +1091,7 @@ _roadTypeColors = Array[Color]([Color(0, 0, 0, 1), Color(1, 1, 1, 1), Color(0.8,
 [node name="Sprite Handler" type="Node2D" parent="." node_paths=PackedStringArray("_hazards", "_opponents")]
 script = ExtResource("7_wmybs")
 _hazards = [NodePath("Hazards/Bridge/Green Pipe"), NodePath("Hazards/Bridge/Green Pipe2"), NodePath("Hazards/Bridge/Green Pipe3"), NodePath("Hazards/Bridge/Green Pipe4"), NodePath("Hazards/Shortcut/Green Pipe"), NodePath("Hazards/Shortcut/Green Pipe2"), NodePath("Hazards/Shortcut/Green Pipe3"), NodePath("Hazards/Shortcut/Green Pipe4"), NodePath("Hazards/Lake/Green Pipe"), NodePath("Hazards/Lake/Green Pipe2"), NodePath("Hazards/Lake/Green Pipe3"), NodePath("Hazards/Lake/Green Pipe4"), NodePath("Hazards/Last Turn/Green Pipe"), NodePath("Hazards/Last Turn/Green Pipe2"), NodePath("Hazards/Last Turn/Green Pipe3"), NodePath("Hazards/Last Turn/Green Pipe4")]
-_opponents = [NodePath("Racers/Racer01"), NodePath("Racers/Racer02"), NodePath("Racers/Racer03"), NodePath("Racers/Racer04"), NodePath("Racers/Racer05"), NodePath("Racers/Racer06"), NodePath("Racers/Racer07"), NodePath("Racers/Racer08")]
+_opponents = [NodePath("Racers/Racer01"), NodePath("Racers/Racer02"), NodePath("Racers/Racer03"), NodePath("Racers/Racer04"), NodePath("Racers/Racer05"), NodePath("Racers/Racer06"), NodePath("Racers/Racer07")]
 pseudo3d_node = NodePath("Racers/Player")
 path_overlay_node = NodePath("../SubViewport/PathOverlay2D")
 sprite_graphic_path = NodePath("Racers/Racer01/GFX/AngleSprite")
