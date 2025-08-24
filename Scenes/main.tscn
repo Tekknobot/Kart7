@@ -1124,6 +1124,7 @@ pseudo3d_ref = NodePath("../../../Map")
 angle_sprite_path = NodePath("GFX")
 sheet_uses_mirroring = true
 _spriteGFX = NodePath("GFX")
+_mapPosition = Vector3(951, 0, 775)
 sprite_graphic_path = NodePath("GFX2/AngleSprite")
 
 [node name="GFX" type="Sprite2D" parent="Sprite Handler/Racers/Player"]
@@ -1200,7 +1201,7 @@ path_ref = NodePath("../../../SubViewport/PathOverlay2D")
 pseudo3d_ref = NodePath("../../../Map")
 ai_auto_launch = false
 ai_launch_delay_s = 20.0
-ai_target_speed = 220.0
+ai_target_speed = 180.0
 ai_auto_throttle = true
 ai_throttle_delay_s = 1.0
 ai_accel_per_sec = 10.0
@@ -1224,7 +1225,7 @@ pseudo3d_ref = NodePath("../../../Map")
 lane_offset = 16.0
 ai_auto_launch = false
 ai_launch_delay_s = 20.0
-ai_target_speed = 200.0
+ai_target_speed = 190.0
 ai_auto_throttle = true
 ai_throttle_delay_s = 1.0
 ai_accel_per_sec = 20.0

@@ -9,3 +9,4 @@ res://Scripts/World Elements/Racers/Opponent.gd
 res://Scripts/World Elements/Racers/Racer.gd
 res://Scripts/RaceOrder.gd
 res://Scripts/RaceManager.gd
+res://Scripts/LeaderBoard.gd
