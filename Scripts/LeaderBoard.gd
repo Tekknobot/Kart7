@@ -13,6 +13,7 @@ class_name Leaderboard
 # Column widths
 @export var col_place_w: int = 20
 @export var col_arrow_w: int = 20
+@export var col_name_w:  int = 60
 @export var col_lap_w:   int = 30
 @export var col_speed_w: int = 40
 @export var col_gap_w:   int = 40
@@ -119,20 +120,19 @@ func _build_ui_once() -> void:
 	v.add_child(_header)
 
 	var hp := _make_label("POS", col_place_w, HORIZONTAL_ALIGNMENT_RIGHT)
-	var ha := _make_label("CHG", col_arrow_w, HORIZONTAL_ALIGNMENT_CENTER) # ASCII
-	var hn := _make_label("DRIVER", 0, HORIZONTAL_ALIGNMENT_LEFT)
-	hn.size_flags_horizontal = SIZE_EXPAND_FILL
-	var hl := _make_label("LAP",   col_lap_w, HORIZONTAL_ALIGNMENT_CENTER)
+	var ha := _make_label("CHG", col_arrow_w, HORIZONTAL_ALIGNMENT_CENTER)
+	var hn := _make_label("DRIVER", col_name_w, HORIZONTAL_ALIGNMENT_LEFT) # fixed width
+	hn.name = "HDR_NAME"  # so we can tweak later if needed
 
+	var hl := _make_label("LAP",   col_lap_w, HORIZONTAL_ALIGNMENT_CENTER)
 	var hlast := _make_label("LAST", col_last_w, HORIZONTAL_ALIGNMENT_RIGHT)
 	var hbest := _make_label("BEST", col_best_w, HORIZONTAL_ALIGNMENT_RIGHT)
-
 	var hs := _make_label("CUR", col_speed_w, HORIZONTAL_ALIGNMENT_RIGHT)
 	var hg := _make_label("GAP/LAP", col_gap_w, HORIZONTAL_ALIGNMENT_RIGHT)
 
 	_header.add_child(hp)
 	_header.add_child(ha)
-	_header.add_child(hn)
+	_header.add_child(hn)   # fixed width name header
 	_header.add_child(hl)
 	_header.add_child(hlast)
 	_header.add_child(hbest)
@@ -192,15 +192,21 @@ func _make_row_widget(racer_id: int) -> Dictionary:
 	H.add_theme_constant_override("separation", 6)
 	holder.add_child(H)
 
+	# Fixed-width columns
 	var L_place := _make_label("", col_place_w, HORIZONTAL_ALIGNMENT_RIGHT)
-	var L_arrow := _make_label(".", col_arrow_w, HORIZONTAL_ALIGNMENT_CENTER) # ASCII
-	var L_name  := _make_label("", 0, HORIZONTAL_ALIGNMENT_LEFT)
-	L_name.size_flags_horizontal = SIZE_EXPAND_FILL
-	var L_lap   := _make_label("", col_lap_w, HORIZONTAL_ALIGNMENT_CENTER)
+	var L_arrow := _make_label(".", col_arrow_w, HORIZONTAL_ALIGNMENT_CENTER)
 
+	# DRIVER column: fixed width you control via col_name_w
+	var L_name := _make_label("", col_name_w, HORIZONTAL_ALIGNMENT_LEFT)
+	L_name.name = "NAME"
+	L_name.clip_text = true
+	L_name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	# Keep it fixed-width (do not expand to fill)
+	L_name.size_flags_horizontal = 0
+
+	var L_lap   := _make_label("", col_lap_w, HORIZONTAL_ALIGNMENT_CENTER)
 	var L_last  := _make_label("", col_last_w, HORIZONTAL_ALIGNMENT_RIGHT)
 	var L_best  := _make_label("", col_best_w, HORIZONTAL_ALIGNMENT_RIGHT)
-
 	var L_speed := _make_label("", col_speed_w, HORIZONTAL_ALIGNMENT_RIGHT)
 	var L_gap   := _make_label("", col_gap_w, HORIZONTAL_ALIGNMENT_RIGHT)
 
