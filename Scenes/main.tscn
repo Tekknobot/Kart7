@@ -1,4 +1,4 @@
-[gd_scene load_steps=31 format=3 uid="uid://d2glnv32t8md1"]
+[gd_scene load_steps=34 format=3 uid="uid://d2glnv32t8md1"]
 
 [ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_emb0w"]
 [ext_resource type="Script" uid="uid://cex362lk6utnk" path="res://Scripts/On Screen Elements/BackgroundEffects.gd" id="2_330he"]
@@ -21,6 +21,8 @@
 [ext_resource type="Texture2D" uid="uid://d1nvgl514d4vw" path="res://Textures/Hazards/Orange_Pipes.png" id="16_t3snl"]
 [ext_resource type="Script" uid="uid://15qg36alnh4" path="res://Scripts/RaceManager.gd" id="21_ee4r6"]
 [ext_resource type="Script" uid="uid://bkg7bm4cb65tt" path="res://Scripts/AI/PathOverlay2D.gd" id="21_pdsj5"]
+[ext_resource type="Script" uid="uid://cnmmx8tldt4vt" path="res://Scripts/LeaderBoard.gd" id="22_ee4r6"]
+[ext_resource type="FontFile" uid="uid://csnhk3q4gx0" path="res://Fonts/magofonts/mago1.ttf" id="23_gt3je"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_lhngl"]
 shader = ExtResource("3_okd74")
@@ -1024,6 +1026,10 @@ _data = {
 &"Sink_Splash_Anim": SubResource("Animation_37x3c")
 }
 
+[sub_resource type="Theme" id="Theme_gt3je"]
+default_font = ExtResource("23_gt3je")
+default_font_size = 8
+
 [node name="Main" type="Node2D" node_paths=PackedStringArray("_map", "_collision", "_player", "_spriteHandler", "_animationHandler", "_backgroundElements", "_raceManager")]
 script = ExtResource("1_emb0w")
 _map = NodePath("Map")
@@ -1584,3 +1590,18 @@ pseudo3d_node = NodePath("../Map")
 path_overlay_node = NodePath("../SubViewport/PathOverlay2D")
 racers_root = NodePath("../Sprite Handler/Racers")
 player_path = NodePath("../Sprite Handler/Racers/Player")
+
+[node name="LeaderBoard" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 11.0
+offset_top = 11.0
+offset_right = 467.0
+offset_bottom = 179.0
+theme = SubResource("Theme_gt3je")
+script = ExtResource("22_ee4r6")
+pseudo3d_node = NodePath("../Map")
+path_overlay_node = NodePath("../SubViewport/PathOverlay2D")
+racers_root = NodePath("../Sprite Handler/Racers")
+player_path = NodePath("../Sprite Handler/Racers/Player")
+row_height = 8
