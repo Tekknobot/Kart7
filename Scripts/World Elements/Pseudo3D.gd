@@ -27,6 +27,19 @@ var _mapPosition : Vector3
 var _mapRotationAngle : Vector2
 var _finalMatrix : Basis
 
+var _opponents: Array[Node] = []
+var _overlay_node: Node = null
+var _last_matrix: Basis
+
+func _ready():
+	# cache once
+	for np in opponent_nodes:
+		var n := get_node_or_null(np)
+		if n != null:
+			_opponents.append(n)
+	_overlay_node = get_node_or_null(path_overlay_node)
+	_last_matrix = Basis()
+	
 func _bind_path_overlay_texture() -> void:
 	if material != null and path_overlay_viewport != null:
 		var tex := path_overlay_viewport.get_texture()
@@ -120,21 +133,13 @@ func ReturnWorldMatrix() -> Basis: return _finalMatrix
 func ReturnMapRotation() -> float: return _mapRotationAngle.y
 
 func _update_opponents_view_bindings() -> void:
-	var scr: Vector2 = get_viewport_rect().size
-	var f3: Vector3 = ReturnForward()
-	var cam_f: Vector2 = Vector2(f3.x, f3.z).normalized()
-
-	var overlay := get_node_or_null(path_overlay_node)
-	if overlay != null and overlay.has_method("set_world_and_screen"):
-		overlay.call("set_world_and_screen", _finalMatrix, scr)
-
-	for np in opponent_nodes:
-		var ai: Node = get_node_or_null(np)
-		if ai != null:
-			if ai.has_method("set_world_and_screen"):
-				ai.call("set_world_and_screen", _finalMatrix, scr)
-			if ai.has_method("set_camera_forward"):
-				ai.call("set_camera_forward", cam_f)
+	# Only update if matrix changed meaningfully
+	if _finalMatrix != _last_matrix:
+		_last_matrix = _finalMatrix
+		var scr: Vector2 = get_viewport_rect().size
+		if _overlay_node != null and _overlay_node.has_method("set_world_and_screen"):
+			_overlay_node.call("set_world_and_screen", _finalMatrix, scr)
+	# (avoid get_node_or_null in a loop every frame)
 
 func SetYaw(angle: float) -> void:
 	_mapRotationAngle.y = angle

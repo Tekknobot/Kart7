@@ -942,18 +942,6 @@ func SpawnOpponentsOnDefaultPath() -> void:
 		_spawn_dbg_print("placed " + name_str + " at idx=" + str(idx_free) + " uv=" + str(uv))
 		_spawn_dbg_marker(uv, name_str)
 
-		# seed fresh launch profile along tangent
-		var a := pts[idx_free]
-		var b := pts[(idx_free + 1) % N]
-		var tan := (b - a)
-		var fwd := Vector3(tan.x, 0.0, tan.y).normalized()
-		var target := randf_range(launch_min_target_speed, launch_max_target_speed)
-		var accel  := randf_range(launch_min_accel_ps,     launch_max_accel_ps)
-		_launch_profiles[opp.get_instance_id()] = {
-			"target": target, "accel": accel, "dir": fwd
-		}
-		_spawn_dbg_print("launch " + name_str + " target=" + str(target) + " accel=" + str(accel))
-
 	# summary (fresh only)
 	_spawn_dbg_print("path_pts=" + str(N))
 	_spawn_dbg_print("anchor_idx=" + str(anchor_idx))
