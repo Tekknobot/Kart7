@@ -65,6 +65,16 @@ var _nodes_ready := false
 var _seg_i: int = 0         # cached segment index for _s
 var _last_s: float = -1.0   # last distance used (px), to detect direction
 
+@export_category("Racer Surface Multipliers")
+@export var mult_road: float     = 1.00
+@export var mult_gravel: float   = 0.85
+@export var mult_offroad: float  = 0.70
+@export var mult_sink: float     = 0.20
+@export var mult_void: float     = 0.00
+
+# Optional: also scale acceleration by surface grip
+@export var accel_surface_gain: float = 1.0  # 0=no effect, 1=full effect
+
 func _ensure_nodes() -> void:
 	if _nodes_ready:
 		return
@@ -261,21 +271,22 @@ func HandleRoadType(nextPixelPos : Vector2i, roadType : Globals.RoadType) -> voi
 		return
 	_onRoadType = roadType
 	_spriteGFX.self_modulate.a = 1.0
-	
+
 	match roadType:
 		Globals.RoadType.VOID:
 			_spriteGFX.self_modulate.a = 0.0
-			_speedMultiplier = 0.0
+			_speedMultiplier = mult_void
 		Globals.RoadType.ROAD:
-			_speedMultiplier = 1.0
+			_speedMultiplier = mult_road
 		Globals.RoadType.GRAVEL:
-			_speedMultiplier = 0.9
+			_speedMultiplier = mult_gravel
 		Globals.RoadType.OFF_ROAD:
-			_speedMultiplier = 0.9
+			_speedMultiplier = mult_offroad
 		Globals.RoadType.SINK:
 			_spriteGFX.self_modulate.a = 0.0
-			_speedMultiplier = 0.1
+			_speedMultiplier = mult_sink
 		Globals.RoadType.WALL:
+			# keep current multiplier (bounce/stop handled elsewhere)
 			_speedMultiplier = _speedMultiplier
 
 func ReturnOnRoadType() -> Globals.RoadType:

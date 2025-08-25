@@ -1,4 +1,4 @@
-[gd_scene load_steps=34 format=3 uid="uid://d2glnv32t8md1"]
+[gd_scene load_steps=35 format=3 uid="uid://d2glnv32t8md1"]
 
 [ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_emb0w"]
 [ext_resource type="Script" uid="uid://cex362lk6utnk" path="res://Scripts/On Screen Elements/BackgroundEffects.gd" id="2_330he"]
@@ -23,6 +23,7 @@
 [ext_resource type="Script" uid="uid://bkg7bm4cb65tt" path="res://Scripts/AI/PathOverlay2D.gd" id="21_pdsj5"]
 [ext_resource type="Script" uid="uid://cnmmx8tldt4vt" path="res://Scripts/LeaderBoard.gd" id="22_ee4r6"]
 [ext_resource type="FontFile" uid="uid://csnhk3q4gx0" path="res://Fonts/magofonts/mago1.ttf" id="23_gt3je"]
+[ext_resource type="Script" uid="uid://dtnsya35gcocj" path="res://Scripts/Minimap.gd" id="24_3pmx8"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_lhngl"]
 shader = ExtResource("3_okd74")
@@ -1135,6 +1136,8 @@ path_ref = NodePath("../../../SubViewport/PathOverlay2D")
 pseudo3d_ref = NodePath("../../../Map")
 angle_sprite_path = NodePath("GFX")
 sheet_uses_mirroring = true
+mult_gravel = 0.75
+mult_offroad = 0.55
 _spriteGFX = NodePath("GFX")
 _mapPosition = Vector3(951, 0, 775)
 sprite_graphic_path = NodePath("GFX2/AngleSprite")
@@ -1657,3 +1660,22 @@ race_manager_path = NodePath("../RaceManager")
 player_path = NodePath("../Sprite Handler/Racers/Player01")
 row_height = 8
 arrow_flash_frames = 60
+
+[node name="Minimap" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 0
+offset_top = 240.0
+offset_right = 133.0
+offset_bottom = 360.0
+script = ExtResource("24_3pmx8")
+path_provider = NodePath("../SubViewport/PathOverlay2D")
+racers_root = NodePath("../Sprite Handler/Racers")
+player_path = NodePath("../Sprite Handler/Racers/Player01")
+path_width = 0.5
+dot_color = Color(0, 1, 1, 1)
+player_dot_color = Color(1, 0, 0, 1)
+lapped_dot_color = Color(1.49205e-06, 0.510954, 0.51098, 1)
+dot_radius = 1.0
+player_dot_radius = 1.0
+padding_px = 1.0
+flip_y = false
