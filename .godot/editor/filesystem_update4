@@ -5,3 +5,4 @@ res://Scripts/Shaders/YoshiSwap.gdshader
 res://Scripts/LeaderBoard.gd
 res://Scripts/RaceManager.gd
 res://Scripts/World Elements/Racers/Opponent.gd
+res://Scripts/World Elements/Pseudo3D.gd

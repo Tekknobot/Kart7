@@ -31,6 +31,13 @@ var _opponents: Array[Node] = []
 var _overlay_node: Node = null
 var _last_matrix: Basis
 
+# --- Finish Camera ---
+@export var finish_orbit_speed: float = 0.4    # rad/s around player
+@export var finish_zoom_k: float = 1.5         # bigger = closer look (affects depth_scale)
+@export var finish_duration: float = 3.0       # seconds for zoom ease
+
+var _finish_mode: bool = false
+
 func _ready():
 	# cache once
 	for np in opponent_nodes:
@@ -56,10 +63,24 @@ func Setup(screenSize : Vector2, player : Racer) -> void:
 	_update_opponents_view_bindings()   # prime once
 
 func Update(player: Racer) -> void:
+	if _finish_mode:
+		# Ignore input; do a steady cinematic orbit around the player
+		_mapRotSpeed = abs(finish_orbit_speed)
+		_currRotDir = 1
+		var incrementAngle: float = float(_currRotDir) * _mapRotSpeed * get_process_delta_time()
+		_mapRotationAngle.y = WrapAngle(_mapRotationAngle.y + incrementAngle)
+
+		KeepRotationDistance(player)
+		UpdateShader()
+		_update_opponents_view_bindings()
+		return
+
+	# Normal gameplay mode
 	RotateMap(player.ReturnPlayerInput().x, player.ReturnMovementSpeed())
 	KeepRotationDistance(player)
 	UpdateShader()
-	_update_opponents_view_bindings()   # every frame
+	_update_opponents_view_bindings()
+
 
 func RotateMap(rotDir : int, speed : float) -> void:
 	if rotDir != 0 and abs(speed) > 0.0:
@@ -185,3 +206,16 @@ func depth_scale(depth: float) -> float:
 	if d < 0.0:
 		d = 0.0
 	return clamp(size_k / (size_k + d), size_min, size_max)
+
+func StartFinishCamera(player: Racer) -> void:
+	_finish_mode = true
+	# Smoothly zoom in by animating size_k
+	var tw := create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(self, "size_k", finish_zoom_k, finish_duration)
+	# Optional: bleed off any existing rotation speed so the orbit feels consistent
+	_mapRotSpeed = abs(finish_orbit_speed)
+	_currRotDir = 1
+	# Immediately re-center to player
+	KeepRotationDistance(player)
+	UpdateShader()
+	_update_opponents_view_bindings()

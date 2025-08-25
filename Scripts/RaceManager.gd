@@ -24,6 +24,15 @@ var _progress := {}
 var _last_board_sig := ""
 
 @export var forward_increases_s_px := true
+signal race_finished(results: Array)
+
+# --- Finish logic ---
+@export var total_laps: int = 5
+@export var finish_auto_speed_px: float = 220.0   # map pixels per second during auto drive
+@export var finish_sprite_directions: int = 12    # hframes for the player's 12-angle sprite
+
+var _race_over: bool = false
+var _finish_mode: bool = false
 
 
 # >>> NEW: public helpers for the UI <<<
@@ -209,18 +218,21 @@ func Setup() -> void:
 			"lap": 0,
 			"s_px": s,
 			"prev_s_px": s,
-			"lap_start_ms": 0,     # set when Lap 1 actually starts
-			"timing_started": false, # first crossing starts the clock
-			"last_lap_ms": 0,      # last completed lap (after Lap 1 begins)
-			"best_lap_ms": 0       # session best (after Lap 1 begins)
+			"lap_start_ms": 0,
+			"timing_started": false,
+			"last_lap_ms": 0,
+			"best_lap_ms": 0
 		}
 
-	# ---- DEBUG: verify wiring at boot ----
+	_race_over = false  # <<< NEW
+
 	print("[RaceManager] Setup: racers=", _racers.size(), " segments=", _segments.size(), " loop_len_px=", _loop_len_px)
 	for r in _racers:
 		var p3: Vector3 = r.ReturnMapPosition()
 		prints("  racer:", r.name, "pos(", p3.x, p3.y, p3.z, ") s_px=", _sample_s_of(r))
 
+	_race_over = false
+	_finish_mode = false
 	emit_signal("standings_changed", GetCurrentStandings())
 
 func Update() -> void:
@@ -232,6 +244,7 @@ func Update() -> void:
 			return
 
 	var changed := false
+	var player_finished_now := false
 
 	# ---- per-racer progress (lap, s_px) ----
 	for r in _racers:
@@ -242,8 +255,7 @@ func Update() -> void:
 		if not _progress.has(id):
 			_progress[id] = {
 				"lap": 0, "s_px": 0.0, "prev_s_px": 0.0,
-				"lap_start_ms": 0,
-				"timing_started": false,
+				"lap_start_ms": 0, "timing_started": false,
 				"last_lap_ms": 0, "best_lap_ms": 0
 			}
 
@@ -255,7 +267,6 @@ func Update() -> void:
 		var half = max(_loop_len_px * 0.5, 1.0)
 		var ds := s - prev_s
 		var crossed_finish := false
-		var lap_before := lap
 
 		if forward_increases_s_px:
 			if ds < -half:
@@ -270,28 +281,27 @@ func Update() -> void:
 			elif ds < -half:
 				lap = max(0, lap - 1)
 
-		# Timing rules:
-		# - First time we cross S/F so that lap becomes 1: start the clock (no lap recorded).
-		# - Subsequent crossings (lap >= 2 -> 3 -> ...): record last/best, then restart the clock.
+		# Timing rules
 		if crossed_finish:
 			var timing_started: bool = bool(_progress[id].get("timing_started", false))
 			var now_ms := Time.get_ticks_msec()
 
 			if not timing_started and lap == 1:
-				# Start timing at the beginning of Lap 1
 				_progress[id]["timing_started"] = true
 				_progress[id]["lap_start_ms"] = now_ms
 			elif timing_started:
-				# Only record a completed lap if we had already started timing
 				var start_ms := int(_progress[id].get("lap_start_ms", now_ms))
 				var lap_ms = max(0, now_ms - start_ms)
 				_progress[id]["last_lap_ms"] = lap_ms
 				var best_ms := int(_progress[id]["best_lap_ms"])
 				if best_ms == 0 or lap_ms < best_ms:
 					_progress[id]["best_lap_ms"] = lap_ms
-				# Start timing the next lap
 				_progress[id]["lap_start_ms"] = now_ms
-			# If timing hasn't started and lap != 1 (unlikely), do nothing.
+
+			# NEW: detect player's finish
+			if not _race_over and is_instance_valid(_player) and id == _player.get_instance_id():
+				if lap >= total_laps:
+					player_finished_now = true
 
 		if s != prev_s or lap != int(_progress[id]["lap"]):
 			changed = true
@@ -326,7 +336,7 @@ func Update() -> void:
 
 	_apply_z_order()
 
-	# ---- DEBUG signature: includes instance ids in order to detect swaps ----
+	# ---- signature/debug ----
 	var sig_parts := []
 	for i in range(board.size()):
 		var it: Dictionary = board[i]
@@ -336,7 +346,7 @@ func Update() -> void:
 		sig_parts.append(str(rid, ":", lap_i, ":", int(spx)))
 	var sig := ",".join(sig_parts)
 
-	var do_periodic := (Engine.get_process_frames() % 30) == 0  # ~2x/sec
+	var do_periodic := (Engine.get_process_frames() % 30) == 0
 	var order_changed := (sig != _last_board_sig)
 
 	if do_periodic or order_changed:
@@ -350,10 +360,148 @@ func Update() -> void:
 
 	_last_board_sig = sig
 
-	# ---- emit when data changes OR the sorted order changes ----
+	# ---- NEW: start finish mode once ----
+	if player_finished_now and not _race_over:
+		_race_over = true
+		_finish_mode = true
+		print("[RaceManager] RACE FINISHED — total_laps=", total_laps)
+		emit_signal("race_finished", board)
+		# soft-disable player input if available; we will drive them
+		if is_instance_valid(_player):
+			if _player.has_method("EnableInput"):
+				_player.call("EnableInput", false)
+		# spin up the finish camera if Pseudo3D supports it
+		if is_instance_valid(_pseudo3d) and _pseudo3d.has_method("StartFinishCamera"):
+			_pseudo3d.call("StartFinishCamera", _player)
+
+	# ---- NEW: while in finish mode, auto-drive player + update 12-frame sprite ----
+	if _finish_mode and is_instance_valid(_player):
+		# FIX: use the Node method for delta time (or Engine singleton is fine too)
+		_autodrive_player_step(self.get_process_delta_time())
+		_update_player_12frame_sprite()
+
+	# If you want to stop normal updates once finished, early-return here:
+	# if _finish_mode: return
+
+	# ---- normal event ----
 	if changed or order_changed:
 		emit_signal("standings_changed", board)
-		print("[RaceManager] emitted standings_changed (changed=", changed, " order_changed=", order_changed, ")")
+
+# -- Auto-drive the player forward at a constant arc speed (finish_auto_speed_px)
+func _autodrive_player_step(dt: float) -> void:
+	if _segments.is_empty() or not is_instance_valid(_player):
+		return
+	var id := _player.get_instance_id()
+	if not _progress.has(id):
+		return
+	# advance the stored s_px
+	var s := float(_progress[id]["s_px"]) + finish_auto_speed_px * dt
+	# wrap around loop
+	if _loop_len_px > 0.0:
+		s = fposmod(s, _loop_len_px)
+	_progress[id]["prev_s_px"] = float(_progress[id]["s_px"])
+	_progress[id]["s_px"] = s
+
+	# place the player on the path from s
+	var uv := _uv_at_s(s)
+	var px := uv * float(map_size_px)
+	if _player.has_method("SetMapPosition"):
+		_player.call("SetMapPosition", Vector3(px.x, 0.0, px.y))
+
+# -- Compute UV on the path at arc-distance s (pixels)
+func _uv_at_s(s_px: float) -> Vector2:
+	if _segments.is_empty():
+		return Vector2.ZERO
+	var s = clamp(s_px, 0.0, max(0.0, _loop_len_px))
+	# find segment that contains s
+	for i in range(_segments.size()):
+		var seg = _segments[i]
+		var cum := float(seg["cum_px"])
+		var len := float(seg["len_px"])
+		var before := cum - len
+		if s <= cum or i == _segments.size() - 1:
+			var t := 0.0
+			if len > 0.0:
+				t = clamp((s - before) / len, 0.0, 1.0)
+			var a: Vector2 = seg["a_uv"]
+			var b: Vector2 = seg["b_uv"]
+			return a.lerp(b, t)
+	return Vector2.ZERO
+
+# -- Compute tangent (unit) on the path at arc-distance s (pixels)
+func _tangent_at_s(s_px: float) -> Vector2:
+	if _segments.is_empty():
+		return Vector2.RIGHT
+	var s = clamp(s_px, 0.0, max(0.0, _loop_len_px))
+	for i in range(_segments.size()):
+		var seg = _segments[i]
+		var cum := float(seg["cum_px"])
+		var len := float(seg["len_px"])
+		var before := cum - len
+		if s <= cum or i == _segments.size() - 1:
+			var a: Vector2 = seg["a_uv"]
+			var b: Vector2 = seg["b_uv"]
+			var t2 := (b - a)
+			var L := t2.length()
+			return (t2 / (L if L > 0.00001 else 1.0))
+	return Vector2.RIGHT
+
+# -- Pick the correct frame (of 12) for the player's sprite vs camera yaw while in finish mode
+# -- Pick the correct frame (of 12) for the player's sprite vs camera yaw while in finish mode
+func _update_player_12frame_sprite() -> void:
+	if not is_instance_valid(_player):
+		return
+	var spr = _player.ReturnSpriteGraphic()
+	if spr == null:
+		return
+	if not is_instance_valid(_pseudo3d) or not _pseudo3d.has_method("get_camera_forward_map"):
+		return
+
+	# camera forward in map space
+	var cam_f: Vector2 = _pseudo3d.call("get_camera_forward_map")
+	var cam_yaw: float = atan2(cam_f.y, cam_f.x)
+
+	# player path tangent as "heading"
+	var id := _player.get_instance_id()
+	var s := float(_progress.get(id, {}).get("s_px", 0.0))
+	var tan: Vector2 = _tangent_at_s(s)
+	var heading: float = atan2(tan.y, tan.x)
+
+	# relative angle player->camera (same convention as Opponent)
+	var theta_cam: float = wrapf(heading - cam_yaw, -PI, PI)
+	var deg: float = rad_to_deg(theta_cam)
+
+	# match your opponent logic
+	var clockwise := true
+	var frame0_is_front := true
+	var angle_offset_deg := 0.0
+
+	deg = wrapf(deg + angle_offset_deg, -180.0, 180.0)
+	if not clockwise:
+		deg = -deg
+
+	var left_side := deg > 0.0
+	var absdeg: float = clamp(abs(deg), 0.0, 179.999)
+	var dirs = max(1, finish_sprite_directions)
+	var step: float = 180.0 / float(dirs)
+	var idx: int = int(floor((absdeg + step * 0.5) / step))
+	if idx >= dirs:
+		idx = dirs - 1
+	if frame0_is_front:
+		idx = (dirs - 1) - idx
+
+	# apply to the sprite
+	if spr is Sprite2D:
+		var s2 := spr as Sprite2D
+		if s2.hframes != dirs:
+			s2.hframes = dirs
+			s2.vframes = 1
+		s2.frame = idx
+		s2.flip_h = left_side
+	elif spr.has_method("set_frame"):
+		spr.frame = idx
+		if "flip_h" in spr:
+			spr.flip_h = left_side
 
 func GetCurrentStandings() -> Array:
 	var board := []
