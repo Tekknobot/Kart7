@@ -37,7 +37,7 @@ var _row_for_id := {}             # racer_id -> {holder,bg,place,arrow,name,lap,
 var _tweens_by_id := {}           # racer_id -> Tween
 var _prev_place_for_id := {}      # racer_id -> int
 
-# Leader snapshot
+# Leader snapshot (used for GAP calc)
 var _leader_id := 0
 var _leader_lap := 0
 var _leader_s_px := 0.0
@@ -83,9 +83,11 @@ func _update_loop_len() -> void:
 		_loop_len_px = float(_rm.call("GetLoopLengthPx"))
 
 func _apply_leader_snapshot(board: Array) -> void:
-	_leader_id  = (board[0]["node"] as Node).get_instance_id()
-	_leader_lap = int(board[0]["lap"])
-	_leader_s_px= float(board[0]["s_px"])
+	# board[0] is expected to include: node, lap, s_px (RaceManager now supplies s_px again)
+	var top: Dictionary = board[0]
+	_leader_id  = (top["node"] as Node).get_instance_id()
+	_leader_lap = int(top.get("lap", 0))
+	_leader_s_px= float(top.get("s_px", 0.0))
 
 # ---------------- UI construction ----------------
 func _build_ui_once() -> void:
@@ -209,8 +211,9 @@ func _get_or_make_row_for(id: int) -> Dictionary:
 func _update_rows(board: Array) -> void:
 	var count = min(max_rows, board.size())
 
-	# Track which ids are visible this frame
+	# track visible this frame
 	var visible_ids := {}
+
 	for i in range(count):
 		var it: Dictionary = board[i]
 		var racer: Node = it["node"]
@@ -221,11 +224,13 @@ func _update_rows(board: Array) -> void:
 		var holder: Control = row["holder"]
 		holder.visible = true
 
-		# target position for this racer
+		# desired slot & layer
 		var target_y := float(i * row_height)
+		holder.z_index = i   # ensure draw order matches visual order
 
-		# tween by racer id (not by index)
-		if abs(holder.position.y - target_y) >= 0.5:
+		# animate only if needed, and don't restart an identical tween
+		var needs_move = abs(holder.position.y - target_y) >= 0.5
+		if needs_move:
 			if _tweens_by_id.has(id):
 				var old: Tween = _tweens_by_id[id]
 				if old:
@@ -236,20 +241,17 @@ func _update_rows(board: Array) -> void:
 		else:
 			holder.position.y = target_y
 
-		# zebra stripe or player highlight
+		# striping / player highlight
 		var bg: ColorRect = row["bg"]
 		if _player != null and racer == _player:
 			bg.color = color_player_bg
 		else:
-			if (i % 2) == 0:
-				bg.color = color_row_even
-			else:
-				bg.color = color_row_odd
+			bg.color = color_row_even if (i % 2) == 0 else color_row_odd
 
 		# fill labels
-		var place := int(it["place"])
-		var lap := int(it["lap"])
-		var s_px := float(it["s_px"])
+		var place := int(it.get("place", i + 1))
+		var lap := int(it.get("lap", 0))
+		var s_px := float(it.get("s_px", 0.0))  # provided by RaceManager
 
 		var L_name: Label = row["name"]
 		var display_name := ""
@@ -281,10 +283,7 @@ func _update_rows(board: Array) -> void:
 				if _player != null and racer == _player:
 					bg.color = color_player_bg
 				else:
-					if (i % 2) == 0:
-						bg.color = color_row_even
-					else:
-						bg.color = color_row_odd
+					bg.color = color_row_even if (i % 2) == 0 else color_row_odd
 			)
 		else:
 			L_arrow.text = "•"
@@ -300,12 +299,9 @@ func _update_rows(board: Array) -> void:
 
 		var gap_s := _gap_seconds_for(id, lap, s_px, speed)
 		var L_gap: Label = row["gap"]
-		if gap_s <= 0.01:
-			L_gap.text = "—"
-		else:
-			L_gap.text = "+" + String.num(gap_s, 2) + "s"
+		L_gap.text = "—" if gap_s <= 0.01 else "+" + String.num(gap_s, 2) + "s"
 
-	# hide rows for racers not in the visible top N
+	# hide rows not in top N
 	for id_key in _row_for_id.keys():
 		if not visible_ids.has(id_key):
 			var r = _row_for_id[id_key]

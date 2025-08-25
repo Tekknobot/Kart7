@@ -1590,6 +1590,7 @@ pseudo3d_node = NodePath("../Map")
 path_overlay_node = NodePath("../SubViewport/PathOverlay2D")
 racers_root = NodePath("../Sprite Handler/Racers")
 player_path = NodePath("../Sprite Handler/Racers/Player")
+force_player_on_top = false
 
 [node name="LeaderBoard" type="Control" parent="."]
 layout_mode = 3

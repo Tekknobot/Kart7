@@ -38,106 +38,18 @@ func Setup() -> void:
 	_rebuild_path_segments()
 	_progress.clear()
 	for r in _racers:
-		var s := _sample_s_of(r)
-		_progress[r.get_instance_id()] = {"lap": 0, "s_px": s, "prev_s_px": s}
+		var st := _sample_seg_t_of(r)
+		var i := int(st["i"])
+		var t := float(st["t"])
+		_progress[r.get_instance_id()] = {"lap": 0, "seg_i": i, "t": t, "prev_i": i, "prev_t": t}
 
-	# >>> NEW: give UI an immediate snapshot <<<
 	emit_signal("standings_changed", GetCurrentStandings())
 
-func Update() -> void:
-	if _segments.is_empty():
-		_rebuild_path_segments()
-		if _segments.is_empty():
-			return
-
-	var changed := false
-	for r in _racers:
-		if not is_instance_valid(r):
-			continue
-		var id := r.get_instance_id()
-		if not _progress.has(id):
-			_progress[id] = {"lap": 0, "s_px": 0.0, "prev_s_px": 0.0}
-
-		var prev = _progress[id]["s_px"]
-		var s := _sample_s_of(r)
-		var lap := int(_progress[id]["lap"])
-
-		var half := _loop_len_px * 0.5
-		var ds = s - prev
-		if ds < -half:
-			lap += 1
-		elif ds > half:
-			lap = max(0, lap - 1)
-
-		if s != prev or lap != int(_progress[id]["lap"]):
-			changed = true
-
-		_progress[id]["prev_s_px"] = prev
-		_progress[id]["s_px"] = s
-		_progress[id]["lap"] = lap
-
-	# standings + z-order unchanged
-	var board := []
-	for r in _racers:
-		if not is_instance_valid(r):
-			continue
-		var id := r.get_instance_id()
-		var ent := {
-			"node": r,
-			"lap": int(_progress[id]["lap"]),
-			"s_px": float(_progress[id]["s_px"])
-		}
-		board.append(ent)
-
-	board.sort_custom(func(a, b):
-		if a["lap"] != b["lap"]:
-			return a["lap"] > b["lap"]
-		if a["s_px"] != b["s_px"]:
-			return a["s_px"] > b["s_px"]
-		var ay := _screen_y_of(a["node"])
-		var by := _screen_y_of(b["node"])
-		return ay > by
-	)
-
-	for i in range(board.size()):
-		board[i]["place"] = i + 1
-
-	_apply_z_order()
-
-	if changed:
-		emit_signal("standings_changed", board)
-
 # >>> NEW: public helpers for the UI <<<
-
 func GetLoopLengthPx() -> float:
 	return _loop_len_px
 
-func GetCurrentStandings() -> Array:
-	var board := []
-	for r in _racers:
-		if not is_instance_valid(r):
-			continue
-		var id := r.get_instance_id()
-		board.append({
-			"node": r,
-			"lap": int(_progress[id]["lap"]),
-			"s_px": float(_progress[id]["s_px"])
-		})
-	board.sort_custom(func(a, b):
-		if a["lap"] != b["lap"]:
-			return a["lap"] > b["lap"]
-		if a["s_px"] != b["s_px"]:
-			return a["s_px"] > b["s_px"]
-		var ay := _screen_y_of(a["node"])
-		var by := _screen_y_of(b["node"])
-		return ay > by
-	)
-	for i in range(board.size()):
-		board[i]["place"] = i + 1
-	return board
-
 # --- helpers below unchanged ---
-
 func _rebuild_path_segments() -> void:
 	_segments.clear()
 	_loop_len_px = 0.0
@@ -265,3 +177,191 @@ func _someone_lower_on_screen_than_player(elems: Array) -> bool:
 		if y > p_y + player_front_screen_epsilon:
 			return true
 	return false
+
+func _progress_value(ent: Dictionary) -> float:
+	# robust if loop length isn't ready yet
+	if _loop_len_px <= 0.0:
+		return float(ent["s_px"])
+	return float(ent["lap"]) * _loop_len_px + float(ent["s_px"])
+
+func _seg_count() -> int:
+	return max(0, _segments.size())
+
+# --- helper: closest segment + t in [0,1]
+func _sample_seg_t_of(r: Node) -> Dictionary:
+	if _segments.is_empty():
+		return {"i": 0, "t": 0.0}
+	var p3: Vector3 = r.ReturnMapPosition()
+	var uv := Vector2(p3.x / float(map_size_px), p3.z / float(map_size_px))
+	var best_i := 0
+	var best_t := 0.0
+	var best_d2 := 1e30
+	for i in range(_segments.size()):
+		var a: Vector2 = _segments[i]["a_uv"]
+		var b: Vector2 = _segments[i]["b_uv"]
+		var ab := b - a
+		var ab2 := ab.length_squared()
+		var t := 0.0
+		if ab2 > 0.0:
+			t = clamp((uv - a).dot(ab) / ab2, 0.0, 1.0)
+		var proj := a.lerp(b, t)
+		var d2 := proj.distance_squared_to(uv)
+		if d2 < best_d2:
+			best_d2 = d2
+			best_i = i
+			best_t = t
+	return {"i": best_i, "t": best_t}
+
+# --- helper: (seg_i, t) -> arc distance s_px (pixels)
+func _s_px_from_seg_t(i: int, t: float) -> float:
+	if _segments.is_empty():
+		return 0.0
+	i = clamp(i, 0, _segments.size() - 1)
+	var seg = _segments[i]
+	var before := float(seg["cum_px"]) - float(seg["len_px"])
+	return before + t * float(seg["len_px"])
+
+# --- comparator: rank by (lap, seg_i, t) if present; otherwise by (lap, s_px)
+func _ahead(a: Dictionary, b: Dictionary) -> bool:
+	# 1) laps
+	var la := int(a.get("lap", 0))
+	var lb := int(b.get("lap", 0))
+	if la != lb:
+		return la > lb
+
+	# 2) segment/t if available on both
+	var has_seg := a.has("seg_i") and a.has("t") and b.has("seg_i") and b.has("t")
+	if has_seg:
+		var ia := int(a["seg_i"])
+		var ib := int(b["seg_i"])
+		if ia != ib:
+			return ia > ib
+		var ta := float(a["t"])
+		var tb := float(b["t"])
+		if abs(ta - tb) > 0.0005:
+			return ta > tb
+	else:
+		# 2’) fall back to s_px if present
+		var has_spx := a.has("s_px") and b.has("s_px")
+		if has_spx:
+			var sa := float(a["s_px"])
+			var sb := float(b["s_px"])
+			if sa != sb:
+				return sa > sb
+		else:
+			# 2’’) last resort: compute s_px on the fly if seg/t exists on either one
+			var sa2 := 0.0
+			if a.has("seg_i") and a.has("t"):
+				sa2 = _s_px_from_seg_t(int(a["seg_i"]), float(a["t"]))
+			var sb2 := 0.0
+			if b.has("seg_i") and b.has("t"):
+				sb2 = _s_px_from_seg_t(int(b["seg_i"]), float(b["t"]))
+			if sa2 != sb2:
+				return sa2 > sb2
+
+	# 3) stable, non-visual tie-break
+	var aid := (a["node"] as Node).get_instance_id()
+	var bid := (b["node"] as Node).get_instance_id()
+	return aid < bid
+
+# --- FULL Update: keeps lap/seg_i/t, builds board WITH s_px, sorts with _ahead
+func Update() -> void:
+	if _segments.is_empty():
+		_rebuild_path_segments()
+		if _segments.is_empty():
+			return
+
+	var changed := false
+
+	for r in _racers:
+		if not is_instance_valid(r):
+			continue
+		var id := r.get_instance_id()
+
+		# initialize/migrate progress record
+		if not _progress.has(id):
+			_progress[id] = {"lap": 0, "seg_i": 0, "t": 0.0, "prev_i": 0, "prev_t": 0.0}
+		else:
+			var rec: Dictionary = _progress[id]
+			if not rec.has("seg_i") or not rec.has("t"):
+				var st0 := _sample_seg_t_of(r)
+				rec["seg_i"] = int(st0["i"])
+				rec["t"] = float(st0["t"])
+				rec["prev_i"] = int(st0["i"])
+				rec["prev_t"] = float(st0["t"])
+				rec["lap"] = int(rec.get("lap", 0))
+				_progress[id] = rec
+
+		var prev_i := int(_progress[id]["seg_i"])
+		var prev_t := float(_progress[id]["t"])
+		var lap    := int(_progress[id]["lap"])
+
+		var st := _sample_seg_t_of(r)
+		var seg_i := int(st["i"])
+		var t     := float(st["t"])
+
+		# lap accounting by index wrap (with small hysteresis)
+		var N := _segments.size()
+		if N > 0:
+			if (prev_i > N - 4) and (seg_i < 3):
+				lap += 1
+			elif (prev_i < 3) and (seg_i > N - 4):
+				lap = max(0, lap - 1)
+
+		if seg_i != prev_i or abs(t - prev_t) > 0.0005 or lap != int(_progress[id]["lap"]):
+			changed = true
+
+		_progress[id]["prev_i"] = prev_i
+		_progress[id]["prev_t"] = prev_t
+		_progress[id]["seg_i"]  = seg_i
+		_progress[id]["t"]      = t
+		_progress[id]["lap"]    = lap
+
+	# build board (includes s_px so UI & snapshots work)
+	var board := []
+	for r in _racers:
+		if not is_instance_valid(r):
+			continue
+		var id := r.get_instance_id()
+		var seg_i := int(_progress[id]["seg_i"])
+		var t := float(_progress[id]["t"])
+		board.append({
+			"node":  r,
+			"lap":   int(_progress[id]["lap"]),
+			"seg_i": seg_i,
+			"t":     t,
+			"s_px":  _s_px_from_seg_t(seg_i, t)
+		})
+
+	board.sort_custom(_ahead)
+
+	for i in range(board.size()):
+		board[i]["place"] = i + 1
+
+	_apply_z_order()
+
+	if changed:
+		emit_signal("standings_changed", board)
+
+# --- FULL GetCurrentStandings: same shape as Update (and includes s_px)
+func GetCurrentStandings() -> Array:
+	var board := []
+	for r in _racers:
+		if not is_instance_valid(r):
+			continue
+		var id := r.get_instance_id()
+		var seg_i := int(_progress[id].get("seg_i", 0))
+		var t := float(_progress[id].get("t", 0.0))
+		board.append({
+			"node":  r,
+			"lap":   int(_progress[id].get("lap", 0)),
+			"seg_i": seg_i,
+			"t":     t,
+			"s_px":  _s_px_from_seg_t(seg_i, t)
+		})
+
+	board.sort_custom(_ahead)
+
+	for i in range(board.size()):
+		board[i]["place"] = i + 1
+	return board
