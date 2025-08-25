@@ -2,9 +2,5 @@ res://Scenes/main.tscn
 res://Scripts/Shaders/ModeSeven.gdshader
 res://Scripts/Shaders/GasDistort.gdshader
 res://Scripts/Shaders/YoshiSwap.gdshader
-res://Scripts/RaceManager.gd
 res://Scripts/LeaderBoard.gd
-res://Scripts/World Elements/Racers/Player.gd
-res://Scripts/On Screen Elements/SpriteHandler.gd
-res://Scripts/World Elements/Pseudo3D.gd
-res://Scripts/AI/PathOverlay2D.gd
+res://Scripts/RaceManager.gd

@@ -201,9 +201,18 @@ func Setup() -> void:
 	_rebuild_path_segments()
 
 	_progress.clear()
+	# NOTE: Do NOT start timing yet; timing begins when each racer FIRST crosses S/F (Lap becomes 1).
 	for r in _racers:
 		var s := _sample_s_of(r)
-		_progress[r.get_instance_id()] = {"lap": 0, "s_px": s, "prev_s_px": s}
+		_progress[r.get_instance_id()] = {
+			"lap": 0,
+			"s_px": s,
+			"prev_s_px": s,
+			"lap_start_ms": 0,     # set when Lap 1 actually starts
+			"timing_started": false, # first crossing starts the clock
+			"last_lap_ms": 0,      # last completed lap (after Lap 1 begins)
+			"best_lap_ms": 0       # session best (after Lap 1 begins)
+		}
 
 	# ---- DEBUG: verify wiring at boot ----
 	print("[RaceManager] Setup: racers=", _racers.size(), " segments=", _segments.size(), " loop_len_px=", _loop_len_px)
@@ -230,7 +239,12 @@ func Update() -> void:
 
 		var id := r.get_instance_id()
 		if not _progress.has(id):
-			_progress[id] = {"lap": 0, "s_px": 0.0, "prev_s_px": 0.0}
+			_progress[id] = {
+				"lap": 0, "s_px": 0.0, "prev_s_px": 0.0,
+				"lap_start_ms": 0,
+				"timing_started": false,
+				"last_lap_ms": 0, "best_lap_ms": 0
+			}
 
 		var prev_s := float(_progress[id]["s_px"])
 		var lap    := int(_progress[id]["lap"])
@@ -239,17 +253,44 @@ func Update() -> void:
 		# wrap-safe lap accounting using arc-distance, honoring direction
 		var half = max(_loop_len_px * 0.5, 1.0)
 		var ds := s - prev_s
+		var crossed_finish := false
+		var lap_before := lap
 
 		if forward_increases_s_px:
 			if ds < -half:
 				lap += 1
+				crossed_finish = true
 			elif ds > half:
 				lap = max(0, lap - 1)
 		else:
 			if ds > half:
 				lap += 1
+				crossed_finish = true
 			elif ds < -half:
 				lap = max(0, lap - 1)
+
+		# Timing rules:
+		# - First time we cross S/F so that lap becomes 1: start the clock (no lap recorded).
+		# - Subsequent crossings (lap >= 2 -> 3 -> ...): record last/best, then restart the clock.
+		if crossed_finish:
+			var timing_started: bool = bool(_progress[id].get("timing_started", false))
+			var now_ms := Time.get_ticks_msec()
+
+			if not timing_started and lap == 1:
+				# Start timing at the beginning of Lap 1
+				_progress[id]["timing_started"] = true
+				_progress[id]["lap_start_ms"] = now_ms
+			elif timing_started:
+				# Only record a completed lap if we had already started timing
+				var start_ms := int(_progress[id].get("lap_start_ms", now_ms))
+				var lap_ms = max(0, now_ms - start_ms)
+				_progress[id]["last_lap_ms"] = lap_ms
+				var best_ms := int(_progress[id]["best_lap_ms"])
+				if best_ms == 0 or lap_ms < best_ms:
+					_progress[id]["best_lap_ms"] = lap_ms
+				# Start timing the next lap
+				_progress[id]["lap_start_ms"] = now_ms
+			# If timing hasn't started and lap != 1 (unlikely), do nothing.
 
 		if s != prev_s or lap != int(_progress[id]["lap"]):
 			changed = true
@@ -264,10 +305,18 @@ func Update() -> void:
 		if not is_instance_valid(r):
 			continue
 		var id := r.get_instance_id()
+
+		var cur_spd := 0.0
+		if r.has_method("ReturnMovementSpeed"):
+			cur_spd = float(r.call("ReturnMovementSpeed"))
+
 		board.append({
 			"node": r,
 			"lap":  int(_progress[id]["lap"]),
-			"s_px": float(_progress[id]["s_px"])
+			"s_px": float(_progress[id]["s_px"]),
+			"last_ms": int(_progress[id].get("last_lap_ms", 0)),
+			"best_ms": int(_progress[id].get("best_lap_ms", 0)),
+			"cur_speed": cur_spd
 		})
 
 	board.sort_custom(_ahead)
@@ -311,10 +360,18 @@ func GetCurrentStandings() -> Array:
 		if not is_instance_valid(r):
 			continue
 		var id := r.get_instance_id()
+
+		var cur_spd := 0.0
+		if r.has_method("ReturnMovementSpeed"):
+			cur_spd = float(r.call("ReturnMovementSpeed"))
+
 		board.append({
 			"node": r,
 			"lap":  int(_progress[id]["lap"]),
-			"s_px": float(_progress[id]["s_px"])
+			"s_px": float(_progress[id]["s_px"]),
+			"last_ms": int(_progress[id].get("last_lap_ms", 0)),
+			"best_ms": int(_progress[id].get("best_lap_ms", 0)),
+			"cur_speed": cur_spd
 		})
 
 	board.sort_custom(_ahead)

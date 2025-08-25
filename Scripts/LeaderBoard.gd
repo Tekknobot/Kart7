@@ -16,6 +16,9 @@ class_name Leaderboard
 @export var col_lap_w:   int = 30
 @export var col_speed_w: int = 40
 @export var col_gap_w:   int = 40
+@export var col_last_w:  int = 70
+@export var col_best_w:  int = 70
+
 
 # Colors
 @export var color_gain := Color(0.30, 1.00, 0.45, 0.90)
@@ -116,12 +119,20 @@ func _build_ui_once() -> void:
 	var hn := _make_label("DRIVER", 0, HORIZONTAL_ALIGNMENT_LEFT)
 	hn.size_flags_horizontal = SIZE_EXPAND_FILL
 	var hl := _make_label("LAP",   col_lap_w, HORIZONTAL_ALIGNMENT_CENTER)
-	var hs := _make_label("SPEED", col_speed_w, HORIZONTAL_ALIGNMENT_RIGHT)
-	var hg := _make_label("GAP",   col_gap_w, HORIZONTAL_ALIGNMENT_RIGHT)
+
+	# NEW
+	var hlast := _make_label("LAST", col_last_w, HORIZONTAL_ALIGNMENT_RIGHT)
+	var hbest := _make_label("BEST", col_best_w, HORIZONTAL_ALIGNMENT_RIGHT)
+
+	var hs := _make_label("CUR", col_speed_w, HORIZONTAL_ALIGNMENT_RIGHT)  # current speed
+	var hg := _make_label("GAP/LAP",   col_gap_w, HORIZONTAL_ALIGNMENT_RIGHT)
+
 	_header.add_child(hp)
 	_header.add_child(ha)
 	_header.add_child(hn)
 	_header.add_child(hl)
+	_header.add_child(hlast)
+	_header.add_child(hbest)
 	_header.add_child(hs)
 	_header.add_child(hg)
 
@@ -183,6 +194,11 @@ func _make_row_widget(racer_id: int) -> Dictionary:
 	var L_name  := _make_label("", 0, HORIZONTAL_ALIGNMENT_LEFT)
 	L_name.size_flags_horizontal = SIZE_EXPAND_FILL
 	var L_lap   := _make_label("", col_lap_w, HORIZONTAL_ALIGNMENT_CENTER)
+
+	# NEW labels
+	var L_last  := _make_label("", col_last_w, HORIZONTAL_ALIGNMENT_RIGHT)
+	var L_best  := _make_label("", col_best_w, HORIZONTAL_ALIGNMENT_RIGHT)
+
 	var L_speed := _make_label("", col_speed_w, HORIZONTAL_ALIGNMENT_RIGHT)
 	var L_gap   := _make_label("", col_gap_w, HORIZONTAL_ALIGNMENT_RIGHT)
 
@@ -190,6 +206,8 @@ func _make_row_widget(racer_id: int) -> Dictionary:
 	H.add_child(L_arrow)
 	H.add_child(L_name)
 	H.add_child(L_lap)
+	H.add_child(L_last)
+	H.add_child(L_best)
 	H.add_child(L_speed)
 	H.add_child(L_gap)
 
@@ -199,6 +217,8 @@ func _make_row_widget(racer_id: int) -> Dictionary:
 	row["arrow"]  = L_arrow
 	row["name"]   = L_name
 	row["lap"]    = L_lap
+	row["last"]   = L_last
+	row["best"]   = L_best
 	row["speed"]  = L_speed
 	row["gap"]    = L_gap
 
@@ -295,16 +315,29 @@ func _update_rows(board: Array) -> void:
 		var L_lap: Label = row["lap"]
 		L_lap.text = "Lap " + str(lap)
 
-
+		# CURRENT speed (from board, falls back to measured local 'speed' value below)
+		var cur_speed := float(it.get("cur_speed", 0.0))
 		var speed := 0.0
-		if racer.has_method("ReturnMovementSpeed"):
+		if cur_speed > 0.0:
+			speed = cur_speed
+		elif racer.has_method("ReturnMovementSpeed"):
 			speed = float(racer.call("ReturnMovementSpeed"))
-		var L_speed: Label = row["speed"]
-		L_speed.text = String.num(speed, 0) + " u/s"
 
-		var gap_s := _gap_seconds_for(id, lap, s_px, speed)
+		# LAST / BEST
+		var last_ms := int(it.get("last_ms", 0))
+		var best_ms := int(it.get("best_ms", 0))
+		var L_last: Label = row["last"]
+		var L_best: Label = row["best"]
+		L_last.text = _fmt_ms(last_ms)
+		L_best.text = _fmt_ms(best_ms)
+
+		# CUR speed text
+		var L_speed: Label = row["speed"]
+		L_speed.text = _fmt_speed(speed)
+
+		# GAP/LAP
 		var L_gap: Label = row["gap"]
-		L_gap.text = "—" if gap_s <= 0.01 else "+" + String.num(gap_s, 2) + "s"
+		L_gap.text = _format_gap_text(id, lap, s_px, speed)
 
 	# hide rows not in top N
 	for id_key in _row_for_id.keys():
@@ -312,6 +345,31 @@ func _update_rows(board: Array) -> void:
 			var r = _row_for_id[id_key]
 			var h := r["holder"] as Control
 			h.visible = false
+
+func _fmt_ms(ms: int) -> String:
+	if ms <= 0:
+		return "—"
+	var total_ms := ms
+	var minutes := total_ms / 60000
+	var seconds := (total_ms % 60000) / 1000
+	var millis := total_ms % 1000
+	return str(minutes, ":", str(seconds).pad_zeros(2), ".", str(millis).pad_zeros(3))
+
+func _fmt_speed(u: float) -> String:
+	return String.num(u, 0) + " u/s"
+
+# Builds the GAP column text: "—" for leader, "+1L/2L" if lapped, otherwise "+Xs"
+func _format_gap_text(id: int, lap: int, s_px: float, speed: float) -> String:
+	if id == _leader_id or _loop_len_px <= 0.0:
+		return "—"
+
+	var laps_behind: int = _lap_deficit_to_leader(lap, s_px)
+	if laps_behind > 0:
+		return "+%dL" % laps_behind
+
+	var gap_s: float = _gap_seconds_for(id, lap, s_px, speed)
+	return "—" if gap_s <= 0.01 else "+" + String.num(gap_s, 2) + "s"
+
 
 func _gap_seconds_for(id: int, lap: int, s_px: float, speed: float) -> float:
 	if id == _leader_id or _loop_len_px <= 0.0:
@@ -327,3 +385,15 @@ func _on_rows_holder_resized() -> void:
 		var holder: Control = row["holder"]
 		holder.size.x = _rows_holder.size.x
 		holder.size.y = row_height
+
+# Returns how many laps this entry is behind the current leader (0 = on the same lap or ahead)
+func _lap_deficit_to_leader(lap: int, s_px: float) -> int:
+	if _loop_len_px <= 0.0:
+		return 0
+	# Explicitly-typed locals to satisfy GDScript's type checker
+	var leader_prog: float = float(_leader_lap) * _loop_len_px + _leader_s_px
+	var my_prog: float     = float(lap)         * _loop_len_px + s_px
+	var delta: float       = leader_prog - my_prog
+	# Number of whole loop lengths behind (never negative)
+	var laps_behind: int = int(floor(delta / _loop_len_px + 0.000001))
+	return max(0, laps_behind)
