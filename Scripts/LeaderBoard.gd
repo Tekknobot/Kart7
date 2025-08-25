@@ -49,6 +49,10 @@ var _leader_id := 0
 var _leader_lap := 0
 var _leader_s_px := 0.0
 
+@export var highlight_seconds: float = -1.0  # -1 = use animate_time
+var _highlight_until := {}                   # racer_id -> time(s) when highlight ends
+var _bg_tween_by_id := {}                    # racer_id -> Tween for BG fade (killed on refresh)
+
 # ---------------- lifecycle ----------------
 func _ready() -> void:
 	_build_ui_once()
@@ -115,17 +119,16 @@ func _build_ui_once() -> void:
 	v.add_child(_header)
 
 	var hp := _make_label("POS", col_place_w, HORIZONTAL_ALIGNMENT_RIGHT)
-	var ha := _make_label("Δ",  col_arrow_w, HORIZONTAL_ALIGNMENT_CENTER)
+	var ha := _make_label("CHG", col_arrow_w, HORIZONTAL_ALIGNMENT_CENTER) # ASCII
 	var hn := _make_label("DRIVER", 0, HORIZONTAL_ALIGNMENT_LEFT)
 	hn.size_flags_horizontal = SIZE_EXPAND_FILL
 	var hl := _make_label("LAP",   col_lap_w, HORIZONTAL_ALIGNMENT_CENTER)
 
-	# NEW
 	var hlast := _make_label("LAST", col_last_w, HORIZONTAL_ALIGNMENT_RIGHT)
 	var hbest := _make_label("BEST", col_best_w, HORIZONTAL_ALIGNMENT_RIGHT)
 
-	var hs := _make_label("CUR", col_speed_w, HORIZONTAL_ALIGNMENT_RIGHT)  # current speed
-	var hg := _make_label("GAP/LAP",   col_gap_w, HORIZONTAL_ALIGNMENT_RIGHT)
+	var hs := _make_label("CUR", col_speed_w, HORIZONTAL_ALIGNMENT_RIGHT)
+	var hg := _make_label("GAP/LAP", col_gap_w, HORIZONTAL_ALIGNMENT_RIGHT)
 
 	_header.add_child(hp)
 	_header.add_child(ha)
@@ -190,12 +193,11 @@ func _make_row_widget(racer_id: int) -> Dictionary:
 	holder.add_child(H)
 
 	var L_place := _make_label("", col_place_w, HORIZONTAL_ALIGNMENT_RIGHT)
-	var L_arrow := _make_label("•", col_arrow_w, HORIZONTAL_ALIGNMENT_CENTER)
+	var L_arrow := _make_label(".", col_arrow_w, HORIZONTAL_ALIGNMENT_CENTER) # ASCII
 	var L_name  := _make_label("", 0, HORIZONTAL_ALIGNMENT_LEFT)
 	L_name.size_flags_horizontal = SIZE_EXPAND_FILL
 	var L_lap   := _make_label("", col_lap_w, HORIZONTAL_ALIGNMENT_CENTER)
 
-	# NEW labels
 	var L_last  := _make_label("", col_last_w, HORIZONTAL_ALIGNMENT_RIGHT)
 	var L_best  := _make_label("", col_best_w, HORIZONTAL_ALIGNMENT_RIGHT)
 
@@ -234,9 +236,10 @@ func _get_or_make_row_for(id: int) -> Dictionary:
 # ---------------- UI updates ----------------
 func _update_rows(board: Array) -> void:
 	var count = min(max_rows, board.size())
-
-	# track visible this frame
 	var visible_ids := {}
+
+	var now_s := Time.get_ticks_msec() / 1000.0
+	var hl_sec := animate_time  # highlight lasts for the row-move animation length
 
 	for i in range(count):
 		var it: Dictionary = board[i]
@@ -248,11 +251,11 @@ func _update_rows(board: Array) -> void:
 		var holder: Control = row["holder"]
 		holder.visible = true
 
-		# desired slot & layer
+		# slot & z layer
 		var target_y := float(i * row_height)
-		holder.z_index = i   # ensure draw order matches visual order
+		holder.z_index = i
 
-		# animate only if needed, and don't restart an identical tween
+		# animate row reposition
 		var needs_move = abs(holder.position.y - target_y) >= 0.5
 		if needs_move:
 			if _tweens_by_id.has(id):
@@ -265,17 +268,20 @@ func _update_rows(board: Array) -> void:
 		else:
 			holder.position.y = target_y
 
-		# striping / player highlight
+		# base striping, but DON'T override if a highlight is active for this row
 		var bg: ColorRect = row["bg"]
-		if _player != null and racer == _player:
-			bg.color = color_player_bg
-		else:
-			bg.color = color_row_even if (i % 2) == 0 else color_row_odd
+		var hl_until := float(bg.get_meta("hl_until")) if bg.has_meta("hl_until") else 0.0
+		var is_highlighting := hl_until > now_s
+		if not is_highlighting:
+			if _player != null and racer == _player:
+				bg.color = color_player_bg
+			else:
+				bg.color = color_row_even if (i % 2) == 0 else color_row_odd
 
-		# fill labels
+		# labels & data
 		var place := int(it.get("place", i + 1))
 		var lap := int(it.get("lap", 0))
-		var s_px := float(it.get("s_px", 0.0))  # provided by RaceManager
+		var s_px := float(it.get("s_px", 0.0))
 
 		var L_name: Label = row["name"]
 		var display_name := ""
@@ -292,30 +298,45 @@ func _update_rows(board: Array) -> void:
 		_prev_place_for_id[id] = place
 		L_place.text = str(place)
 
+		# arrow + highlight
 		var L_arrow: Label = row["arrow"]
 		if prev_place != 0 and prev_place != place:
 			var gained = place < prev_place
-			if gained:
-				L_arrow.text = "↑"
-				bg.color = color_gain
-			else:
-				L_arrow.text = "↓"
-				bg.color = color_loss
-			var tw2 := create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-			tw2.tween_property(bg, "color:a", 0.0, 0.45).from(0.90)
-			tw2.tween_callback(func ():
-				if _player != null and racer == _player:
-					bg.color = color_player_bg
-				else:
-					bg.color = color_row_even if (i % 2) == 0 else color_row_odd
-			)
-		else:
-			L_arrow.text = "•"
+			L_arrow.text = "^" if gained else "v"
 
+			# start/refresh highlight window
+			bg.set_meta("hl_until", now_s + hl_sec)
+
+			# kill any existing BG tween for this row
+			if bg.has_meta("hl_tw"):
+				var old_tw: Tween = bg.get_meta("hl_tw")
+				if old_tw:
+					old_tw.kill()
+				bg.set_meta("hl_tw", null)
+
+			# set highlight color and fade its alpha over hl_sec
+			bg.color = color_gain if gained else color_loss
+			var tw2 := create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+			tw2.tween_property(bg, "color:a", 0.0, hl_sec).from(0.90)
+			tw2.tween_callback(func ():
+				# only restore if window actually expired (ignore if refreshed meanwhile)
+				var now2 := Time.get_ticks_msec() / 1000.0
+				var still_until := float(bg.get_meta("hl_until")) if bg.has_meta("hl_until") else 0.0
+				if still_until <= now2:
+					if _player != null and racer == _player:
+						bg.color = color_player_bg
+					else:
+						bg.color = color_row_even if (i % 2) == 0 else color_row_odd
+					bg.set_meta("hl_tw", null)
+			)
+			bg.set_meta("hl_tw", tw2)
+		else:
+			L_arrow.text = "."  # neutral
+
+		# lap / speed / times / gap
 		var L_lap: Label = row["lap"]
 		L_lap.text = "Lap " + str(lap)
 
-		# CURRENT speed (from board, falls back to measured local 'speed' value below)
 		var cur_speed := float(it.get("cur_speed", 0.0))
 		var speed := 0.0
 		if cur_speed > 0.0:
@@ -323,7 +344,6 @@ func _update_rows(board: Array) -> void:
 		elif racer.has_method("ReturnMovementSpeed"):
 			speed = float(racer.call("ReturnMovementSpeed"))
 
-		# LAST / BEST
 		var last_ms := int(it.get("last_ms", 0))
 		var best_ms := int(it.get("best_ms", 0))
 		var L_last: Label = row["last"]
@@ -331,11 +351,9 @@ func _update_rows(board: Array) -> void:
 		L_last.text = _fmt_ms(last_ms)
 		L_best.text = _fmt_ms(best_ms)
 
-		# CUR speed text
 		var L_speed: Label = row["speed"]
 		L_speed.text = _fmt_speed(speed)
 
-		# GAP/LAP
 		var L_gap: Label = row["gap"]
 		L_gap.text = _format_gap_text(id, lap, s_px, speed)
 
@@ -348,7 +366,7 @@ func _update_rows(board: Array) -> void:
 
 func _fmt_ms(ms: int) -> String:
 	if ms <= 0:
-		return "—"
+		return "--"
 	var total_ms := ms
 	var minutes := total_ms / 60000
 	var seconds := (total_ms % 60000) / 1000
@@ -361,7 +379,7 @@ func _fmt_speed(u: float) -> String:
 # Builds the GAP column text: "—" for leader, "+1L/2L" if lapped, otherwise "+Xs"
 func _format_gap_text(id: int, lap: int, s_px: float, speed: float) -> String:
 	if id == _leader_id or _loop_len_px <= 0.0:
-		return "—"
+		return "--"
 
 	var laps_behind: int = _lap_deficit_to_leader(lap, s_px)
 	if laps_behind > 0:

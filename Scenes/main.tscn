@@ -1029,7 +1029,7 @@ _data = {
 
 [sub_resource type="Theme" id="Theme_gt3je"]
 default_font = ExtResource("23_gt3je")
-default_font_size = 8
+default_font_size = 16
 
 [node name="Main" type="Node2D" node_paths=PackedStringArray("_map", "_collision", "_player", "_spriteHandler", "_animationHandler", "_backgroundElements", "_raceManager")]
 script = ExtResource("1_emb0w")
@@ -1651,27 +1651,29 @@ finish_auto_speed_px = 240.0
 layout_mode = 3
 anchors_preset = 0
 offset_left = 11.0
-offset_top = 11.0
-offset_right = 395.0
-offset_bottom = 179.0
+offset_top = 1.0
+offset_right = 466.0
+offset_bottom = 159.0
 theme = SubResource("Theme_gt3je")
 script = ExtResource("22_ee4r6")
 race_manager_path = NodePath("../RaceManager")
 player_path = NodePath("../Sprite Handler/Racers/Player01")
-row_height = 8
+row_height = 12
+animate_time = 1.0
 arrow_flash_frames = 60
+highlight_seconds = 2.0
 
 [node name="Minimap" type="Control" parent="."]
 layout_mode = 3
 anchors_preset = 0
-offset_top = 240.0
-offset_right = 133.0
+offset_top = 268.0
+offset_right = 108.0
 offset_bottom = 360.0
 script = ExtResource("24_3pmx8")
 path_provider = NodePath("../SubViewport/PathOverlay2D")
 racers_root = NodePath("../Sprite Handler/Racers")
 player_path = NodePath("../Sprite Handler/Racers/Player01")
-path_width = 0.5
+path_width = 1.0
 dot_color = Color(0, 1, 1, 1)
 player_dot_color = Color(1, 0, 0, 1)
 lapped_dot_color = Color(1.49205e-06, 0.510954, 0.51098, 1)
