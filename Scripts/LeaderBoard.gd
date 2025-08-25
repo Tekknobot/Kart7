@@ -11,11 +11,11 @@ class_name Leaderboard
 @export var animate_time: float = 0.22
 
 # Column widths
-@export var col_place_w: int = 40
+@export var col_place_w: int = 20
 @export var col_arrow_w: int = 20
-@export var col_lap_w:   int = 60
-@export var col_speed_w: int = 80
-@export var col_gap_w:   int = 80
+@export var col_lap_w:   int = 30
+@export var col_speed_w: int = 40
+@export var col_gap_w:   int = 40
 
 # Colors
 @export var color_gain := Color(0.30, 1.00, 0.45, 0.90)
@@ -23,6 +23,10 @@ class_name Leaderboard
 @export var color_player_bg := Color(0.95, 0.90, 0.20, 0.20)
 @export var color_row_even := Color(0.20, 0.20, 0.20, 0.35)
 @export var color_row_odd  := Color(0.12, 0.12, 0.12, 0.35)
+
+@export var arrow_flash_frames: int = 30   # ~0.5s if standings update ~60fps
+var _arrow_frames_left := {}               # racer_id -> int frames
+var _arrow_dir := {}                       # racer_id -> int (+1 up / -1 down)
 
 # ---------------- internals ----------------
 var _rm: Node = null
@@ -103,7 +107,7 @@ func _build_ui_once() -> void:
 	_header.name = "Header"
 	_header.size_flags_horizontal = SIZE_EXPAND_FILL
 	_header.size_flags_vertical = SIZE_FILL
-	_header.custom_minimum_size.y = 24
+	_header.custom_minimum_size.y = 8
 	_header.add_theme_constant_override("separation", 6)
 	v.add_child(_header)
 
@@ -289,7 +293,8 @@ func _update_rows(board: Array) -> void:
 			L_arrow.text = "•"
 
 		var L_lap: Label = row["lap"]
-		L_lap.text = "Lap " + str(lap + 1)
+		L_lap.text = "Lap " + str(lap)
+
 
 		var speed := 0.0
 		if racer.has_method("ReturnMovementSpeed"):
