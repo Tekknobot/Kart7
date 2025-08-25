@@ -35,6 +35,8 @@ var _race_over: bool = false
 var _finish_mode: bool = false
 var _finish_order: Array = []  # ids in the order they finish
 
+var _finish_cam_played := false
+
 # >>> NEW: public helpers for the UI <<<
 func GetLoopLengthPx() -> float:
 	return _loop_len_px
@@ -237,6 +239,7 @@ func Setup() -> void:
 		_finish_order.clear()
 	_race_over = false
 	_finish_mode = false
+	_finish_cam_played = false
 
 	# Do NOT start timing yet; timing begins when Lap becomes 1 on first S/F crossing.
 	for r in _racers:
@@ -249,7 +252,7 @@ func Setup() -> void:
 			"timing_started": false,
 			"last_lap_ms": 0,
 			"best_lap_ms": 0,
-			"finished": false,     # per-racer lock support
+			"finished": false,
 			"finish_rank": 0
 		}
 
@@ -332,10 +335,18 @@ func Update() -> void:
 				_progress[id]["finished"] = true
 				_finish_order.append(id)
 				_progress[id]["finish_rank"] = _finish_order.size()
-				# clamp lap to total_laps and freeze s at the line we just crossed
 				lap = total_laps
-				# after this frame, we will stop updating this racer
 				changed = true
+
+				# if the player just finished, start finish camera once
+				if is_instance_valid(_player) and id == _player.get_instance_id():
+					if not _finish_cam_played:
+						_finish_cam_played = true
+						_finish_mode = true
+						if _player.has_method("EnableInput"):
+							_player.call("EnableInput", false)
+						if is_instance_valid(_pseudo3d) and _pseudo3d.has_method("StartFinishCamera"):
+							_pseudo3d.call("StartFinishCamera", _player)
 
 		if s != prev_s or lap != int(_progress[id]["lap"]):
 			changed = true
@@ -388,6 +399,11 @@ func Update() -> void:
 		print("[RaceManager] loop_len_px=", _loop_len_px, " changed=", changed, " order_changed=", order_changed, " racers=", _racers.size())
 
 	_last_board_sig = sig
+
+	# while in finish mode, optionally auto-drive and keep sprite framing synced
+	if _finish_mode and is_instance_valid(_player):
+		_autodrive_player_step(self.get_process_delta_time())
+		_update_player_12frame_sprite()
 
 	if changed or order_changed:
 		emit_signal("standings_changed", board)
