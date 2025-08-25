@@ -4,3 +4,4 @@ res://Scripts/Shaders/GasDistort.gdshader
 res://Scripts/Shaders/YoshiSwap.gdshader
 res://Scripts/RaceManager.gd
 res://Scripts/LeaderBoard.gd
+res://Scripts/World Elements/Racers/Player.gd

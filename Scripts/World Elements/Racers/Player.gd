@@ -231,7 +231,7 @@ func _process(_dt: float) -> void:
 	Globals.set_camera_map_position(get_player_map_position())
 	if Engine.get_process_frames() % 30 == 0:
 		var v := ReturnPlayerInput()
-		print("INPUT steer=", v.x, " throttle=", v.y)
+		#print("INPUT steer=", v.x, " throttle=", v.y)
 
 func _set_frame(idx: int) -> void:
 	var spr := ReturnSpriteGraphic()

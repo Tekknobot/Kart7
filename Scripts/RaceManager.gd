@@ -21,29 +21,9 @@ var _segments := []
 var _loop_len_px := 0.0
 var _progress := {}
 
-func Setup() -> void:
-	_pseudo3d = get_node_or_null(pseudo3d_node)
-	_overlay  = get_node_or_null(path_overlay_node)
-	_player   = get_node_or_null(player_path)
+var _last_board_sig := ""
 
-	var root := get_node_or_null(racers_root)
-	_racers.clear()
-	if root:
-		for c in root.get_children():
-			if c is Node and c.has_method("ReturnMapPosition") and c.has_method("ReturnSpriteGraphic"):
-				_racers.append(c)
-	if _player and not _racers.has(_player):
-		_racers.insert(0, _player)
-
-	_rebuild_path_segments()
-	_progress.clear()
-	for r in _racers:
-		var st := _sample_seg_t_of(r)
-		var i := int(st["i"])
-		var t := float(st["t"])
-		_progress[r.get_instance_id()] = {"lap": 0, "seg_i": i, "t": t, "prev_i": i, "prev_t": t}
-
-	emit_signal("standings_changed", GetCurrentStandings())
+@export var forward_increases_s_px := true
 
 # >>> NEW: public helpers for the UI <<<
 func GetLoopLengthPx() -> float:
@@ -89,43 +69,6 @@ func _get_path_points_uv_closed() -> PackedVector2Array:
 	if pts == null:
 		return PackedVector2Array()
 	return pts
-
-func _sample_s_of(r: Node) -> float:
-	if _segments.is_empty():
-		return 0.0
-	var p3: Vector3 = r.ReturnMapPosition()
-	var uv := Vector2(p3.x / float(map_size_px), p3.z / float(map_size_px))
-	for seg in _segments:
-		var a: Vector2 = seg["a_uv"]
-		var b: Vector2 = seg["b_uv"]
-		var ab := b - a
-		var ab2 := ab.length_squared()
-		if ab2 <= 0.0:
-			continue
-		var t = clamp((uv - a).dot(ab) / ab2, 0.0, 1.0)
-		var proj := a.lerp(b, t)
-		if proj.distance_squared_to(uv) <= 0.001 * 0.001:
-			var before := float(seg["cum_px"]) - float(seg["len_px"])
-			return before + (t * float(seg["len_px"]))
-	var best_s := 0.0
-	var best_d2 := 1e9
-	var cum_prev := 0.0
-	for seg2 in _segments:
-		var a2: Vector2 = seg2["a_uv"]
-		var b2: Vector2 = seg2["b_uv"]
-		var abv := b2 - a2
-		var L := float(seg2["len_px"])
-		var t2 := 0.0
-		var abv2 := abv.length_squared()
-		if abv2 > 0.0:
-			t2 = clamp((uv - a2).dot(abv) / abv2, 0.0, 1.0)
-		var proj2 := a2.lerp(b2, t2)
-		var d2 := proj2.distance_squared_to(uv)
-		if d2 < best_d2:
-			best_d2 = d2
-			best_s  = cum_prev + t2 * L
-		cum_prev += L
-	return best_s
 
 func _apply_z_order() -> void:
 	var elems := []
@@ -221,147 +164,217 @@ func _s_px_from_seg_t(i: int, t: float) -> float:
 	var before := float(seg["cum_px"]) - float(seg["len_px"])
 	return before + t * float(seg["len_px"])
 
-# --- comparator: rank by (lap, seg_i, t) if present; otherwise by (lap, s_px)
+# Rank comparator: (lap, s_px) in the forward direction, then stable id
 func _ahead(a: Dictionary, b: Dictionary) -> bool:
-	# 1) laps
-	var la := int(a.get("lap", 0))
-	var lb := int(b.get("lap", 0))
+	var la := int(a["lap"])
+	var lb := int(b["lap"])
 	if la != lb:
 		return la > lb
 
-	# 2) segment/t if available on both
-	var has_seg := a.has("seg_i") and a.has("t") and b.has("seg_i") and b.has("t")
-	if has_seg:
-		var ia := int(a["seg_i"])
-		var ib := int(b["seg_i"])
-		if ia != ib:
-			return ia > ib
-		var ta := float(a["t"])
-		var tb := float(b["t"])
-		if abs(ta - tb) > 0.0005:
-			return ta > tb
-	else:
-		# 2’) fall back to s_px if present
-		var has_spx := a.has("s_px") and b.has("s_px")
-		if has_spx:
-			var sa := float(a["s_px"])
-			var sb := float(b["s_px"])
-			if sa != sb:
-				return sa > sb
+	var sa := float(a["s_px"])
+	var sb := float(b["s_px"])
+	if sa != sb:
+		# Direction-aware comparison
+		if forward_increases_s_px:
+			return sa > sb
 		else:
-			# 2’’) last resort: compute s_px on the fly if seg/t exists on either one
-			var sa2 := 0.0
-			if a.has("seg_i") and a.has("t"):
-				sa2 = _s_px_from_seg_t(int(a["seg_i"]), float(a["t"]))
-			var sb2 := 0.0
-			if b.has("seg_i") and b.has("t"):
-				sb2 = _s_px_from_seg_t(int(b["seg_i"]), float(b["t"]))
-			if sa2 != sb2:
-				return sa2 > sb2
+			return sa < sb
 
-	# 3) stable, non-visual tie-break
 	var aid := (a["node"] as Node).get_instance_id()
 	var bid := (b["node"] as Node).get_instance_id()
 	return aid < bid
 
-# --- FULL Update: keeps lap/seg_i/t, builds board WITH s_px, sorts with _ahead
+func Setup() -> void:
+	_pseudo3d = get_node_or_null(pseudo3d_node)
+	_overlay  = get_node_or_null(path_overlay_node)
+	_player   = get_node_or_null(player_path)
+
+	var root := get_node_or_null(racers_root)
+	_racers.clear()
+	if root:
+		for c in root.get_children():
+			if c is Node and c.has_method("ReturnMapPosition") and c.has_method("ReturnSpriteGraphic"):
+				_racers.append(c)
+	if _player and not _racers.has(_player):
+		_racers.insert(0, _player)
+
+	_rebuild_path_segments()
+
+	_progress.clear()
+	for r in _racers:
+		var s := _sample_s_of(r)
+		_progress[r.get_instance_id()] = {"lap": 0, "s_px": s, "prev_s_px": s}
+
+	# ---- DEBUG: verify wiring at boot ----
+	print("[RaceManager] Setup: racers=", _racers.size(), " segments=", _segments.size(), " loop_len_px=", _loop_len_px)
+	for r in _racers:
+		var p3: Vector3 = r.ReturnMapPosition()
+		prints("  racer:", r.name, "pos(", p3.x, p3.y, p3.z, ") s_px=", _sample_s_of(r))
+
+	emit_signal("standings_changed", GetCurrentStandings())
+
 func Update() -> void:
 	if _segments.is_empty():
 		_rebuild_path_segments()
 		if _segments.is_empty():
+			if Engine.get_process_frames() % 60 == 0:
+				print("[RaceManager] _segments empty; no standings update. loop_len_px=", _loop_len_px)
 			return
 
 	var changed := false
 
+	# ---- per-racer progress (lap, s_px) ----
 	for r in _racers:
 		if not is_instance_valid(r):
 			continue
+
 		var id := r.get_instance_id()
-
-		# initialize/migrate progress record
 		if not _progress.has(id):
-			_progress[id] = {"lap": 0, "seg_i": 0, "t": 0.0, "prev_i": 0, "prev_t": 0.0}
-		else:
-			var rec: Dictionary = _progress[id]
-			if not rec.has("seg_i") or not rec.has("t"):
-				var st0 := _sample_seg_t_of(r)
-				rec["seg_i"] = int(st0["i"])
-				rec["t"] = float(st0["t"])
-				rec["prev_i"] = int(st0["i"])
-				rec["prev_t"] = float(st0["t"])
-				rec["lap"] = int(rec.get("lap", 0))
-				_progress[id] = rec
+			_progress[id] = {"lap": 0, "s_px": 0.0, "prev_s_px": 0.0}
 
-		var prev_i := int(_progress[id]["seg_i"])
-		var prev_t := float(_progress[id]["t"])
+		var prev_s := float(_progress[id]["s_px"])
 		var lap    := int(_progress[id]["lap"])
+		var s := _sample_s_of(r)
 
-		var st := _sample_seg_t_of(r)
-		var seg_i := int(st["i"])
-		var t     := float(st["t"])
+		# wrap-safe lap accounting using arc-distance, honoring direction
+		var half = max(_loop_len_px * 0.5, 1.0)
+		var ds := s - prev_s
 
-		# lap accounting by index wrap (with small hysteresis)
-		var N := _segments.size()
-		if N > 0:
-			if (prev_i > N - 4) and (seg_i < 3):
+		if forward_increases_s_px:
+			if ds < -half:
 				lap += 1
-			elif (prev_i < 3) and (seg_i > N - 4):
+			elif ds > half:
+				lap = max(0, lap - 1)
+		else:
+			if ds > half:
+				lap += 1
+			elif ds < -half:
 				lap = max(0, lap - 1)
 
-		if seg_i != prev_i or abs(t - prev_t) > 0.0005 or lap != int(_progress[id]["lap"]):
+		if s != prev_s or lap != int(_progress[id]["lap"]):
 			changed = true
 
-		_progress[id]["prev_i"] = prev_i
-		_progress[id]["prev_t"] = prev_t
-		_progress[id]["seg_i"]  = seg_i
-		_progress[id]["t"]      = t
-		_progress[id]["lap"]    = lap
+		_progress[id]["prev_s_px"] = prev_s
+		_progress[id]["s_px"] = s
+		_progress[id]["lap"] = lap
 
-	# build board (includes s_px so UI & snapshots work)
+	# ---- build sorted board (lap, s_px) ----
 	var board := []
 	for r in _racers:
 		if not is_instance_valid(r):
 			continue
 		var id := r.get_instance_id()
-		var seg_i := int(_progress[id]["seg_i"])
-		var t := float(_progress[id]["t"])
 		board.append({
-			"node":  r,
-			"lap":   int(_progress[id]["lap"]),
-			"seg_i": seg_i,
-			"t":     t,
-			"s_px":  _s_px_from_seg_t(seg_i, t)
+			"node": r,
+			"lap":  int(_progress[id]["lap"]),
+			"s_px": float(_progress[id]["s_px"])
 		})
 
 	board.sort_custom(_ahead)
-
 	for i in range(board.size()):
 		board[i]["place"] = i + 1
 
 	_apply_z_order()
 
-	if changed:
-		emit_signal("standings_changed", board)
+	# ---- DEBUG signature: includes instance ids in order to detect swaps ----
+	var sig_parts := []
+	for i in range(board.size()):
+		var it: Dictionary = board[i]
+		var rid := (it["node"] as Node).get_instance_id()
+		var lap_i := int(it["lap"])
+		var spx := float(it["s_px"])
+		sig_parts.append(str(rid, ":", lap_i, ":", int(spx)))
+	var sig := ",".join(sig_parts)
 
-# --- FULL GetCurrentStandings: same shape as Update (and includes s_px)
+	var do_periodic := (Engine.get_process_frames() % 30) == 0  # ~2x/sec
+	var order_changed := (sig != _last_board_sig)
+
+	if do_periodic or order_changed:
+		print("[RaceManager] loop_len_px=", _loop_len_px, " changed=", changed, " order_changed=", order_changed, " racers=", _racers.size())
+		for r in _racers:
+			var id := r.get_instance_id()
+			var prev_s := float(_progress[id]["prev_s_px"])
+			var s := float(_progress[id]["s_px"])
+			var ds := s - prev_s
+			prints("    ", r.name, "lap", _progress[id]["lap"], "s_px", s, "ds", ds)
+
+	_last_board_sig = sig
+
+	# ---- emit when data changes OR the sorted order changes ----
+	if changed or order_changed:
+		emit_signal("standings_changed", board)
+		print("[RaceManager] emitted standings_changed (changed=", changed, " order_changed=", order_changed, ")")
+
 func GetCurrentStandings() -> Array:
 	var board := []
 	for r in _racers:
 		if not is_instance_valid(r):
 			continue
 		var id := r.get_instance_id()
-		var seg_i := int(_progress[id].get("seg_i", 0))
-		var t := float(_progress[id].get("t", 0.0))
 		board.append({
-			"node":  r,
-			"lap":   int(_progress[id].get("lap", 0)),
-			"seg_i": seg_i,
-			"t":     t,
-			"s_px":  _s_px_from_seg_t(seg_i, t)
+			"node": r,
+			"lap":  int(_progress[id]["lap"]),
+			"s_px": float(_progress[id]["s_px"])
 		})
 
 	board.sort_custom(_ahead)
-
 	for i in range(board.size()):
 		board[i]["place"] = i + 1
 	return board
+
+# Heuristic: convert a racer position to UV correctly (0..1 on both axes)
+func _pos_to_uv(p3: Vector3) -> Vector2:
+	# If the coordinates already look like UV (small), use them as-is.
+	# Otherwise treat them as pixels and normalize by map_size_px.
+	var ax = abs(p3.x)
+	var az = abs(p3.z)
+	if ax <= 2.0 and az <= 2.0:
+		# Already UV (typical values ~0.0..1.0). Your logs show ~0.92 / ~0.76.
+		return Vector2(p3.x, p3.z)
+	else:
+		# Pixels -> UV
+		return Vector2(p3.x / float(map_size_px), p3.z / float(map_size_px))
+
+# >>> REPLACE your _sample_s_of with this one (uses the UV from _pos_to_uv)
+func _sample_s_of(r: Node) -> float:
+	if _segments.is_empty():
+		return 0.0
+
+	var p3: Vector3 = r.ReturnMapPosition()
+	var uv: Vector2 = _pos_to_uv(p3)  # <-- key fix
+
+	# Try “on-segment” fast-path first
+	for seg in _segments:
+		var a: Vector2 = seg["a_uv"]
+		var b: Vector2 = seg["b_uv"]
+		var ab := b - a
+		var ab2 := ab.length_squared()
+		if ab2 <= 0.0:
+			continue
+		var t = clamp((uv - a).dot(ab) / ab2, 0.0, 1.0)
+		var proj := a.lerp(b, t)
+		# 0.001 UV ~ 1px on a 1024 map — keep as-is, or loosen slightly if needed
+		if proj.distance_squared_to(uv) <= 0.001 * 0.001:
+			var before := float(seg["cum_px"]) - float(seg["len_px"])
+			return before + (t * float(seg["len_px"]))
+
+	# Fallback: nearest segment (works for off-line points)
+	var best_s := 0.0
+	var best_d2 := 1e9
+	var cum_prev := 0.0
+	for seg2 in _segments:
+		var a2: Vector2 = seg2["a_uv"]
+		var b2: Vector2 = seg2["b_uv"]
+		var abv := b2 - a2
+		var L := float(seg2["len_px"])
+		var t2 := 0.0
+		var abv2 := abv.length_squared()
+		if abv2 > 0.0:
+			t2 = clamp((uv - a2).dot(abv) / abv2, 0.0, 1.0)
+		var proj2 := a2.lerp(b2, t2)
+		var d2 := proj2.distance_squared_to(uv)
+		if d2 < best_d2:
+			best_d2 = d2
+			best_s  = cum_prev + t2 * L
+		cum_prev += L
+	return best_s
