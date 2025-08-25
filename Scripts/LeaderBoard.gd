@@ -56,6 +56,7 @@ var _bg_tween_by_id := {}                    # racer_id -> Tween for BG fade (ki
 
 @export var lock_on_finish: bool = true
 var _locked: bool = false
+var _locked_ids := {}   # racer_id -> true after that racer finishes
 
 # ---------------- lifecycle ----------------
 func _ready() -> void:
@@ -255,9 +256,7 @@ func _update_rows(board: Array) -> void:
 	var visible_ids := {}
 
 	var now_s := Time.get_ticks_msec() / 1000.0
-	var hl_sec := animate_time
-	var do_animate := not _locked
-	var do_highlight := not _locked
+	var hl_sec := animate_time  # how long the green/red stays
 
 	for i in range(count):
 		var it: Dictionary = board[i]
@@ -265,17 +264,22 @@ func _update_rows(board: Array) -> void:
 		var id := racer.get_instance_id()
 		visible_ids[id] = true
 
+		var finished := bool(it.get("finished", false))
+		var just_finished := finished and not _locked_ids.has(id)
+		var row_locked := finished and _locked_ids.has(id)
+
 		var row := _get_or_make_row_for(id)
 		var holder: Control = row["holder"]
 		holder.visible = true
 
-		# slot & z layer
+		# target slot & z
 		var target_y := float(i * row_height)
 		holder.z_index = i
 
-		# move (no tween if locked)
+		# row move: allow one final move when they finish, then freeze
 		var needs_move = abs(holder.position.y - target_y) >= 0.5
-		if needs_move and do_animate:
+		if needs_move and (not row_locked or just_finished):
+			# animate only if not locked yet (or the finishing frame)
 			if _tweens_by_id.has(id):
 				var old: Tween = _tweens_by_id[id]
 				if old:
@@ -286,17 +290,17 @@ func _update_rows(board: Array) -> void:
 		else:
 			holder.position.y = target_y
 
-		# base striping, but do not override an active highlight
+		# base striping unless highlight active
 		var bg: ColorRect = row["bg"]
 		var hl_until := float(bg.get_meta("hl_until")) if bg.has_meta("hl_until") else 0.0
 		var is_highlighting := hl_until > now_s
-		if not is_highlighting or _locked:
+		if not is_highlighting:
 			if _player != null and racer == _player:
 				bg.color = color_player_bg
 			else:
 				bg.color = color_row_even if (i % 2) == 0 else color_row_odd
 
-		# labels & data
+		# labels
 		var place := int(it.get("place", i + 1))
 		var lap := int(it.get("lap", 0))
 		var s_px := float(it.get("s_px", 0.0))
@@ -316,9 +320,9 @@ func _update_rows(board: Array) -> void:
 		_prev_place_for_id[id] = place
 		L_place.text = str(place)
 
-		# arrow + highlight (disabled once locked)
+		# arrow + highlight; disable after finished
 		var L_arrow: Label = row["arrow"]
-		if do_highlight and prev_place != 0 and prev_place != place:
+		if not row_locked and prev_place != 0 and prev_place != place:
 			var gained = place < prev_place
 			L_arrow.text = "^" if gained else "v"
 
@@ -344,11 +348,7 @@ func _update_rows(board: Array) -> void:
 			)
 			bg.set_meta("hl_tw", tw2)
 		else:
-			# neutral arrow once locked or no change
-			if _locked:
-				L_arrow.text = "."
-			elif prev_place == 0 or prev_place == place:
-				L_arrow.text = "."
+			L_arrow.text = "."
 
 		# lap / speed / times / gap
 		var L_lap: Label = row["lap"]
@@ -373,6 +373,10 @@ func _update_rows(board: Array) -> void:
 
 		var L_gap: Label = row["gap"]
 		L_gap.text = _format_gap_text(id, lap, s_px, speed)
+
+		# mark locked after we processed this frame
+		if finished:
+			_locked_ids[id] = true
 
 	# hide rows not in top N
 	for id_key in _row_for_id.keys():

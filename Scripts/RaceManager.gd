@@ -33,7 +33,7 @@ signal race_finished(results: Array)
 
 var _race_over: bool = false
 var _finish_mode: bool = false
-
+var _finish_order: Array = []  # ids in the order they finish
 
 # >>> NEW: public helpers for the UI <<<
 func GetLoopLengthPx() -> float:
@@ -175,7 +175,24 @@ func _s_px_from_seg_t(i: int, t: float) -> float:
 	return before + t * float(seg["len_px"])
 
 # Rank comparator: (lap, s_px) in the forward direction, then stable id
+# Sort: finished first by finish_rank, then active racers by (lap, s_px), then id
 func _ahead(a: Dictionary, b: Dictionary) -> bool:
+	var fa := bool(a.get("finished", false))
+	var fb := bool(b.get("finished", false))
+	if fa and not fb:
+		return true
+	if fb and not fa:
+		return false
+	if fa and fb:
+		var ra := int(a.get("finish_rank", 0))
+		var rb := int(b.get("finish_rank", 0))
+		if ra != rb:
+			return ra < rb
+		var aid := (a["node"] as Node).get_instance_id()
+		var bid := (b["node"] as Node).get_instance_id()
+		return aid < bid
+
+	# neither finished -> use lap/s_px + direction
 	var la := int(a["lap"])
 	var lb := int(b["lap"])
 	if la != lb:
@@ -184,7 +201,6 @@ func _ahead(a: Dictionary, b: Dictionary) -> bool:
 	var sa := float(a["s_px"])
 	var sb := float(b["s_px"])
 	if sa != sb:
-		# Direction-aware comparison
 		if forward_increases_s_px:
 			return sa > sb
 		else:
@@ -195,23 +211,34 @@ func _ahead(a: Dictionary, b: Dictionary) -> bool:
 	return aid < bid
 
 func Setup() -> void:
+	# Cache scene refs
 	_pseudo3d = get_node_or_null(pseudo3d_node)
 	_overlay  = get_node_or_null(path_overlay_node)
 	_player   = get_node_or_null(player_path)
 
+	# Build racer list
 	var root := get_node_or_null(racers_root)
 	_racers.clear()
 	if root:
 		for c in root.get_children():
 			if c is Node and c.has_method("ReturnMapPosition") and c.has_method("ReturnSpriteGraphic"):
 				_racers.append(c)
+	# Ensure player is in the list and first
 	if _player and not _racers.has(_player):
 		_racers.insert(0, _player)
 
+	# Path segments
 	_rebuild_path_segments()
 
+	# Reset state
 	_progress.clear()
-	# NOTE: Do NOT start timing yet; timing begins when each racer FIRST crosses S/F (Lap becomes 1).
+	_last_board_sig = ""
+	if typeof(_finish_order) != TYPE_NIL:
+		_finish_order.clear()
+	_race_over = false
+	_finish_mode = false
+
+	# Do NOT start timing yet; timing begins when Lap becomes 1 on first S/F crossing.
 	for r in _racers:
 		var s := _sample_s_of(r)
 		_progress[r.get_instance_id()] = {
@@ -221,18 +248,18 @@ func Setup() -> void:
 			"lap_start_ms": 0,
 			"timing_started": false,
 			"last_lap_ms": 0,
-			"best_lap_ms": 0
+			"best_lap_ms": 0,
+			"finished": false,     # per-racer lock support
+			"finish_rank": 0
 		}
 
-	_race_over = false  # <<< NEW
-
+	# Debug
 	print("[RaceManager] Setup: racers=", _racers.size(), " segments=", _segments.size(), " loop_len_px=", _loop_len_px)
 	for r in _racers:
 		var p3: Vector3 = r.ReturnMapPosition()
 		prints("  racer:", r.name, "pos(", p3.x, p3.y, p3.z, ") s_px=", _sample_s_of(r))
 
-	_race_over = false
-	_finish_mode = false
+	# Initial emit
 	emit_signal("standings_changed", GetCurrentStandings())
 
 func Update() -> void:
@@ -244,9 +271,8 @@ func Update() -> void:
 			return
 
 	var changed := false
-	var player_finished_now := false
 
-	# ---- per-racer progress (lap, s_px) ----
+	# progress update
 	for r in _racers:
 		if not is_instance_valid(r):
 			continue
@@ -256,14 +282,18 @@ func Update() -> void:
 			_progress[id] = {
 				"lap": 0, "s_px": 0.0, "prev_s_px": 0.0,
 				"lap_start_ms": 0, "timing_started": false,
-				"last_lap_ms": 0, "best_lap_ms": 0
+				"last_lap_ms": 0, "best_lap_ms": 0,
+				"finished": false, "finish_rank": 0
 			}
+
+		# freeze finished racers
+		if bool(_progress[id]["finished"]):
+			continue
 
 		var prev_s := float(_progress[id]["s_px"])
 		var lap    := int(_progress[id]["lap"])
 		var s := _sample_s_of(r)
 
-		# wrap-safe lap accounting using arc-distance, honoring direction
 		var half = max(_loop_len_px * 0.5, 1.0)
 		var ds := s - prev_s
 		var crossed_finish := false
@@ -281,11 +311,10 @@ func Update() -> void:
 			elif ds < -half:
 				lap = max(0, lap - 1)
 
-		# Timing rules
+		# timing
 		if crossed_finish:
 			var timing_started: bool = bool(_progress[id].get("timing_started", false))
 			var now_ms := Time.get_ticks_msec()
-
 			if not timing_started and lap == 1:
 				_progress[id]["timing_started"] = true
 				_progress[id]["lap_start_ms"] = now_ms
@@ -298,10 +327,15 @@ func Update() -> void:
 					_progress[id]["best_lap_ms"] = lap_ms
 				_progress[id]["lap_start_ms"] = now_ms
 
-			# NEW: detect player's finish
-			if not _race_over and is_instance_valid(_player) and id == _player.get_instance_id():
-				if lap >= total_laps:
-					player_finished_now = true
+			# mark finished on crossing that reaches total_laps
+			if lap >= total_laps and not bool(_progress[id]["finished"]):
+				_progress[id]["finished"] = true
+				_finish_order.append(id)
+				_progress[id]["finish_rank"] = _finish_order.size()
+				# clamp lap to total_laps and freeze s at the line we just crossed
+				lap = total_laps
+				# after this frame, we will stop updating this racer
+				changed = true
 
 		if s != prev_s or lap != int(_progress[id]["lap"]):
 			changed = true
@@ -310,13 +344,12 @@ func Update() -> void:
 		_progress[id]["s_px"] = s
 		_progress[id]["lap"] = lap
 
-	# ---- build sorted board (lap, s_px) ----
+	# build sorted board
 	var board := []
 	for r in _racers:
 		if not is_instance_valid(r):
 			continue
 		var id := r.get_instance_id()
-
 		var cur_spd := 0.0
 		if r.has_method("ReturnMovementSpeed"):
 			cur_spd = float(r.call("ReturnMovementSpeed"))
@@ -327,7 +360,9 @@ func Update() -> void:
 			"s_px": float(_progress[id]["s_px"]),
 			"last_ms": int(_progress[id].get("last_lap_ms", 0)),
 			"best_ms": int(_progress[id].get("best_lap_ms", 0)),
-			"cur_speed": cur_spd
+			"cur_speed": cur_spd,
+			"finished": bool(_progress[id].get("finished", false)),
+			"finish_rank": int(_progress[id].get("finish_rank", 0))
 		})
 
 	board.sort_custom(_ahead)
@@ -336,7 +371,7 @@ func Update() -> void:
 
 	_apply_z_order()
 
-	# ---- signature/debug ----
+	# signature/debug
 	var sig_parts := []
 	for i in range(board.size()):
 		var it: Dictionary = board[i]
@@ -351,39 +386,9 @@ func Update() -> void:
 
 	if do_periodic or order_changed:
 		print("[RaceManager] loop_len_px=", _loop_len_px, " changed=", changed, " order_changed=", order_changed, " racers=", _racers.size())
-		for r in _racers:
-			var id := r.get_instance_id()
-			var prev_s := float(_progress[id]["prev_s_px"])
-			var s := float(_progress[id]["s_px"])
-			var ds := s - prev_s
-			prints("    ", r.name, "lap", _progress[id]["lap"], "s_px", s, "ds", ds)
 
 	_last_board_sig = sig
 
-	# ---- NEW: start finish mode once ----
-	if player_finished_now and not _race_over:
-		_race_over = true
-		_finish_mode = true
-		print("[RaceManager] RACE FINISHED — total_laps=", total_laps)
-		emit_signal("race_finished", board)
-		# soft-disable player input if available; we will drive them
-		if is_instance_valid(_player):
-			if _player.has_method("EnableInput"):
-				_player.call("EnableInput", false)
-		# spin up the finish camera if Pseudo3D supports it
-		if is_instance_valid(_pseudo3d) and _pseudo3d.has_method("StartFinishCamera"):
-			_pseudo3d.call("StartFinishCamera", _player)
-
-	# ---- NEW: while in finish mode, auto-drive player + update 12-frame sprite ----
-	if _finish_mode and is_instance_valid(_player):
-		# FIX: use the Node method for delta time (or Engine singleton is fine too)
-		_autodrive_player_step(self.get_process_delta_time())
-		_update_player_12frame_sprite()
-
-	# If you want to stop normal updates once finished, early-return here:
-	# if _finish_mode: return
-
-	# ---- normal event ----
 	if changed or order_changed:
 		emit_signal("standings_changed", board)
 
@@ -509,20 +514,19 @@ func GetCurrentStandings() -> Array:
 		if not is_instance_valid(r):
 			continue
 		var id := r.get_instance_id()
-
 		var cur_spd := 0.0
 		if r.has_method("ReturnMovementSpeed"):
 			cur_spd = float(r.call("ReturnMovementSpeed"))
-
 		board.append({
 			"node": r,
 			"lap":  int(_progress[id]["lap"]),
 			"s_px": float(_progress[id]["s_px"]),
 			"last_ms": int(_progress[id].get("last_lap_ms", 0)),
 			"best_ms": int(_progress[id].get("best_lap_ms", 0)),
-			"cur_speed": cur_spd
+			"cur_speed": cur_spd,
+			"finished": bool(_progress[id].get("finished", false)),
+			"finish_rank": int(_progress[id].get("finish_rank", 0))
 		})
-
 	board.sort_custom(_ahead)
 	for i in range(board.size()):
 		board[i]["place"] = i + 1
