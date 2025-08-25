@@ -19,6 +19,7 @@ class_name Leaderboard
 @export var col_gap_w:   int = 40
 @export var col_last_w:  int = 70
 @export var col_best_w:  int = 70
+@export var col_total_w:  int = 70
 
 
 # Colors
@@ -133,20 +134,22 @@ func _build_ui_once() -> void:
 	var hp := _make_label("POS", col_place_w, HORIZONTAL_ALIGNMENT_RIGHT)
 	var ha := _make_label("CHG", col_arrow_w, HORIZONTAL_ALIGNMENT_CENTER)
 	var hn := _make_label("DRIVER", col_name_w, HORIZONTAL_ALIGNMENT_LEFT) # fixed width
-	hn.name = "HDR_NAME"  # so we can tweak later if needed
+	hn.name = "HDR_NAME"
 
 	var hl := _make_label("LAP",   col_lap_w, HORIZONTAL_ALIGNMENT_CENTER)
-	var hlast := _make_label("LAST", col_last_w, HORIZONTAL_ALIGNMENT_RIGHT)
-	var hbest := _make_label("BEST", col_best_w, HORIZONTAL_ALIGNMENT_RIGHT)
-	var hs := _make_label("CUR", col_speed_w, HORIZONTAL_ALIGNMENT_RIGHT)
+	var hlast := _make_label("LAST",  col_last_w,  HORIZONTAL_ALIGNMENT_RIGHT)
+	var hbest := _make_label("BEST",  col_best_w,  HORIZONTAL_ALIGNMENT_RIGHT)
+	var htotal := _make_label("TOTAL", col_total_w, HORIZONTAL_ALIGNMENT_RIGHT) # NEW
+	var hs := _make_label("CUR",   col_speed_w, HORIZONTAL_ALIGNMENT_RIGHT)
 	var hg := _make_label("GAP/LAP", col_gap_w, HORIZONTAL_ALIGNMENT_RIGHT)
 
 	_header.add_child(hp)
 	_header.add_child(ha)
-	_header.add_child(hn)   # fixed width name header
+	_header.add_child(hn)
 	_header.add_child(hl)
 	_header.add_child(hlast)
 	_header.add_child(hbest)
+	_header.add_child(htotal) # NEW
 	_header.add_child(hs)
 	_header.add_child(hg)
 
@@ -207,19 +210,19 @@ func _make_row_widget(racer_id: int) -> Dictionary:
 	var L_place := _make_label("", col_place_w, HORIZONTAL_ALIGNMENT_RIGHT)
 	var L_arrow := _make_label(".", col_arrow_w, HORIZONTAL_ALIGNMENT_CENTER)
 
-	# DRIVER column: fixed width you control via col_name_w
+	# DRIVER column: fixed width via col_name_w
 	var L_name := _make_label("", col_name_w, HORIZONTAL_ALIGNMENT_LEFT)
 	L_name.name = "NAME"
 	L_name.clip_text = true
 	L_name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	# Keep it fixed-width (do not expand to fill)
 	L_name.size_flags_horizontal = 0
 
 	var L_lap   := _make_label("", col_lap_w, HORIZONTAL_ALIGNMENT_CENTER)
-	var L_last  := _make_label("", col_last_w, HORIZONTAL_ALIGNMENT_RIGHT)
-	var L_best  := _make_label("", col_best_w, HORIZONTAL_ALIGNMENT_RIGHT)
+	var L_last  := _make_label("", col_last_w,  HORIZONTAL_ALIGNMENT_RIGHT)
+	var L_best  := _make_label("", col_best_w,  HORIZONTAL_ALIGNMENT_RIGHT)
+	var L_total := _make_label("", col_total_w, HORIZONTAL_ALIGNMENT_RIGHT) # NEW
 	var L_speed := _make_label("", col_speed_w, HORIZONTAL_ALIGNMENT_RIGHT)
-	var L_gap   := _make_label("", col_gap_w, HORIZONTAL_ALIGNMENT_RIGHT)
+	var L_gap   := _make_label("", col_gap_w,   HORIZONTAL_ALIGNMENT_RIGHT)
 
 	H.add_child(L_place)
 	H.add_child(L_arrow)
@@ -227,6 +230,7 @@ func _make_row_widget(racer_id: int) -> Dictionary:
 	H.add_child(L_lap)
 	H.add_child(L_last)
 	H.add_child(L_best)
+	H.add_child(L_total) # NEW
 	H.add_child(L_speed)
 	H.add_child(L_gap)
 
@@ -238,6 +242,7 @@ func _make_row_widget(racer_id: int) -> Dictionary:
 	row["lap"]    = L_lap
 	row["last"]   = L_last
 	row["best"]   = L_best
+	row["total"]  = L_total # NEW
 	row["speed"]  = L_speed
 	row["gap"]    = L_gap
 
@@ -279,7 +284,6 @@ func _update_rows(board: Array) -> void:
 		# row move: allow one final move when they finish, then freeze
 		var needs_move = abs(holder.position.y - target_y) >= 0.5
 		if needs_move and (not row_locked or just_finished):
-			# animate only if not locked yet (or the finishing frame)
 			if _tweens_by_id.has(id):
 				var old: Tween = _tweens_by_id[id]
 				if old:
@@ -363,10 +367,15 @@ func _update_rows(board: Array) -> void:
 
 		var last_ms := int(it.get("last_ms", 0))
 		var best_ms := int(it.get("best_ms", 0))
+		var total_ms := int(it.get("total_ms", 0)) # NEW
+
 		var L_last: Label = row["last"]
 		var L_best: Label = row["best"]
+		var L_total: Label = row["total"] # NEW
+
 		L_last.text = _fmt_ms(last_ms)
 		L_best.text = _fmt_ms(best_ms)
+		L_total.text = _fmt_ms(total_ms)  # NEW
 
 		var L_speed: Label = row["speed"]
 		L_speed.text = _fmt_speed(speed)
@@ -407,7 +416,7 @@ func _format_gap_text(id: int, lap: int, s_px: float, speed: float) -> String:
 		return "+%dL" % laps_behind
 
 	var gap_s: float = _gap_seconds_for(id, lap, s_px, speed)
-	return "—" if gap_s <= 0.01 else "+" + String.num(gap_s, 2) + "s"
+	return "--" if gap_s <= 0.01 else "+" + String.num(gap_s, 2) + "s"
 
 
 func _gap_seconds_for(id: int, lap: int, s_px: float, speed: float) -> float:

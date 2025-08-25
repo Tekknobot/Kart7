@@ -25,6 +25,9 @@ class_name Minimap
 # Update throttling (for very large racer counts):
 @export var update_stride_frames: int = 1                  # 1 = every frame, 2 = every other, etc.
 
+@export var resample_step_px: float = 6.0   # target spacing along the polyline (panel pixels)
+@export var smooth_iterations: int = 0      # 0..3—apply Chaikin smoothing for rounder corners
+
 # ---------- Internals ----------
 var _provider: Node = null
 var _root: Node = null
@@ -121,11 +124,10 @@ func _uv_to_panel(uv: Vector2) -> Vector2:
 func _draw() -> void:
 	# Path
 	if _uv_loop.size() >= 2:
-		var prev := _uv_to_panel(_uv_loop[0])
-		for i in range(1, _uv_loop.size()):
-			var cur := _uv_to_panel(_uv_loop[i])
-			draw_line(prev, cur, path_color, path_width, true)
-			prev = cur
+		var pts := _resampled_panel_points(_uv_loop, resample_step_px, smooth_iterations)
+		if pts.size() >= 2:
+			# One AA call for the whole loop gives better continuity than many draw_line calls
+			draw_polyline(pts, path_color, path_width, true)
 
 	# Dots (racers)
 	if _root != null:
@@ -145,3 +147,65 @@ func _draw() -> void:
 			var rad := player_dot_radius if is_player else dot_radius
 
 			draw_circle(p, rad, col)
+
+# Resample + (optional) smooth the UV loop in panel space for crisp strokes
+func _resampled_panel_points(uv_loop: PackedVector2Array, step_px: float, smooth_iters: int) -> PackedVector2Array:
+	var N := uv_loop.size()
+	if N < 2:
+		return PackedVector2Array()
+
+	# 1) Map to panel space
+	var panel_pts := PackedVector2Array()
+	panel_pts.resize(N)
+	for i in range(N):
+		panel_pts[i] = _uv_to_panel(uv_loop[i])
+
+	# 2) Optional Chaikin smoothing in panel space
+	if smooth_iters > 0:
+		panel_pts = _chaikin(panel_pts, clamp(smooth_iters, 0, 4))
+
+	# 3) Evenly resample the polyline by arc length
+	if step_px <= 0.0:
+		return panel_pts
+
+	var out := PackedVector2Array()
+	out.append(panel_pts[0])
+
+	var acc := 0.0
+	for i in range(1, panel_pts.size()):
+		var a := panel_pts[i - 1]
+		var b := panel_pts[i]
+		var seg_len := a.distance_to(b)
+		if seg_len <= 0.0001:
+			continue
+
+		var t := step_px - acc
+		while t <= seg_len:
+			var p := a.lerp(b, t / seg_len)
+			out.append(p)
+			t += step_px
+		acc = seg_len - (t - step_px)
+	# keep final point
+	if out.size() == 0 or out[out.size() - 1] != panel_pts[panel_pts.size() - 1]:
+		out.append(panel_pts[panel_pts.size() - 1])
+
+	return out
+
+# Chaikin corner-cutting (simple curve smoothing)
+func _chaikin(src: PackedVector2Array, iters: int) -> PackedVector2Array:
+	var pts := src
+	for _i in range(iters):
+		if pts.size() < 3:
+			break
+		var dst := PackedVector2Array()
+		dst.append(pts[0])
+		for k in range(0, pts.size() - 1):
+			var p := pts[k]
+			var q := pts[k + 1]
+			var Q := p * 0.75 + q * 0.25
+			var R := p * 0.25 + q * 0.75
+			dst.append(Q)
+			dst.append(R)
+		dst.append(pts[pts.size() - 1])
+		pts = dst
+	return pts
