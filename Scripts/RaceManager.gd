@@ -25,6 +25,7 @@ var _last_board_sig := ""
 
 @export var forward_increases_s_px := true
 
+
 # >>> NEW: public helpers for the UI <<<
 func GetLoopLengthPx() -> float:
 	return _loop_len_px
@@ -378,6 +379,33 @@ func GetCurrentStandings() -> Array:
 	for i in range(board.size()):
 		board[i]["place"] = i + 1
 	return board
+
+# --- DIFFICULTY HELPERS FOR AI ---
+
+func GetPlayerLap() -> int:
+	if _player == null:
+		return 0
+	var id := _player.get_instance_id()
+	if _progress.has(id):
+		return int(_progress[id].get("lap", 0))
+	return 0
+
+func GetLeaderLap() -> int:
+	# Uses same sorting rule as the board; robust if segments not ready.
+	var best_lap := 0
+	var best_s := -1e30
+	for r in _racers:
+		if not is_instance_valid(r):
+			continue
+		var id := r.get_instance_id()
+		var lap := int(_progress[id].get("lap", 0))
+		var s := float(_progress[id].get("s_px", 0.0))
+		if lap > best_lap:
+			best_lap = lap
+			best_s = s
+		elif lap == best_lap and s > best_s:
+			best_s = s
+	return best_lap
 
 # Heuristic: convert a racer position to UV correctly (0..1 on both axes)
 func _pos_to_uv(p3: Vector3) -> Vector2:

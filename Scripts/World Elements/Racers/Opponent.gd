@@ -58,6 +58,39 @@ var DEFAULT_POINTS: PackedVector2Array = PackedVector2Array([
 	Vector2(950, 751)
 ])
 
+# --- DIFFICULTY SCALING ---
+@export var race_manager_ref: NodePath
+
+# Use player's lap to scale difficulty; set false to use race leader's lap
+@export var diff_use_player_lap: bool = true
+
+# Lap index at which difficulty begins (0 = from the grid, 1 = only after first crossing)
+@export var diff_start_lap: int = 1
+
+# Per-lap increments (tune to taste)
+@export var diff_speed_per_lap: float = 6.0          # +u/s to base target_speed each lap
+@export var diff_max_speed_per_lap: float = 4.0      # +u/s to _maxMovementSpeed cap each lap
+@export var diff_catchup_gain_per_lap: float = 20.0  # increases catchup pressure each lap
+@export var diff_min_ratio_per_lap: float = 0.01     # min_ratio_vs_player grows each lap
+@export var diff_turn_per_lap: float = 0.05          # +rad/sec to max_turn_rate each lap
+@export var diff_corner_penalty_decay: float = 0.02  # reduce corner slowdown each lap
+
+# Caps / safety
+@export var diff_max_speed_cap: float = 420.0        # hard ceiling for _maxMovementSpeed
+@export var diff_min_corner_penalty: float = 0.40    # never drop below this (0..1)
+@export var diff_max_min_ratio: float = 1.40         # never require >+40% over player
+
+# Cached RaceManager
+var _rm: Node = null
+
+# Baselines (original values to scale from)
+var _base_target_speed: float
+var _base_max_speed: float
+var _base_catchup_gain: float
+var _base_min_ratio: float
+var _base_max_turn_rate: float
+var _base_corner_penalty: float
+
 # Apply a spawn directly from a path index (and optional lane px), and lock it so _ready() won't overwrite it.
 func ApplySpawnFromPathIndex(idx: int, lane_px: float = 0.0) -> void:
 	_try_cache_nodes()
@@ -115,6 +148,9 @@ func _try_cache_nodes() -> void:
 		_angle_sprite = get_node_or_null(angle_sprite_path)
 	if _angle_sprite == null and has_node(^"GFX/AngleSprite"):
 		_angle_sprite = get_node_or_null(^"GFX/AngleSprite")
+	if _rm == null:
+		_rm = get_node_or_null(race_manager_ref)
+		
 
 # ---------------- lifecycle ----------------
 func _ready() -> void:
@@ -147,6 +183,15 @@ func _ready() -> void:
 
 	if _maxMovementSpeed < max_speed_override:
 		_maxMovementSpeed = max_speed_override
+		
+	# ---- difficulty baselines ----
+	_base_target_speed = target_speed
+	_base_max_speed = _maxMovementSpeed
+	_base_catchup_gain = catchup_gain_speed
+	_base_min_ratio = min_ratio_vs_player
+	_base_max_turn_rate = max_turn_rate
+	_base_corner_penalty = speed_damper_on_curve
+		
 
 func _process(delta: float) -> void:
 	if _uv_points.is_empty():
@@ -154,6 +199,7 @@ func _process(delta: float) -> void:
 
 	# Lazy recache if nodes were freed
 	_try_cache_nodes()
+	_apply_dynamic_difficulty()
 
 	# --- lookahead steering (cheap) ---
 	var p_uv: Vector2 = _uv_at_distance(_s_px)
@@ -243,6 +289,43 @@ func _process(delta: float) -> void:
 	if debug_log_ai_sprite and (f % 60 == 0):
 		var sp := ReturnSpriteGraphic()
 		prints("AI sprite:", sp, " path:", str(get("sprite_graphic_path")))
+
+func _apply_dynamic_difficulty() -> void:
+	# Determine lap driving the difficulty
+	var lap_for_diff := 0
+	if _rm != null:
+		if diff_use_player_lap and _rm.has_method("GetPlayerLap"):
+			lap_for_diff = int(_rm.call("GetPlayerLap"))
+		elif _rm.has_method("GetLeaderLap"):
+			lap_for_diff = int(_rm.call("GetLeaderLap"))
+
+	# How many laps into the difficulty window are we?
+	var laps_into = max(0, lap_for_diff - diff_start_lap)
+	if laps_into <= 0:
+		# Reset to baselines if we're before the start lap
+		target_speed = _base_target_speed
+		_maxMovementSpeed = _base_max_speed
+		catchup_gain_speed = _base_catchup_gain
+		min_ratio_vs_player = _base_min_ratio
+		max_turn_rate = _base_max_turn_rate
+		speed_damper_on_curve = _base_corner_penalty
+		return
+
+	# Scale knobs
+	var new_target = _base_target_speed + laps_into * diff_speed_per_lap
+	var new_maxcap = min(_base_max_speed + laps_into * diff_max_speed_per_lap, diff_max_speed_cap)
+	var new_catchup = _base_catchup_gain + laps_into * diff_catchup_gain_per_lap
+	var new_min_ratio = min(_base_min_ratio + laps_into * diff_min_ratio_per_lap, diff_max_min_ratio)
+	var new_turn = _base_max_turn_rate + laps_into * diff_turn_per_lap
+	var new_corner = clamp(_base_corner_penalty + laps_into * diff_corner_penalty_decay, diff_min_corner_penalty, 1.0)
+
+	# Apply
+	target_speed = new_target
+	_maxMovementSpeed = new_maxcap
+	catchup_gain_speed = new_catchup
+	min_ratio_vs_player = new_min_ratio
+	max_turn_rate = new_turn
+	speed_damper_on_curve = new_corner
 
 # ---- visuals (fast paths) ----
 func _update_angle_sprite_fast() -> void:
