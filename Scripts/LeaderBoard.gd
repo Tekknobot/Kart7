@@ -54,6 +54,9 @@ var _leader_s_px := 0.0
 var _highlight_until := {}                   # racer_id -> time(s) when highlight ends
 var _bg_tween_by_id := {}                    # racer_id -> Tween for BG fade (killed on refresh)
 
+@export var lock_on_finish: bool = true
+var _locked: bool = false
+
 # ---------------- lifecycle ----------------
 func _ready() -> void:
 	_build_ui_once()
@@ -64,6 +67,11 @@ func _ready() -> void:
 	if _rm and _rm.has_signal("standings_changed"):
 		if not _rm.is_connected("standings_changed", Callable(self, "_on_standings_changed")):
 			_rm.connect("standings_changed", Callable(self, "_on_standings_changed"))
+
+	# NEW: lock on final results
+	if _rm and _rm.has_signal("race_finished"):
+		if not _rm.is_connected("race_finished", Callable(self, "_on_race_finished")):
+			_rm.connect("race_finished", Callable(self, "_on_race_finished"))
 
 	if _rm and _rm.has_method("GetCurrentStandings"):
 		_update_loop_len()
@@ -84,6 +92,8 @@ func _exit_tree() -> void:
 # ---------------- signals ----------------
 func _on_standings_changed(board: Array) -> void:
 	if board.is_empty():
+		return
+	if lock_on_finish and _locked:
 		return
 	_update_loop_len()
 	_apply_leader_snapshot(board)
@@ -245,7 +255,9 @@ func _update_rows(board: Array) -> void:
 	var visible_ids := {}
 
 	var now_s := Time.get_ticks_msec() / 1000.0
-	var hl_sec := animate_time  # highlight lasts for the row-move animation length
+	var hl_sec := animate_time
+	var do_animate := not _locked
+	var do_highlight := not _locked
 
 	for i in range(count):
 		var it: Dictionary = board[i]
@@ -261,9 +273,9 @@ func _update_rows(board: Array) -> void:
 		var target_y := float(i * row_height)
 		holder.z_index = i
 
-		# animate row reposition
+		# move (no tween if locked)
 		var needs_move = abs(holder.position.y - target_y) >= 0.5
-		if needs_move:
+		if needs_move and do_animate:
 			if _tweens_by_id.has(id):
 				var old: Tween = _tweens_by_id[id]
 				if old:
@@ -274,11 +286,11 @@ func _update_rows(board: Array) -> void:
 		else:
 			holder.position.y = target_y
 
-		# base striping, but DON'T override if a highlight is active for this row
+		# base striping, but do not override an active highlight
 		var bg: ColorRect = row["bg"]
 		var hl_until := float(bg.get_meta("hl_until")) if bg.has_meta("hl_until") else 0.0
 		var is_highlighting := hl_until > now_s
-		if not is_highlighting:
+		if not is_highlighting or _locked:
 			if _player != null and racer == _player:
 				bg.color = color_player_bg
 			else:
@@ -304,28 +316,23 @@ func _update_rows(board: Array) -> void:
 		_prev_place_for_id[id] = place
 		L_place.text = str(place)
 
-		# arrow + highlight
+		# arrow + highlight (disabled once locked)
 		var L_arrow: Label = row["arrow"]
-		if prev_place != 0 and prev_place != place:
+		if do_highlight and prev_place != 0 and prev_place != place:
 			var gained = place < prev_place
 			L_arrow.text = "^" if gained else "v"
 
-			# start/refresh highlight window
 			bg.set_meta("hl_until", now_s + hl_sec)
 
-			# kill any existing BG tween for this row
 			if bg.has_meta("hl_tw"):
 				var old_tw: Tween = bg.get_meta("hl_tw")
-				if old_tw:
-					old_tw.kill()
+				if old_tw: old_tw.kill()
 				bg.set_meta("hl_tw", null)
 
-			# set highlight color and fade its alpha over hl_sec
 			bg.color = color_gain if gained else color_loss
 			var tw2 := create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 			tw2.tween_property(bg, "color:a", 0.0, hl_sec).from(0.90)
 			tw2.tween_callback(func ():
-				# only restore if window actually expired (ignore if refreshed meanwhile)
 				var now2 := Time.get_ticks_msec() / 1000.0
 				var still_until := float(bg.get_meta("hl_until")) if bg.has_meta("hl_until") else 0.0
 				if still_until <= now2:
@@ -337,7 +344,11 @@ func _update_rows(board: Array) -> void:
 			)
 			bg.set_meta("hl_tw", tw2)
 		else:
-			L_arrow.text = "."  # neutral
+			# neutral arrow once locked or no change
+			if _locked:
+				L_arrow.text = "."
+			elif prev_place == 0 or prev_place == place:
+				L_arrow.text = "."
 
 		# lap / speed / times / gap
 		var L_lap: Label = row["lap"]
@@ -421,3 +432,23 @@ func _lap_deficit_to_leader(lap: int, s_px: float) -> int:
 	# Number of whole loop lengths behind (never negative)
 	var laps_behind: int = int(floor(delta / _loop_len_px + 0.000001))
 	return max(0, laps_behind)
+
+func _on_race_finished(board: Array) -> void:
+	_update_loop_len()
+	_apply_leader_snapshot(board)
+	_locked = true if lock_on_finish else false
+	_update_rows(board)  # final paint
+
+	# stop any ongoing tweens/highlights
+	for k in _tweens_by_id.keys():
+		var tw: Tween = _tweens_by_id[k]
+		if tw: tw.kill()
+	_tweens_by_id.clear()
+
+	for id_key in _row_for_id.keys():
+		var bg: ColorRect = _row_for_id[id_key]["bg"]
+		if bg.has_meta("hl_tw"):
+			var old_tw: Tween = bg.get_meta("hl_tw")
+			if old_tw: old_tw.kill()
+			bg.set_meta("hl_tw", null)
+		bg.set_meta("hl_until", 0.0)
