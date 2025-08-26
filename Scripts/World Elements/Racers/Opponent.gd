@@ -128,6 +128,17 @@ var _pass_cooldown: float = 0.0
 var _hum_phase: float = 0.0
 var _hum_noise: float = 0.0
 var _hum_rng := RandomNumberGenerator.new()
+
+# ---- Path following smoothers (anti-snap) ----
+@export var lookahead_px_base: float = 140.0   # base look-ahead distance (px)
+@export var lookahead_px_min:  float = 80.0    # clamp low
+@export var lookahead_px_max:  float = 260.0   # clamp high
+@export var lookahead_curv_boost: float = 180.0  # +px on straights (curvature≈0)
+
+@export var desired_yaw_half_life_s: float = 0.10   # ease target heading (seconds to half)
+@export var heading_rate_limit:     float = 2.6     # rad/s cap (softer than max_turn_rate)
+
+var _desired_yaw: float = 0.0   # smoothed target yaw (radians)
 		
 func set_world_and_screen(M: Basis, scr: Vector2) -> void:
 	_view_M = M
@@ -249,18 +260,36 @@ func _process(delta: float) -> void:
 	_try_cache_nodes()
 	_apply_dynamic_difficulty()
 
-	# --- lookahead steering (cheap) ---
+	# --- lookahead steering (smooth, curvature-aware) ---
 	var p_uv: Vector2 = _uv_at_distance(_s_px)
-	var t_uv: Vector2 = _uv_at_distance(_s_px + lookahead_px)
+
+	# curvature proxy already computed above:
+	#   curv_approx : 0 (straight) .. ~1 (tight turn)
+	var curv_u: float = clamp(0.1 / 0.6, 0.0, 1.0)
+
+	# Dynamic look-ahead: longer on straights, shorter on tight corners
+	var la := lookahead_px_base + (1.0 - curv_u) * lookahead_curv_boost
+	la = clamp(la, lookahead_px_min, lookahead_px_max)
+
+	# Aim towards the point la ahead along the path
+	var t_uv: Vector2 = _uv_at_distance(_s_px + la)
 	var to_t: Vector2 = t_uv - p_uv
 	var to_t_len := to_t.length()
 	if to_t_len > 0.00001:
 		to_t /= to_t_len
 	var desired_angle: float = atan2(to_t.y, to_t.x)
 
-	var yaw_err: float = wrapf(desired_angle - _heading, -PI, PI) * steer_gain
-	var yaw_step: float = clamp(yaw_err, -max_turn_rate * delta, max_turn_rate * delta)
+	# Low-pass the desired yaw so the target direction doesn't jump at vertices
+	_desired_yaw = _exp_smooth_angle(_desired_yaw, desired_angle, delta, desired_yaw_half_life_s)
+
+	# PD-lite: steer toward the smoothed target with a soft rate limit
+	var yaw_err := wrapf(_desired_yaw - _heading, -PI, PI) * steer_gain
+	var yaw_step = clamp(yaw_err, -heading_rate_limit * delta, heading_rate_limit * delta)
+	# Also respect the original absolute cap (backstop)
+	yaw_step = clamp(yaw_step, -max_turn_rate * delta, max_turn_rate * delta)
+
 	_heading = wrapf(_heading + yaw_step, -PI, PI)
+
 
 	# --- curvature proxy (no acos) ---
 	# Use dot of tangents as 0..1 sharpness, then map like before
@@ -300,7 +329,7 @@ func _process(delta: float) -> void:
 			desired_speed = min_over
 
 	# --- curve damping (same shape, no acos)
-	var curv_u: float = clamp(curv_approx / 0.6, 0.0, 1.0)
+	curv_u = clamp(curv_approx / 0.6, 0.0, 1.0)
 	var corner_mult: float = lerp(1.0, speed_damper_on_curve, curv_u)
 	desired_speed *= corner_mult
 
@@ -789,3 +818,9 @@ func _score_lane(candidate_px: float, ahead: Array, dt: float) -> float:
 		blocked_penalty = 0.0
 
 	return safety + clearance_term + outer_bias - change_penalty - blocked_penalty
+
+func _exp_smooth_angle(prev: float, target: float, dt: float, half_life: float) -> float:
+	var hl = max(half_life, 0.0001)
+	var a := 1.0 - pow(0.5, dt / hl)
+	var d := wrapf(target - prev, -PI, PI)
+	return wrapf(prev + d * a, -PI, PI)
