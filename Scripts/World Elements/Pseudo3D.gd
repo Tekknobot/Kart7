@@ -38,6 +38,10 @@ var _last_matrix: Basis
 
 var _finish_mode: bool = false
 
+const REARVIEW_ACTION: StringName = "RearView"
+func _rearview_on() -> bool:
+	return Input.is_action_pressed(REARVIEW_ACTION)
+
 func _ready():
 	# cache once
 	for np in opponent_nodes:
@@ -47,6 +51,36 @@ func _ready():
 	_overlay_node = get_node_or_null(path_overlay_node)
 	_last_matrix = Basis()
 	
+	_ensure_rearview_binding()
+
+func _process(_dt):
+	if not InputMap.has_action(REARVIEW_ACTION):
+		if Engine.get_frames_drawn() % 30 == 0:
+			print("Missing action: ", REARVIEW_ACTION)
+	else:
+		if Input.is_action_pressed(REARVIEW_ACTION):
+			if Engine.get_frames_drawn() % 15 == 0:
+				print(REARVIEW_ACTION, " held")
+
+func _ensure_rearview_binding() -> void:
+	# Create the action if it doesn't exist
+	if not InputMap.has_action(REARVIEW_ACTION):
+		InputMap.add_action(REARVIEW_ACTION)
+
+	# Clear duplicates so we don't pile up bindings in hot-reload
+	for ev in InputMap.action_get_events(REARVIEW_ACTION):
+		InputMap.action_erase_event(REARVIEW_ACTION, ev)
+
+	# Keyboard: Shift (Godot 4 doesn't distinguish left/right shift in the keycode API)
+	var k := InputEventKey.new()
+	k.keycode = Key.KEY_SHIFT
+	InputMap.action_add_event(REARVIEW_ACTION, k)
+
+	# Gamepad: Left Shoulder (L1/LB)
+	var jb := InputEventJoypadButton.new()
+	jb.button_index = JOY_BUTTON_LEFT_SHOULDER
+	InputMap.action_add_event(REARVIEW_ACTION, jb)
+		
 func _bind_path_overlay_texture() -> void:
 	if material != null and path_overlay_viewport != null:
 		var tex := path_overlay_viewport.get_texture()
@@ -63,6 +97,10 @@ func Setup(screenSize : Vector2, player : Racer) -> void:
 	_update_opponents_view_bindings()   # prime once
 
 func Update(player: Racer) -> void:
+	if _rearview_on():
+		if Engine.get_frames_drawn() % 15 == 0:
+			print("RearView held")
+	
 	if _finish_mode:
 		# Ignore input; do a steady cinematic orbit around the player
 		_mapRotSpeed = abs(finish_orbit_speed)
@@ -75,12 +113,26 @@ func Update(player: Racer) -> void:
 		_update_opponents_view_bindings()
 		return
 
-	# Normal gameplay mode
-	RotateMap(player.ReturnPlayerInput().x, player.ReturnMovementSpeed())
-	KeepRotationDistance(player)
-	UpdateShader()
-	_update_opponents_view_bindings()
+	# --- Normal gameplay mode ---
+	var steer = player.ReturnPlayerInput().x
+	var speed := player.ReturnMovementSpeed()
 
+	# While rear view is active, invert steer so controls feel right.
+	if _rearview_on():
+		steer = -steer
+
+	RotateMap(steer, speed)
+	KeepRotationDistance(player)
+
+	# Temporarily yaw 180° for rendering when rear view is held.
+	if _rearview_on():
+		_mapRotationAngle.y = WrapAngle(_mapRotationAngle.y + PI)
+		UpdateShader()
+		_mapRotationAngle.y = WrapAngle(_mapRotationAngle.y - PI)
+	else:
+		UpdateShader()
+
+	_update_opponents_view_bindings()
 
 func RotateMap(rotDir : int, speed : float) -> void:
 	if rotDir != 0 and abs(speed) > 0.0:
