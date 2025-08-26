@@ -3,3 +3,4 @@ res://Scripts/Shaders/ModeSeven.gdshader
 res://Scripts/Shaders/GasDistort.gdshader
 res://Scripts/Shaders/YoshiSwap.gdshader
 res://Textures/VFX/StarNight.tscn
+res://Scripts/LeaderBoard.gd

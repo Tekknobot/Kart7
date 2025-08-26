@@ -1686,6 +1686,7 @@ total_laps = 6
 finish_auto_speed_px = 240.0
 
 [node name="LeaderBoard" type="Control" parent="."]
+visible = false
 layout_mode = 3
 anchors_preset = 0
 offset_left = 11.0

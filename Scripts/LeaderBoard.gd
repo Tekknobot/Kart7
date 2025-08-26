@@ -59,8 +59,32 @@ var _bg_tween_by_id := {}                    # racer_id -> Tween for BG fade (ki
 var _locked: bool = false
 var _locked_ids := {}   # racer_id -> true after that racer finishes
 
+const TOGGLE_ACTION := "toggle_leaderboard"
+
+func _ensure_toggle_action() -> void:
+	if not InputMap.has_action(TOGGLE_ACTION):
+		InputMap.add_action(TOGGLE_ACTION)
+
+		# Keyboard: E
+		var ev_key := InputEventKey.new()
+		ev_key.physical_keycode = KEY_E
+		InputMap.action_add_event(TOGGLE_ACTION, ev_key)
+
+		# Gamepad: North face button (Y on Xbox, Triangle on PlayStation)
+		var ev_pad := InputEventJoypadButton.new()
+		ev_pad.button_index = JOY_BUTTON_Y  # a.k.a. "North"
+		InputMap.action_add_event(TOGGLE_ACTION, ev_pad)
+
+func _input(event: InputEvent) -> void:
+	# Toggle visibility on press (ignore key-repeat)
+	if event.is_action_pressed(TOGGLE_ACTION) and not event.is_echo():
+		visible = not visible
+		accept_event()  # prevent other UI from also handling it
+
 # ---------------- lifecycle ----------------
 func _ready() -> void:
+	_ensure_toggle_action()
+	set_process_input(true)  # so _input runs
 	_build_ui_once()
 
 	_rm = get_node_or_null(race_manager_path)
