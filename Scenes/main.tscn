@@ -1,13 +1,13 @@
-[gd_scene load_steps=35 format=3 uid="uid://d2glnv32t8md1"]
+[gd_scene load_steps=36 format=3 uid="uid://d2glnv32t8md1"]
 
 [ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_emb0w"]
 [ext_resource type="Script" uid="uid://cex362lk6utnk" path="res://Scripts/On Screen Elements/BackgroundEffects.gd" id="2_330he"]
 [ext_resource type="Texture2D" uid="uid://b7ri4tesomgep" path="res://Temp/Background Color_Black.png" id="3_fevyy"]
-[ext_resource type="Texture2D" uid="uid://cefyc1o8c12cw" path="res://Textures/Tracks/Donut Plains 1 - Sky Line.png" id="3_ht13n"]
 [ext_resource type="Shader" uid="uid://hpt6elsw8vyg" path="res://Scripts/Shaders/ModeSeven.gdshader" id="3_okd74"]
-[ext_resource type="Texture2D" uid="uid://b2p41drytlkxt" path="res://Textures/Tracks/Donut Plains 1 - Tree Line.png" id="3_vt36i"]
+[ext_resource type="Texture2D" uid="uid://dc7jsgl2xv1da" path="res://Textures/Tracks/Skyline.png" id="4_3pmx8"]
 [ext_resource type="Texture2D" uid="uid://cnp7d7djiq0dd" path="res://Textures/Tracks/Grass_Tile.png" id="4_7c8ey"]
 [ext_resource type="Script" uid="uid://4oyj7tns2kqe" path="res://Scripts/World Elements/Pseudo3D.gd" id="4_s71t4"]
+[ext_resource type="Texture2D" uid="uid://cqfw8jfuvds0q" path="res://Textures/Tracks/Buildings.png" id="5_3pmx8"]
 [ext_resource type="Texture2D" uid="uid://bvioi2jfn2hmv" path="res://Textures/Racers/Yoshi Back.png" id="5_lfi8c"]
 [ext_resource type="Script" uid="uid://dhfy5381d720i" path="res://Scripts/General/Collision.gd" id="6_q57ja"]
 [ext_resource type="Script" uid="uid://5uqme7h2yul3" path="res://Scripts/On Screen Elements/SpriteHandler.gd" id="7_wmybs"]
@@ -24,6 +24,7 @@
 [ext_resource type="Script" uid="uid://cnmmx8tldt4vt" path="res://Scripts/LeaderBoard.gd" id="22_ee4r6"]
 [ext_resource type="FontFile" uid="uid://csnhk3q4gx0" path="res://Fonts/magofonts/mago1.ttf" id="23_gt3je"]
 [ext_resource type="Script" uid="uid://dtnsya35gcocj" path="res://Scripts/Minimap.gd" id="24_3pmx8"]
+[ext_resource type="PackedScene" uid="uid://bm1g128j70kea" path="res://Textures/VFX/StarNight.tscn" id="25_u50mg"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_lhngl"]
 shader = ExtResource("3_okd74")
@@ -1029,7 +1030,7 @@ _data = {
 
 [sub_resource type="Theme" id="Theme_gt3je"]
 default_font = ExtResource("23_gt3je")
-default_font_size = 8
+default_font_size = 16
 
 [node name="Main" type="Node2D" node_paths=PackedStringArray("_map", "_collision", "_player", "_spriteHandler", "_animationHandler", "_backgroundElements", "_raceManager")]
 script = ExtResource("1_emb0w")
@@ -1040,6 +1041,10 @@ _spriteHandler = NodePath("Sprite Handler")
 _animationHandler = NodePath("Sprite Handler/Animation Handler")
 _backgroundElements = NodePath("Background Elements")
 _raceManager = NodePath("RaceManager")
+
+[node name="StarryNight" parent="." instance=ExtResource("25_u50mg")]
+z_index = -4096
+amount = 5000
 
 [node name="Background Elements" type="Node2D" parent="." node_paths=PackedStringArray("_skyLine", "_treeLine")]
 script = ExtResource("2_330he")
@@ -1057,7 +1062,7 @@ texture_filter = 1
 texture_repeat = 2
 position = Vector2(0, 48)
 scale = Vector2(2, 2)
-texture = ExtResource("3_ht13n")
+texture = ExtResource("4_3pmx8")
 centered = false
 region_enabled = true
 region_rect = Rect2(0, 0, 240, 32)
@@ -1067,7 +1072,7 @@ texture_filter = 1
 texture_repeat = 2
 position = Vector2(0, 48)
 scale = Vector2(2, 2)
-texture = ExtResource("3_vt36i")
+texture = ExtResource("5_3pmx8")
 centered = false
 region_enabled = true
 region_rect = Rect2(0, 0, 240, 32)
@@ -1215,7 +1220,8 @@ texture = ExtResource("5_lfi8c")
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Player")
 lane_offset_px = 8.0
-accel = 100.0
+target_speed = 150.0
+accel = 120.0
 max_speed_override = 420.0
 catchup_gain_speed = 0.0
 min_ratio_vs_player = 1.0
@@ -1228,8 +1234,6 @@ draft_dist_px = 128.0
 draft_lateral_px = 32.0
 draft_speed_bonus = 25.0
 humanize_amp_px = 3.0
-_maxMovementSpeed = 110.0
-_movementAccel = 100.0
 _movementDeaccel = 100.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
@@ -1326,7 +1330,8 @@ texture = ExtResource("5_lfi8c")
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Player")
 lane_offset_px = -8.0
-accel = 100.0
+target_speed = 150.0
+accel = 120.0
 max_speed_override = 420.0
 catchup_gain_speed = 0.0
 min_ratio_vs_player = 1.0
@@ -1339,7 +1344,6 @@ draft_dist_px = 128.0
 draft_lateral_px = 32.0
 draft_speed_bonus = 25.0
 humanize_amp_px = 3.0
-_maxMovementSpeed = 110.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
 pseudo3d_ref = NodePath("../../../Map")
@@ -1692,8 +1696,8 @@ theme = SubResource("Theme_gt3je")
 script = ExtResource("22_ee4r6")
 race_manager_path = NodePath("../RaceManager")
 player_path = NodePath("../Sprite Handler/Racers/Player")
-row_height = 8
-animate_time = 2.0
+row_height = 16
+animate_time = 0.8
 col_place_w = 30
 col_arrow_w = 30
 col_lap_w = 40
@@ -1702,7 +1706,7 @@ col_best_w = 40
 col_total_w = 40
 color_player_bg = Color(0.94902, 0.901961, 0.2, 0.494118)
 arrow_flash_frames = 60
-highlight_seconds = 4.0
+highlight_seconds = 0.4
 
 [node name="Minimap" type="Control" parent="."]
 layout_mode = 3
