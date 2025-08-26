@@ -35,6 +35,7 @@ var _last_matrix: Basis
 @export var finish_orbit_speed: float = 0.4    # rad/s around player
 @export var finish_zoom_k: float = 1.5         # bigger = closer look (affects depth_scale)
 @export var finish_duration: float = 3.0       # seconds for zoom ease
+@export var broadcast_view_to_opponents := false  # default off
 
 var _finish_mode: bool = false
 
@@ -206,14 +207,19 @@ func ReturnWorldMatrix() -> Basis: return _finalMatrix
 func ReturnMapRotation() -> float: return _mapRotationAngle.y
 
 func _update_opponents_view_bindings() -> void:
-	# Only update if matrix changed meaningfully
 	if _finalMatrix != _last_matrix:
 		_last_matrix = _finalMatrix
 		var scr: Vector2 = get_viewport_rect().size
+
 		if _overlay_node != null and _overlay_node.has_method("set_world_and_screen"):
 			_overlay_node.call("set_world_and_screen", _finalMatrix, scr)
-	# (avoid get_node_or_null in a loop every frame)
 
+		if broadcast_view_to_opponents:
+			for n in _opponents:
+				if n == null: continue
+				if n.has_method("set_world_and_screen"):
+					n.call("set_world_and_screen", _finalMatrix, scr)
+					
 func SetYaw(angle: float) -> void:
 	_mapRotationAngle.y = angle
 	UpdateShader()
@@ -246,8 +252,11 @@ func SetPathPoints(p: PackedVector2Array) -> void:
 
 # Forward direction of the "camera" in MAP space, derived from yaw
 func get_camera_forward_map() -> Vector2:
-	var f3: Vector3 = ReturnForward()   # (sin(yaw), 0, cos(yaw))
-	var v := Vector2(f3.x, f3.z)
+	var yaw := _mapRotationAngle.y
+	if _rearview_on():
+		yaw = WrapAngle(yaw + PI)
+
+	var v := Vector2(sin(yaw), cos(yaw))  # (x,z)
 	if v.length_squared() == 0.0:
 		return Vector2(0, 1)
 	return v.normalized()

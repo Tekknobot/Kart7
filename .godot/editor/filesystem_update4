@@ -8,3 +8,4 @@ res://Scripts/RearviewMirror.gd
 res://Scripts/World Elements/Racers/Player.gd
 res://Scripts/On Screen Elements/SpriteHandler.gd
 res://Scripts/World Elements/Racers/Opponent.gd
+res://Scripts/World Elements/Racers/Racer.gd

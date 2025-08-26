@@ -426,14 +426,9 @@ func WorldToScreenPosition(worldElement: WorldElement) -> void:
 			(spr as Node2D).scale = Vector2(base3, base3)
 		else:
 			var el_uv := Vector2(mp.x, mp.z)
-
-			# --- intuitive target scale ---
 			var target_scale := _scale_for_element(el_uv, base3, floor_abs)
-
-			# --- smoothing + asymmetric rate limit you already have ---
 			var sm := _smooth_scale_to(id, target_scale, dt)
 
-			# (Optional) keep your turn-growth clamp if you like its feel:
 			if turn_damp_enabled and sm > float(_smoothed_scale.get(id, sm)):
 				var freeze_rad_s := deg_to_rad(turn_freeze_deg_per_s)
 				var turn_norm = clamp(_turn_rate_s / max(0.0001, freeze_rad_s), 0.0, 1.0)
@@ -445,27 +440,49 @@ func WorldToScreenPosition(worldElement: WorldElement) -> void:
 
 			(spr as Node2D).scale = Vector2(sm, sm)
 
+	# ---- rear-aware visibility check (skip while RearView is held) ----
+	var depth_cam := 1.0
+	var rear := Input.is_action_pressed("RearView")   # simple, global action
 
-	# ---- project to screen (fast: reuse _inv_world & _screen_cached) ----
+	var p3d := get_node_or_null(pseudo3d_node)
+	if p3d != null and p3d.has_method("get_camera_forward_map") and _player != null:
+		var cam_f: Vector2 = (p3d.call("get_camera_forward_map") as Vector2)
+		if cam_f.length() > 0.00001:
+			cam_f = cam_f.normalized()
+		var pl3 := _player.ReturnMapPosition()
+		depth_cam = Vector2(mp.x - pl3.x, mp.z - pl3.z).dot(cam_f)
+
+	# Only cull by depth in normal (forward) view. In rear view, rely on projection bounds.
+	if not rear:
+		# tiny tolerance so “almost at the same spot” doesn’t flicker
+		var DEPTH_EPS := -0.0005
+		if worldElement != _player and depth_cam <= DEPTH_EPS:
+			worldElement.SetScreenPosition(Vector2(-1000, -1000))
+			if spr != null:
+				spr.visible = false
+			return
+
+	# ---- projection (matrix only, no cull) ----
 	var transformed: Vector3 = _inv_world * Vector3(mp.x, mp.z, 1.0)
-	if transformed.z < 0.0:
-		worldElement.SetScreenPosition(Vector2(-1000, -1000))
-		if spr != null: spr.visible = false
-		return
+	if transformed.z < 0.0001:
+		transformed.z = 0.0001  # prevent divide by 0
 
 	var screen: Vector2 = Vector2(transformed.x / transformed.z, transformed.y / transformed.z)
 	screen = (screen + Vector2(0.5, 0.5)) * _screen_cached
 
 	if spr != null:
 		var h := 0.0
-		if "region_rect" in spr: h = spr.region_rect.size.y
-		if h <= 0.0: h = 32.0
+		if "region_rect" in spr:
+			h = spr.region_rect.size.y
+		if h <= 0.0:
+			h = 32.0
 		screen.y -= (h * (spr as Node2D).scale.y) / 2.0
 
 	if (screen.x < 0.0 or screen.y < 0.0 or
 		screen.floor().x > _screen_cached.x or screen.floor().y > _screen_cached.y):
 		worldElement.SetScreenPosition(Vector2(-1000, -1000))
-		if spr != null: spr.visible = false
+		if spr != null:
+			spr.visible = false
 		return
 
 	screen = screen.floor()
@@ -637,24 +654,41 @@ func _apply_separation_uv(el: WorldElement, delta_uv: Vector2, y_uv: float) -> v
 	el.SetMapPosition(Vector3(new_px.x, y_px, new_px.y))
 
 func _scale_for_element(el_uv: Vector2, base3: float, floor_abs: float) -> float:
-	# Perspective ratio (no tuning): scale = base * (z_player / z_elem)
+	var rear := Input.is_action_pressed("RearView")
+
+	# Perspective ratio (use absolute Z in rear view; fallback to distance if Zs are unusable)
 	if scale_model == 0:
 		var p3 := _player.ReturnMapPosition()
 		var p_uv := Vector2(p3.x, p3.z)
+
 		var Hp := _inv_world * Vector3(p_uv.x, p_uv.y, 1.0)
 		var He := _inv_world * Vector3(el_uv.x, el_uv.y, 1.0)
-		# if either behind/cull, just clamp to floor to be safe
-		if Hp.z <= 0.0 or He.z <= 0.0:
-			return floor_abs
-		var s := base3 * (Hp.z / He.z)
+
+		var zp := Hp.z
+		var ze := He.z
+
+		# While looking back, treat Z as symmetric (objects "behind" still get sane size)
+		if rear:
+			zp = abs(zp)
+			ze = abs(ze)
+
+		# Guard unusable depths (zero/negative/tiny) -> fall back to distance model
+		var Z_EPS := 1e-4
+		if zp <= Z_EPS or ze <= Z_EPS:
+			# Distance falloff fallback
+			var d := (el_uv - p_uv).length()
+			var R = max(ref_distance_uv, 0.0001)
+			var s_fallback = base3 * (R / (R + d))
+			return clamp(s_fallback, floor_abs, base3)
+
+		var s := base3 * (zp / ze)
 		return clamp(s, floor_abs, base3)
 
-	# Distance falloff (single intuitive knob): base * R/(R + d)
-	# R is the distance at which size is ~0.5*base.
+	# Distance falloff model (unchanged)
 	else:
 		var p3 := _player.ReturnMapPosition()
 		var p_uv := Vector2(p3.x, p3.z)
-		var d := (el_uv - p_uv).length()   # UV units
+		var d := (el_uv - p_uv).length()
 		var R = max(ref_distance_uv, 0.0001)
 		var s = base3 * (R / (R + d))
 		return clamp(s, floor_abs, base3)

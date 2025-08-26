@@ -91,6 +91,16 @@ var _base_min_ratio: float
 var _base_max_turn_rate: float
 var _base_corner_penalty: float
 
+# --- add near the top with other internals ---
+var _view_M: Basis = Basis()       # latest world->view (same as shader)
+var _view_scr: Vector2 = Vector2.ZERO
+var _view_valid: bool = false
+
+func set_world_and_screen(M: Basis, scr: Vector2) -> void:
+	_view_M = M
+	_view_scr = scr
+	_view_valid = true
+
 # Apply a spawn directly from a path index (and optional lane px), and lock it so _ready() won't overwrite it.
 func ApplySpawnFromPathIndex(idx: int, lane_px: float = 0.0) -> void:
 	_try_cache_nodes()
@@ -373,15 +383,20 @@ func _update_depth_sort_fast() -> void:
 	var pl := _player()
 	if p3d == null or pl == null:
 		return
-	var cam_f: Vector2 = (p3d.call("get_camera_forward_map") as Vector2)
+
+	var cam_f: Vector2 = p3d.call("get_camera_forward_map") as Vector2
 	var c_len := cam_f.length()
 	if c_len > 0.00001:
 		cam_f /= c_len
 
 	var my_pos: Vector3 = ReturnMapPosition()
-	var pl_pos: Vector3 = (pl.call("ReturnMapPosition") as Vector3)
-	var depth: float = (Vector2(my_pos.x - pl_pos.x, my_pos.z - pl_pos.z)).dot(cam_f)
+	var pl_pos: Vector3 = pl.call("ReturnMapPosition") as Vector3
+	var depth: float = Vector2(my_pos.x - pl_pos.x, my_pos.z - pl_pos.z).dot(cam_f)
+
+	# Sort only; no hard cull here
+	visible = true
 	z_index = int(depth * 100000.0)
+
 
 # ---------------- path helpers (use inherited arrays) ----------------
 func _pos_scale_px() -> float:
@@ -498,22 +513,19 @@ func _tangent_angle_at_distance(s_px: float) -> float:
 	var t: Vector2 = _tangent_at_distance(s_px)
 	return atan2(t.y, t.x)
 
-# Opponent.gd — match player scale when nearest (snap near, blend far)
 func update_screen_transform(camera_pos: Vector2) -> void:
-	# 1) Let the base (Racer.gd) place & base-scale first
+	# Let base place us (uses pseudo.get_camera_forward_map(), which flips in rear view)
 	super(camera_pos)
 
-	# 2) Need the player sprite
+	# Optional: your near/far scale blending stays
 	var pl := _player()
 	if pl == null or not (pl is Node2D):
 		return
 
-	# 3) Distance to player in UV (0..1 across map)
 	var my3: Vector3 = ReturnMapPosition()
-	var pl3: Vector3 = (pl.call("ReturnMapPosition") as Vector3)
+	var pl3: Vector3 = pl.call("ReturnMapPosition") as Vector3
 	var d_uv := Vector2(my3.x, my3.z).distance_to(Vector2(pl3.x, pl3.z))
 
-	# 4) Derive an automatic “near radius” from this sprite’s own footprint
 	var spr := ReturnSpriteGraphic()
 	var h_px := 32.0
 	if spr != null and "region_rect" in spr and spr.region_rect.size.y > 0.0:
@@ -521,31 +533,28 @@ func update_screen_transform(camera_pos: Vector2) -> void:
 
 	var tex_w: float = 1024.0
 	if "_pseudo" in self and _pseudo != null:
-		var p3d := _pseudo as Sprite2D
-		if p3d != null and p3d.texture != null:
-			tex_w = float(p3d.texture.get_size().x)
+		var p3d_fb := _pseudo as Sprite2D
+		if p3d_fb != null and p3d_fb.texture != null:
+			tex_w = float(p3d_fb.texture.get_size().x)
 
 	var uv_footprint = h_px / max(tex_w, 1.0)
-	var R = uv_footprint * 6.0      # auto near radius
-	var snap_threshold = R * 0.6    # “nearest” -> snap exactly to player
+	var R = uv_footprint * 6.0
+	var snap_threshold = R * 0.6
 
-	# 5) Target scale = snap if very close, else blend by distance
 	var pl_sc := (pl as Node2D).scale.x
 	var my_sc := scale.x
 	var target: float
 	if d_uv <= snap_threshold:
-		target = pl_sc                           # exact match when nearest
+		target = pl_sc
 	else:
-		var w = R / (R + d_uv)                 # 0..1, near→1, far→0
+		var w = R / (R + d_uv)
 		target = lerp(my_sc, pl_sc, clamp(w, 0.0, 1.0))
 
-	# 6) Smooth: faster when close, gentler when far (no visible pops)
 	var dt := get_process_delta_time()
-	var near_hl := 0.04                        # snappier near
-	var far_hl  := 0.10                        # softer far
+	var near_hl := 0.04
+	var far_hl  := 0.10
 	var hl = lerp(near_hl, far_hl, clamp(d_uv / (R * 2.0), 0.0, 1.0))
 	var sm := _smooth_scalar(my_sc, target, dt, hl)
-
 	scale = Vector2(sm, sm)
 
 func DefaultCount() -> int:
