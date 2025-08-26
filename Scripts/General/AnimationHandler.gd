@@ -89,6 +89,7 @@ func PlaySpecificEffectAnimation(roadType : Globals.RoadType):
 		Globals.RoadType.GRAVEL:
 			if _player.ReturnMovementSpeed() < _gravel_speed_threshold:
 				_effectsPlayer.get_parent().visible = false
+				# if gravel anim was playing, stop it
 				if _effectsPlayer.is_playing() and _effectsPlayer.current_animation.begins_with("Gravel"):
 					_effectsPlayer.stop()
 				if _specialWheelEffect.size() > 0 and _specialWheelEffect[0]:
@@ -128,8 +129,10 @@ func PlaySpecificEffectAnimation(roadType : Globals.RoadType):
 	_previousHandledRoadType = roadType
 
 	if animName != "" and _effectsPlayer.has_animation(animName):
-		if animName != _effectsPlayer.current_animation:
+		# RESTART if stopped, even if it's already current; force loop
+		if animName != _effectsPlayer.current_animation or !_effectsPlayer.is_playing():
 			_effectsPlayer.stop()
+			_set_anim_loop(animName, true)
 			_effectsPlayer.play(animName)
 
 func PlayerRoadBounceAnimation():
@@ -179,11 +182,23 @@ func _play_drift_effect() -> void:
 	if _effectsPlayer.has_animation(anim_name):
 		if _effectsPlayer.current_animation != anim_name or !_effectsPlayer.is_playing():
 			_effectsPlayer.stop()
+			_set_anim_loop(anim_name, true)
 			_effectsPlayer.play(anim_name)
 
 func _apply_gravel_speed_gate() -> void:
 	var parent := _effectsPlayer.get_parent()
 	var speed := _player.ReturnMovementSpeed()
+
+	# If drifting, do NOT let gravel logic stop the effect; keep drift playing.
+	if _player.has_method("ReturnIsDrifting") and _player.ReturnIsDrifting():
+		if parent: parent.visible = true
+		# wheels visible while drifting
+		if _specialWheelEffect.size() > 0 and _specialWheelEffect[0]:
+			_specialWheelEffect[0].visible = true
+		if _specialWheelEffect.size() > 1 and _specialWheelEffect[1]:
+			_specialWheelEffect[1].visible = true
+		_play_drift_effect()
+		return
 
 	if speed < _gravel_speed_threshold:
 		if parent: parent.visible = false
@@ -202,8 +217,14 @@ func _apply_gravel_speed_gate() -> void:
 			_specialWheelEffect[0].visible = true
 		if _specialWheelEffect.size() > 1 and _specialWheelEffect[1]:
 			_specialWheelEffect[1].visible = true
-		# ensure Gravel_Anim is playing when we’re fast enough
+		# ensure Gravel_Anim is playing when we’re fast enough and NOT drifting
 		if _effectsPlayer.has_animation("Gravel_Anim"):
 			if _effectsPlayer.current_animation != "Gravel_Anim" or !_effectsPlayer.is_playing():
 				_effectsPlayer.stop()
+				_set_anim_loop("Gravel_Anim", true)
 				_effectsPlayer.play("Gravel_Anim")
+
+func _set_anim_loop(anim_name: String, on: bool) -> void:
+	var a := _effectsPlayer.get_animation(anim_name)
+	if a != null:
+		a.loop = on
