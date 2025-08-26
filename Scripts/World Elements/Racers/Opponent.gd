@@ -95,6 +95,28 @@ var _base_corner_penalty: float
 var _view_M: Basis = Basis()       # latest world->view (same as shader)
 var _view_scr: Vector2 = Vector2.ZERO
 var _view_valid: bool = false
+
+# ===== Traffic awareness / passing =====
+@export var avoid_enabled: bool = true
+@export var avoid_lookahead_s: float = 0.75      # predict ~0.75s ahead
+@export var avoid_width_px: float = 22.0         # half-width "lane" of a kart
+@export var lane_candidates_px := PackedFloat32Array([-28.0, 0.0, 28.0])
+@export var lane_lerp_hz: float = 6.0            # smooth lane changes (higher = snappier)
+
+@export var pass_bias_outer_on_turn: float = 0.20  # prefer outside of upcoming corner
+@export var pass_cooldown_s: float = 0.60          # stick to a side long enough to be readable
+@export var block_slow_mult: float = 0.82          # soft brake when boxed in
+
+@export var draft_enabled: bool = true
+@export var draft_dist_px: float = 55.0          # behind distance for slipstream
+@export var draft_lateral_px: float = 10.0       # how centered behind target
+@export var draft_speed_bonus: float = 12.0      # +u/s while drafting
+
+# internals
+var _avoid_target_lane_px: float = 0.0
+var _pass_side: int = 0            # -1 left, 0 none, +1 right
+var _pass_cooldown: float = 0.0
+
 		
 func set_world_and_screen(M: Basis, scr: Vector2) -> void:
 	_view_M = M
@@ -165,6 +187,8 @@ func _try_cache_nodes() -> void:
 
 # ---------------- lifecycle ----------------
 func _ready() -> void:
+	add_to_group("racers")
+	
 	_try_cache_nodes()
 	_cache_path()
 
@@ -622,3 +646,99 @@ func ApplySpawnFromDefaultIndex(idx: int, lane_px: float = 0.0) -> void:
 		_maxMovementSpeed = max_speed_override
 
 	_spawn_locked = true
+
+func _neighbors_ahead(max_dist_px: float) -> Array:
+	# Return [ {pos3, vel3, uv, lane_sep_px, forward_sep_px, node}, ... ] for racers in front cone.
+	var out: Array = []
+	var me3: Vector3 = ReturnMapPosition()
+	var me_fwd: Vector2 = _tangent_at_distance(_s_px) # map forward (unit)
+
+	var right: Vector2 = Vector2(-me_fwd.y, me_fwd.x)
+	var racers := get_tree().get_nodes_in_group("racers")
+	for n in racers:
+		if n == self: continue
+		if not is_instance_valid(n): continue
+		if not n.has_method("ReturnMapPosition"): continue
+		var p3 = n.ReturnMapPosition()
+		var dp := Vector2(p3.x - me3.x, p3.z - me3.z)
+		var fsep := dp.dot(me_fwd)
+		if fsep < -10.0 or fsep > max_dist_px: # behind or too far
+			continue
+		var lsep := dp.dot(right)
+		var vel3 := Vector3.ZERO
+		if n.has_method("ReturnVelocity"):
+			var vv = n.call("ReturnVelocity")
+			if vv is Vector3: vel3 = vv
+		out.append({
+			"pos3": p3,
+			"vel3": vel3,
+			"uv": Vector2(p3.x, p3.z),
+			"forward_sep_px": fsep,
+			"lateral_sep_px": lsep,
+			"node": n
+		})
+	return out
+
+func _predict_pos(p3: Vector3, v3: Vector3, t: float) -> Vector2:
+	var q := p3 + v3 * t
+	return Vector2(q.x, q.z)
+
+func _upcoming_turn_sign() -> float:
+	# crude curvature sign using two tangents ahead
+	var t0 := _tangent_at_distance(_s_px)
+	var t1 := _tangent_at_distance(_s_px + lookahead_px)
+	# 2D cross product z-component: >0 left turn, <0 right turn
+	return sign(t0.x * t1.y - t0.y * t1.x)
+
+func _score_lane(candidate_px: float, ahead: Array, dt: float) -> float:
+	# higher score = better lane
+	var me3: Vector3 = ReturnMapPosition()
+	var me_uv := Vector2(me3.x, me3.z)
+	var fwd := _tangent_at_distance(_s_px)
+	var right := Vector2(-fwd.y, fwd.x)
+
+	var T := avoid_lookahead_s
+	var safety: float = 1.0
+	var clearance_min := 1e9
+	var blocked := false
+
+	for e in ahead:
+		var p3: Vector3 = e["pos3"]
+		var v3: Vector3 = e["vel3"]
+		# predict their future pos along our horizon
+		var q_uv := _predict_pos(p3, v3, T)
+		# our future center in this lane
+		var my_uv_future = me_uv + fwd * (min(_movementSpeed, _maxMovementSpeed) * T)
+		my_uv_future += right * candidate_px
+
+		var d = (q_uv - my_uv_future)
+		var fsep = d.dot(fwd)
+		var lsep = abs(d.dot(right))
+
+		clearance_min = min(clearance_min, lsep)
+		if (fsep > -avoid_width_px) and (fsep < avoid_width_px*2.0) and (lsep < (avoid_width_px*1.1)):
+			blocked = true
+			safety -= 0.5
+
+	# prefer outside of upcoming turn
+	var turn_sig := _upcoming_turn_sign() # +1 left, -1 right
+	var outer_bias := 0.0
+	if turn_sig != 0.0:
+		# left turn: outer is +right; right turn: outer is +left
+		var want_right := (turn_sig > 0.0)
+		if (want_right and candidate_px > 0.0) or (not want_right and candidate_px < 0.0):
+			outer_bias = pass_bias_outer_on_turn
+
+	# distance from current lane to reduce thrash
+	var change_penalty = abs(candidate_px - lane_offset_px) * 0.003
+
+	# reward clearance, penalize blocked, add small bias for outside on turn
+	var clearance_term = clamp(clearance_min / (avoid_width_px * 2.0), 0.0, 1.0)
+
+	var blocked_penalty: float
+	if blocked:
+		blocked_penalty = 0.35
+	else:
+		blocked_penalty = 0.0
+
+	return safety + clearance_term + outer_bias - change_penalty - blocked_penalty
