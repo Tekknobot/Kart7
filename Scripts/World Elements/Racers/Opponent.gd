@@ -117,6 +117,17 @@ var _avoid_target_lane_px: float = 0.0
 var _pass_side: int = 0            # -1 left, 0 none, +1 right
 var _pass_cooldown: float = 0.0
 
+# ===== Humanization (subtle wandering on straights) =====
+@export var humanize_enabled: bool = true
+@export var humanize_amp_px: float = 6.0        # max lateral wander in pixels
+@export var humanize_freq_hz: float = 0.55      # base sway frequency
+@export var humanize_noise_hz: float = 0.35     # slow drift of the phase
+@export var humanize_corner_fade: float = 0.40  # how quickly wander fades in corners (0..1)
+@export var humanize_nearby_fade_px: float = 48.0  # fade wander when others are within this
+
+var _hum_phase: float = 0.0
+var _hum_noise: float = 0.0
+var _hum_rng := RandomNumberGenerator.new()
 		
 func set_world_and_screen(M: Basis, scr: Vector2) -> void:
 	_view_M = M
@@ -188,7 +199,10 @@ func _try_cache_nodes() -> void:
 # ---------------- lifecycle ----------------
 func _ready() -> void:
 	add_to_group("racers")
-	
+	_hum_rng.randomize()
+	_hum_phase = _hum_rng.randf_range(0.0, TAU)
+	_hum_noise = _hum_rng.randf_range(0.0, TAU)
+		
 	_try_cache_nodes()
 	_cache_path()
 
@@ -304,11 +318,44 @@ func _process(delta: float) -> void:
 	# advance along path
 	_s_px = fposmod(_s_px + _movementSpeed * delta, _total_len_px)
 
-	# final lateral offset at NEW position
+	# ---------- HUMANIZATION: subtle wander on straights ----------
 	var cur_uv: Vector2 = _uv_at_distance(_s_px)
 	var tan: Vector2 = _tangent_at_distance(_s_px)
 	var right: Vector2 = Vector2(-tan.y, tan.x) # already unit
-	var final_uv: Vector2 = cur_uv + (lane_offset_px / _pos_scale_px()) * right
+
+	var lane_px_now: float = lane_offset_px
+
+	if humanize_enabled:
+		var dt := delta
+
+		# 1) Straightness factor from earlier curvature proxy
+		#    curv_approx computed above: 0=straight, ~1=big turn
+		var straight_u = 1.0 - clamp(curv_approx / max(humanize_corner_fade, 0.001), 0.0, 1.0)
+
+		# 2) Fade if someone is close (keeps formation cleaner, avoids taps)
+		var nearby_fade := 1.0
+		var neighbors := _neighbors_ahead(humanize_nearby_fade_px * 2.0)
+		for e in neighbors:
+			var fsep := float(e["forward_sep_px"])
+			var lsep = abs(float(e["lateral_sep_px"]))
+			if fsep >= -8.0 and fsep <= humanize_nearby_fade_px and lsep <= humanize_nearby_fade_px:
+				nearby_fade = 0.35
+				break
+
+		# 3) Slowly drift the phase so they don't sync up
+		_hum_noise += humanize_noise_hz * TAU * dt
+		_hum_phase += humanize_freq_hz * TAU * dt + 0.15 * sin(_hum_noise)
+
+		# 4) Compute wander (smoothed, small)
+		var amp = humanize_amp_px * straight_u * nearby_fade
+		var wander_px = sin(_hum_phase) * amp
+
+		# 5) Apply on top of the chosen lane
+		lane_px_now += wander_px
+
+	# final lateral offset at NEW position (use lane_px_now)
+	var final_uv: Vector2 = cur_uv + (lane_px_now / _pos_scale_px()) * right
+
 
 	# write pixels
 	var final_px: Vector2 = final_uv * _pos_scale_px()
