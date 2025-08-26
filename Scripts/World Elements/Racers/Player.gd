@@ -675,6 +675,12 @@ func _emit_sparks(on: bool) -> void:
 	if p != null and p is GPUParticles2D:
 		p.emitting = on
 
+@export var DUST_ON_MULT := 3.0     # how dense when ON (try 2.0–5.0)
+@export var DUST_OFF_MULT := 1.0    # base density when OFF
+@export var DUST_SMOOTH_RATE := 10.0 # larger = snappier easing
+
+var _dust_mult_target := 1.0
+var _dust_mult := 1.0
 var _dust_base := -1
 
 func _emit_dust(on: bool) -> void:
@@ -682,16 +688,63 @@ func _emit_dust(on: bool) -> void:
 	if p == null:
 		return
 
+	# Set target density; don't yank the system immediately
+	_dust_mult_target = DUST_ON_MULT if on else DUST_OFF_MULT
+
 	if p is GPUParticles2D:
+		var gp := p as GPUParticles2D
 		if _dust_base < 0:
-			_dust_base = p.amount  # remember original
-		if on:
-			p.amount = int(_dust_base * 4.0)  # 2× more dust
-			p.emitting = true
-		else:
-			p.amount = _dust_base
-			p.emitting = false
+			_dust_base = max(1, gp.amount)
+
+		# Ensure emitting when turning ON
+		if on and not gp.emitting:
+			gp.emitting = true
+
+		# Only turn OFF once we've eased back to base
+		if (not on) and gp.emitting and _dust_mult <= DUST_OFF_MULT + 0.01:
+			gp.emitting = false
 		return
+
+	if p is AnimatedSprite2D:
+		var aspr := p as AnimatedSprite2D
+		# visibility handled by easing below; ensure an anim exists
+		if on:
+			aspr.visible = true
+			if aspr.sprite_frames != null and not aspr.sprite_frames.get_animation_names().is_empty():
+				if aspr.animation == "":
+					aspr.animation = aspr.sprite_frames.get_animation_names()[0]
+				if not aspr.is_playing(): aspr.play()
+		else:
+			# let easing fade the speed; we’ll hide when near zero below
+			pass
+		return
+
+	if p is Sprite2D:
+		(p as Sprite2D).visible = on
+
+func _update_drift_dust_smoothing(dt: float) -> void:
+	var p := _try_get_node(DRIFT_PARTICLE_NODE)
+	if p == null:
+		return
+
+	# Exponential smoothing toward target
+	var a = clamp(dt * DUST_SMOOTH_RATE, 0.0, 1.0)
+	_dust_mult = lerp(_dust_mult, _dust_mult_target, a)
+
+	if p is GPUParticles2D:
+		var gp := p as GPUParticles2D
+		if _dust_base < 0:
+			_dust_base = max(1, gp.amount)
+		var desired = max(1, int(round(_dust_base * _dust_mult)))
+		if gp.amount != desired:
+			gp.amount = desired
+		return
+
+	if p is AnimatedSprite2D:
+		var aspr := p as AnimatedSprite2D
+		aspr.speed_scale = max(0.01, _dust_mult)  # fade rate
+		# hide when effectively off
+		aspr.visible = _dust_mult > 0.05
 
 func _cancel_drift_no_award(settle_time: float) -> void:
 	_is_drifting = false
