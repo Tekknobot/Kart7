@@ -41,10 +41,10 @@ var _lean_left_visual := false
 var _frame_anim_time := 0.0
 
 # === Sprite drift behavior (SNES-ish) ===
-const DRIFT_WOBBLE_FREQ := 6.5
-const DRIFT_WOBBLE_AMPL := 0.20
-const DRIFT_BASE_BIAS := 0.68
-const DRIFT_RELEASE_BURST_TIME := 0.12
+const DRIFT_WOBBLE_FREQ := 8
+const DRIFT_WOBBLE_AMPL := 0.40
+const DRIFT_BASE_BIAS := 0.7
+const DRIFT_RELEASE_BURST_TIME := 0.24
 
 const DRIFT_PARTICLE_NODE := "DriftDust"
 const SPARKS_PARTICLE_NODE := "DriftSparks"
@@ -675,33 +675,23 @@ func _emit_sparks(on: bool) -> void:
 	if p != null and p is GPUParticles2D:
 		p.emitting = on
 
+var _dust_base := -1
+
 func _emit_dust(on: bool) -> void:
 	var p := _try_get_node(DRIFT_PARTICLE_NODE)
 	if p == null:
 		return
 
 	if p is GPUParticles2D:
-		p.emitting = on
-		return
-
-	if p is AnimatedSprite2D:
-		p.visible = on
+		if _dust_base < 0:
+			_dust_base = p.amount  # remember original
 		if on:
-			if p.sprite_frames == null or p.sprite_frames.get_animation_names().is_empty():
-				return
-			var anim = p.animation
-			if anim == "" or not p.is_playing():
-				anim = p.sprite_frames.get_animation_names()[0]
-			p.animation = anim
-			if not p.is_playing():
-				p.play()
+			p.amount = int(_dust_base * 4.0)  # 2× more dust
+			p.emitting = true
 		else:
-			if p.is_playing():
-				p.stop()
+			p.amount = _dust_base
+			p.emitting = false
 		return
-
-	if p is Sprite2D:
-		p.visible = on
 
 func _cancel_drift_no_award(settle_time: float) -> void:
 	_is_drifting = false

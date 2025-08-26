@@ -1,10 +1,5 @@
 res://Scenes/main.tscn
 res://Scripts/Shaders/ModeSeven.gdshader
-res://Scripts/Shaders/YoshiSwap.gdshader
 res://Scripts/Shaders/GasDistort.gdshader
-res://Scripts/World Elements/Racers/Opponent.gd
-res://Scripts/On Screen Elements/SpriteHandler.gd
-res://Scripts/General/AnimationHandler.gd
-res://Scripts/World Elements/Racers/Racer.gd
+res://Scripts/Shaders/YoshiSwap.gdshader
 res://Scripts/World Elements/Racers/Player.gd
-res://Scripts/RaceManager.gd
