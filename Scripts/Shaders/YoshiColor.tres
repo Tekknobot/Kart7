@@ -1,0 +1,20 @@
+[gd_resource type="ShaderMaterial" load_steps=2 format=3 uid="uid://b7tuvo3omus7e"]
+
+[ext_resource type="Shader" uid="uid://7cn7to2by008" path="res://Scripts/Shaders/YoshiSwap.gdshader" id="1_4mq47"]
+
+[resource]
+shader = ExtResource("1_4mq47")
+shader_parameter/src_hue = 0.33
+shader_parameter/hue_tol = 0.12
+shader_parameter/edge_soft = 0.2
+shader_parameter/white_sat_max = 0.18
+shader_parameter/white_sat_soft = 0.08
+shader_parameter/black_val_max = 0.18
+shader_parameter/black_val_soft = 0.1
+shader_parameter/chroma_min = 0.06
+shader_parameter/chroma_soft = 0.06
+shader_parameter/sat_min = 0.28
+shader_parameter/val_min = 0.14
+shader_parameter/target_color = Color(0.6, 1, 0.6, 1)
+shader_parameter/sat_boost = 1.0
+shader_parameter/val_mix = 0.5
