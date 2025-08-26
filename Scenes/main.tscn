@@ -1,4 +1,4 @@
-[gd_scene load_steps=36 format=3 uid="uid://d2glnv32t8md1"]
+[gd_scene load_steps=35 format=3 uid="uid://d2glnv32t8md1"]
 
 [ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_emb0w"]
 [ext_resource type="Script" uid="uid://cex362lk6utnk" path="res://Scripts/On Screen Elements/BackgroundEffects.gd" id="2_330he"]
@@ -19,7 +19,6 @@
 [ext_resource type="Script" uid="uid://bomqe0y8c30wy" path="res://Scripts/General/AnimationHandler.gd" id="13_6hxns"]
 [ext_resource type="Script" uid="uid://cq2qm30peuh2" path="res://Scripts/World Elements/Racers/Opponent.gd" id="16_hibaj"]
 [ext_resource type="Texture2D" uid="uid://d1nvgl514d4vw" path="res://Textures/Hazards/Orange_Pipes.png" id="16_t3snl"]
-[ext_resource type="Material" uid="uid://b7tuvo3omus7e" path="res://Scripts/Shaders/YoshiColor.tres" id="17_u50mg"]
 [ext_resource type="Script" uid="uid://15qg36alnh4" path="res://Scripts/RaceManager.gd" id="21_ee4r6"]
 [ext_resource type="Script" uid="uid://bkg7bm4cb65tt" path="res://Scripts/AI/PathOverlay2D.gd" id="21_pdsj5"]
 [ext_resource type="Script" uid="uid://cnmmx8tldt4vt" path="res://Scripts/LeaderBoard.gd" id="22_ee4r6"]
@@ -1220,7 +1219,6 @@ diff_speed_per_lap = 100.0
 diff_max_speed_per_lap = 5.0
 diff_max_speed_cap = 190.0
 diff_max_min_ratio = 1.0
-yoshi_shader = ExtResource("17_u50mg")
 _maxMovementSpeed = 110.0
 _movementAccel = 100.0
 _movementDeaccel = 100.0
@@ -1254,7 +1252,6 @@ diff_speed_per_lap = 100.0
 diff_max_speed_per_lap = 5.0
 diff_max_speed_cap = 195.0
 diff_max_min_ratio = 1.0
-yoshi_shader = ExtResource("17_u50mg")
 _maxMovementSpeed = 110.0
 _movementAccel = 100.0
 _movementDeaccel = 100.0
@@ -1289,7 +1286,6 @@ diff_speed_per_lap = 100.0
 diff_max_speed_per_lap = 5.0
 diff_max_speed_cap = 200.0
 diff_max_min_ratio = 1.0
-yoshi_shader = ExtResource("17_u50mg")
 _maxMovementSpeed = 110.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
@@ -1322,7 +1318,6 @@ diff_speed_per_lap = 100.0
 diff_max_speed_per_lap = 5.0
 diff_max_speed_cap = 190.0
 diff_max_min_ratio = 1.0
-yoshi_shader = ExtResource("17_u50mg")
 _maxMovementSpeed = 110.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
@@ -1355,7 +1350,6 @@ diff_speed_per_lap = 100.0
 diff_max_speed_per_lap = 5.0
 diff_max_speed_cap = 190.0
 diff_max_min_ratio = 1.0
-yoshi_shader = ExtResource("17_u50mg")
 _maxMovementSpeed = 110.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
@@ -1388,7 +1382,6 @@ diff_speed_per_lap = 100.0
 diff_max_speed_per_lap = 5.0
 diff_max_speed_cap = 195.0
 diff_max_min_ratio = 1.0
-yoshi_shader = ExtResource("17_u50mg")
 _maxMovementSpeed = 110.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
@@ -1421,7 +1414,6 @@ diff_speed_per_lap = 85.0
 diff_max_speed_per_lap = 5.0
 diff_max_speed_cap = 200.0
 diff_max_min_ratio = 1.0
-yoshi_shader = ExtResource("17_u50mg")
 _maxMovementSpeed = 110.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")

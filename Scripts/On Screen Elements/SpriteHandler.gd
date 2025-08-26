@@ -123,14 +123,16 @@ var _launch_profiles := {}  # id -> { "target": float, "accel": float, "dir": Ve
 ])
 
 const _YOSHI_COLORS := {
-	"green":      Color(0.60, 1.00, 0.60),
-	"red":        Color(1.00, 0.40, 0.40),
-	"yellow":     Color(1.00, 0.95, 0.40),
-	"lightblue":  Color(0.50, 0.85, 1.00),
-	"pink":       Color(1.00, 0.65, 0.90),
-	"purple":     Color(0.75, 0.50, 1.00),
-	"black":      Color(0.20, 0.20, 0.20),
-	"white":      Color(0.95, 0.95, 0.95)
+	"green":     Color(0.45, 0.80, 0.40),  # classic green
+	"red":       Color(0.90, 0.25, 0.25),  # red yoshi
+	"blue":      Color(0.25, 0.45, 0.95),  # blue yoshi
+	"yellow":    Color(0.95, 0.90, 0.30),  # yellow yoshi
+	"lightblue": Color(0.40, 0.80, 1.00),  # light/cyan yoshi
+	"pink":      Color(1.00, 0.55, 0.75),  # pink yoshi
+	"purple":    Color(0.55, 0.30, 0.80),  # purple yoshi
+	"orange":    Color(1.00, 0.55, 0.20),  # orange yoshi
+	"black":     Color(0.10, 0.10, 0.10),  # black yoshi (smash / modern games)
+	"white":     Color(0.95, 0.95, 0.95)   # white yoshi (smash / modern games)
 }
 
 @export var force_player_on_top_unless_front: bool = true
@@ -139,6 +141,7 @@ const _YOSHI_COLORS := {
 @export var player_front_screen_epsilon: float = 2.0  # pixels: how much lower counts as “in front”
 
 var _rear_prev: bool = false
+var _rng := RandomNumberGenerator.new()
 
 # Depth along the camera forward (positive = in front of the player's position, negative = behind)
 func _depth_along_camera(el: WorldElement) -> float:
@@ -1168,48 +1171,62 @@ func SpawnOpponentsFromDefaults() -> void:
 		if ov != null and ov.has_method("clear_debug_markers"):
 			ov.call("clear_debug_markers")
 
-	# we still read the live path to get forward tangents for launch
+	# read path (for tangents)
 	var pts := _get_default_path_points_uv()
 	var N := pts.size()
 	if N == 0:
-		# path not ready; try again next frame
 		call_deferred("SpawnOpponentsFromDefaults")
 		return
 	if _opponents == null or _opponents.size() == 0:
 		return
+
+	# Prepare a shuffled palette order for this spawn pass
+	var keys: Array = []
+	for k in yoshi_keys:
+		keys.append(k)
+
+	# Fallback if empty
+	if keys.is_empty():
+		keys = ["green"]
+	else:
+		# Fisher–Yates shuffle using your RNG
+		_rng.randomize()
+		for i in range(keys.size() - 1, 0, -1):
+			var j: int = int(_rng.randi() % (i + 1))
+			var tmp = keys[i]
+			keys[i] = keys[j]
+			keys[j] = tmp
+
 
 	for i in range(_opponents.size()):
 		var opp := _opponents[i]
 		if not is_instance_valid(opp):
 			continue
 
-		# pick which DEFAULT point to use for this opponent
+		# choose default spawn index for this AI
 		var di := i
 		if opp.has_method("DefaultCount"):
 			var cnt := int(opp.call("DefaultCount"))
 			if cnt > 0:
 				di = i % cnt
 
-		# place at DEFAULT_POINTS[di] (exact pixels) and compute _s_px from the actual path
+		# place at DEFAULT_POINTS[di] (exact pixels) and compute _s_px from the path
 		if opp.has_method("ApplySpawnFromDefaultIndex"):
 			opp.call("ApplySpawnFromDefaultIndex", di, 0.0)
 		else:
-			# Fallback: if the Opponent script hasn't been updated yet, use its old index-based spawner.
-			# We project to the nearest path point to avoid crashes; it won't be exact defaults without the new method.
 			var idx_fallback = i % max(1, N)
 			if opp.has_method("ApplySpawnFromPathIndex"):
 				opp.call("ApplySpawnFromPathIndex", idx_fallback, 0.0)
 
-		# compute current UV (from placed pixel position) ONCE so it's in scope for both debug and launch
+		# current UV (for debug + launch)
 		var scale_px := float(_mapSize)
 		var pos3: Vector3 = opp.ReturnMapPosition()
 		var uv := Vector2(pos3.x / scale_px, pos3.z / scale_px)
 
-		# debug marker at the exact default UV we just used
 		if spawn_debug_draw_markers:
 			_spawn_dbg_marker(uv, "opp_" + str(i))
 
-		# seed a launch profile along the local path tangent nearest to our UV
+		# path tangent → launch profile
 		var idx := _index_of_closest_point(pts, uv)
 		if idx < 0:
 			idx = 0
@@ -1221,8 +1238,10 @@ func SpawnOpponentsFromDefaults() -> void:
 		var accel := randf_range(launch_min_accel_ps,     launch_max_accel_ps)
 		_launch_profiles[opp.get_instance_id()] = { "target": target, "accel": accel, "dir": fwd }
 
-		# optional debug output
+		# >>> apply Yoshi shader right here <<<
+		var key = keys[i % keys.size()]
+		_attach_yoshi_shader(opp, key)
+
 		_spawn_dbg_print("spawned opp_" + str(i) + " at default UV=" + str(uv) + " (idx≈" + str(idx) + ")")
 
-	# summary
 	_spawn_dbg_print("opponent_count=" + str(_opponents.size()))

@@ -95,45 +95,6 @@ var _base_corner_penalty: float
 var _view_M: Basis = Basis()       # latest world->view (same as shader)
 var _view_scr: Vector2 = Vector2.ZERO
 var _view_valid: bool = false
-
-# --- yoshi color shader hookup ---
-@export var yoshi_shader: ShaderMaterial
-@export var yoshi_tint_color: Color = Color(1, 1, 1, 1)  # if your shader uses a color uniform
-@export var yoshi_team_index: int = -1                   # if your shader uses a palette/team index
-
-# Palette you can tweak in-editor (Nintendo-ish Yoshi set)
-@export var yoshi_palette: Array[Color] = [
-	Color8(124,255,124),  # green
-	Color8(255, 90, 90),  # red
-	Color8( 90,169,255),  # blue
-	Color8(255,216, 69),  # yellow
-	Color8(255,131,209),  # pink
-	Color8(111,234,255),  # light blue
-	Color8(156,107,255),  # purple
-	Color8(255,140, 58)   # orange
-]
-
-var _yoshi_mat: ShaderMaterial = null
-var _rng := RandomNumberGenerator.new()
-
-func _apply_yoshi_shader() -> void:
-	var sp := _angle_sprite_node()
-	if sp == null or yoshi_shader == null:
-		return
-
-	# Make a unique material instance per Opponent
-	if _yoshi_mat == null:
-		_yoshi_mat = yoshi_shader.duplicate(true) as ShaderMaterial
-
-	if "material" in sp and sp.material != _yoshi_mat:
-		sp.material = _yoshi_mat
-
-	# Pick one color from the palette
-	if yoshi_palette.size() > 0:
-		_rng.seed = int(hash(str(get_instance_id()) + ":" + str(start_index)))
-		var idx := _rng.randi_range(0, yoshi_palette.size() - 1)
-		var chosen_color: Color = yoshi_palette[idx]
-		_yoshi_mat.set_shader_parameter("target_color", chosen_color)
 		
 func set_world_and_screen(M: Basis, scr: Vector2) -> void:
 	_view_M = M
@@ -200,10 +161,6 @@ func _try_cache_nodes() -> void:
 	if _rm == null:
 		_rm = get_node_or_null(race_manager_ref)
 
-	# NEW: if we just found the sprite, apply the shader once
-	if _angle_sprite != null:
-		_apply_yoshi_shader()
-
 		
 
 # ---------------- lifecycle ----------------
@@ -213,8 +170,6 @@ func _ready() -> void:
 
 	if ReturnSpriteGraphic() == null and has_node(^"GFX/AngleSprite"):
 		sprite_graphic_path = ^"GFX/AngleSprite"
-
-	_apply_yoshi_shader()
 
 	if _uv_points.size() < 2:
 		push_error("Opponent: path has < 2 points.")
