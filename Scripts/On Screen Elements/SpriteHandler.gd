@@ -143,6 +143,11 @@ const _YOSHI_COLORS := {
 var _rear_prev: bool = false
 var _rng := RandomNumberGenerator.new()
 
+# --- Bump visibility & strength (new) ---
+@export var bump_impulse_gain     : float = 18.0   # scales the visible bump impulse
+@export var overlap_push_gain     : float = 1.25    # >1 pushes apart a bit more than “just touching”
+@export var min_overlap_to_bump_uv: float = 0.002   # don’t bump for microscopic grazes
+
 # Depth along the camera forward (positive = in front of the player's position, negative = behind)
 func _depth_along_camera(el: WorldElement) -> float:
 	var p3d := get_node_or_null(pseudo3d_node)
@@ -625,36 +630,86 @@ func _resolve_circle_overlap(a: WorldElement, a_uv: Vector2, a_r: float,
 	var d_uv := b_uv - a_uv
 	var dist := d_uv.length()
 	var sum_r := a_r + b_r
+
+	# Quick exit
 	if dist <= 0.0:
 		d_uv = Vector2(1, 0)
 		dist = 0.00001
 
-	if dist < sum_r:
-		var n := d_uv / dist
-		var overlap := sum_r - dist
-		var push_uv := n * (overlap * 0.5 * separate_fraction)
+	if dist >= sum_r:
+		return
 
-		# cooldown check
-		var key := _pair_key(a.get_instance_id(), b.get_instance_id())
-		var tnow := _now()
-		var last := -1000.0
-		if _last_collision_time.has(key):
-			last = float(_last_collision_time[key])
-		if (tnow - last) < collision_cooldown_s:
-			_apply_separation_uv(a, -push_uv, a_y)
-			_apply_separation_uv(b,  push_uv, b_y)
-			return
-		_last_collision_time[key] = tnow
-
-		# push both out
+	# Normal + signed overlap
+	var n := d_uv / dist
+	var overlap_uv := sum_r - dist
+	if overlap_uv < min_overlap_to_bump_uv:
+		# Tiny graze: just do a gentle positional separate (no “bump”)
+		var push_uv := n * (overlap_uv * 0.5 * separate_fraction)
 		_apply_separation_uv(a, -push_uv, a_y)
 		_apply_separation_uv(b,  push_uv, b_y)
+		return
 
-		# optional bump
-		if bump_on_collision:
-			var bump_dir := Vector3(n.x * bump_strength_sign, 0.0, n.y * bump_strength_sign)
-			if a.has_method("SetCollisionBump"): a.call("SetCollisionBump", -bump_dir)
-			if b.has_method("SetCollisionBump"): b.call("SetCollisionBump",  bump_dir)
+	# Cooldown gate (prevents jitter)
+	var key := _pair_key(a.get_instance_id(), b.get_instance_id())
+	var tnow := _now()
+	var last := -1000.0
+	if _last_collision_time.has(key):
+		last = float(_last_collision_time[key])
+	if (tnow - last) < collision_cooldown_s:
+		# still separate positionally so they never interpenetrate
+		var push_uv_cd := n * (overlap_uv * 0.5 * separate_fraction)
+		_apply_separation_uv(a, -push_uv_cd, a_y)
+		_apply_separation_uv(b,  push_uv_cd, b_y)
+		return
+	_last_collision_time[key] = tnow
+
+	# 1) Positional separation — slightly exaggerated so the player sees the push
+	var push_uv := n * (overlap_uv * 0.5 * separate_fraction * overlap_push_gain)
+	_apply_separation_uv(a, -push_uv, a_y)
+	_apply_separation_uv(b,  push_uv, b_y)
+
+	# 2) Visible “bump” impulse (proportional to overlap and relative closing speed)
+	#    Works whether these are Racers or any WorldElement exposing ReturnVelocity/SetCollisionBump.
+	var rel_speed = _relative_speed_along_normal(a, b, n) # px/s along n
+	var overlap_px := overlap_uv * float(_mapSize)
+	var base_imp := overlap_px * bump_impulse_gain          # stronger overlap => stronger bump
+	var speed_bonus = max(rel_speed, 0.0) * 0.25           # approaching fast? add some pop
+	var mag = (base_imp + speed_bonus) * bump_strength_sign
+
+	var bump_vec3 = Vector3(n.x, 0.0, n.y) * mag
+
+	# Feed a symmetric impulse: away from the contact, opposite directions
+	if a.has_method("SetCollisionBump"):
+		a.call("SetCollisionBump", -bump_vec3)
+	else:
+		# ultra-safe fallback: instant tiny displacement
+		var pa := a.ReturnMapPosition()
+		a.SetMapPosition(pa - bump_vec3 * get_process_delta_time())
+
+	if b.has_method("SetCollisionBump"):
+		b.call("SetCollisionBump",  bump_vec3)
+	else:
+		var pb := b.ReturnMapPosition()
+		b.SetMapPosition(pb + bump_vec3 * get_process_delta_time())
+		
+	if spawn_debug:
+		print("BUMP: A=", a.name, " B=", b.name, " overlap_uv=", overlap_uv)
+		
+
+func _relative_speed_along_normal(a: WorldElement, b: WorldElement, n: Vector2) -> float:
+	var va := Vector3.ZERO
+	var vb := Vector3.ZERO
+	if a.has_method("ReturnVelocity"):
+		var t = a.call("ReturnVelocity")
+		if t is Vector3: va = t
+	if b.has_method("ReturnVelocity"):
+		var u = b.call("ReturnVelocity")
+		if u is Vector3: vb = u
+	# project onto the 2D contact normal (map XZ)
+	var va_n := va.x * n.x + va.z * n.y
+	var vb_n := vb.x * n.x + vb.z * n.y
+	# relative *closing* speed along n
+	return (vb_n - va_n)
 
 func _apply_separation_uv(el: WorldElement, delta_uv: Vector2, y_uv: float) -> void:
 	# Read current UV, convert to pixels, add delta

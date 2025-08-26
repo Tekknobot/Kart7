@@ -20,7 +20,7 @@ var _bumpDir : Vector3 = Vector3.ZERO
 var _isPushedBack : bool = false
 var _pushbackTime : float = 0.3
 var _currPushbackTime : float = 0.0
-var _bumpIntensity : float = 2.0
+var _bumpIntensity : float = 0.1
 
 # --- DROP-IN: references required by helpers ---
 @export var path_ref: NodePath
@@ -317,20 +317,27 @@ func Deaccelerate() -> void:
 	if _movementSpeed == 0.0 and _currentMoveDirection != int(_inputDir.y):
 		_currentMoveDirection = int(_inputDir.y)
 
-func SetCollisionBump(bumpDir : Vector3) -> void:
-	if not _isPushedBack:
-		_bumpDir = bumpDir
-		_isPushedBack = true
-		_currPushbackTime = _pushbackTime
+func SetCollisionBump(bumpDir: Vector3) -> void:
+	# Always (re)arm the bump on each contact
+	_bumpDir = bumpDir
+	_isPushedBack = true
+	_currPushbackTime = _pushbackTime
 
 func ApplyCollisionBump() -> void:
 	_currPushbackTime -= get_process_delta_time()
 	if _currPushbackTime <= 0.0:
 		_isPushedBack = false
-	else:
-		var bumpVelocity : Vector3 = _bumpDir * (_bumpIntensity * (_currPushbackTime / _pushbackTime))
-		Deaccelerate()
-		SetMapPosition(_mapPosition + bumpVelocity)
+		_currPushbackTime = 0.0
+		_bumpDir = Vector3.ZERO
+		return
+
+	var t := _currPushbackTime / _pushbackTime
+	var bumpVelocity : Vector3 = _bumpDir * (_bumpIntensity * t)
+
+	# REMOVE this for AI (or wrap with `if self is Player: Deaccelerate()`)
+	# Deaccelerate()
+
+	SetMapPosition(_mapPosition + bumpVelocity)
 
 var _path_pts: PackedVector2Array = PackedVector2Array()
 var _path_tan: PackedVector2Array = PackedVector2Array()

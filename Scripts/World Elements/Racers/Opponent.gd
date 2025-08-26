@@ -202,12 +202,11 @@ func _ready() -> void:
 	_base_min_ratio = min_ratio_vs_player
 	_base_max_turn_rate = max_turn_rate
 	_base_corner_penalty = speed_damper_on_curve
-		
 
 func _process(delta: float) -> void:
 	if _uv_points.is_empty():
 		return
-
+		
 	# Lazy recache if nodes were freed
 	_try_cache_nodes()
 	_apply_dynamic_difficulty()
@@ -291,6 +290,9 @@ func _process(delta: float) -> void:
 	var final_px: Vector2 = final_uv * _pos_scale_px()
 	SetMapPosition(Vector3(final_px.x, 0.0, final_px.y))
 
+	if _isPushedBack:
+		ApplyCollisionBump()
+		
 	# visuals (throttled)
 	var f := Engine.get_process_frames()
 	if visual_update_stride <= 1 or (f % visual_update_stride) == 0:
@@ -300,7 +302,7 @@ func _process(delta: float) -> void:
 	if debug_log_ai_sprite and (f % 60 == 0):
 		var sp := ReturnSpriteGraphic()
 		prints("AI sprite:", sp, " path:", str(get("sprite_graphic_path")))
-
+		
 func _apply_dynamic_difficulty() -> void:
 	# Determine lap driving the difficulty
 	var lap_for_diff := 0
