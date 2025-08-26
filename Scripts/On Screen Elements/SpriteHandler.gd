@@ -138,6 +138,8 @@ const _YOSHI_COLORS := {
 
 @export var player_front_screen_epsilon: float = 2.0  # pixels: how much lower counts as “in front”
 
+var _rear_prev: bool = false
+
 # Depth along the camera forward (positive = in front of the player's position, negative = behind)
 func _depth_along_camera(el: WorldElement) -> float:
 	var p3d := get_node_or_null(pseudo3d_node)
@@ -216,6 +218,12 @@ func Update(worldMatrix: Basis) -> void:
 	_inv_world = _worldMatrix.inverse()        # <- compute once
 	_dt_cached = get_process_delta_time()      # <- compute once
 	_screen_cached = _screen_size()            # <- compute once
+
+	# --- detect RearView edge and snap scales on transition ---
+	var rear_now := Input.is_action_pressed("RearView")
+	if rear_now != _rear_prev:
+		_rear_prev = rear_now
+		_smoothed_scale.clear()        # next frame every sprite takes target instantly
 
 	# Camera forward + turn rate (once)
 	var p3d := get_node_or_null(pseudo3d_node)
