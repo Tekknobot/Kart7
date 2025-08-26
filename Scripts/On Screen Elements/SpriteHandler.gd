@@ -148,6 +148,29 @@ var _rng := RandomNumberGenerator.new()
 @export var overlap_push_gain     : float = 1.25    # >1 pushes apart a bit more than “just touching”
 @export var min_overlap_to_bump_uv: float = 0.002   # don’t bump for microscopic grazes
 
+# --- Screen-lane overtake bump (NEW) ---
+@export var screen_bump_enabled: bool = true
+@export var overtake_depth_window_px: float = 18.0   # forward-gap window (px) to count as "same row"
+@export var screen_lateral_pad_px: float = 0.0       # widen lane hitbox slightly if needed
+@export var screen_bump_min_feel_pxps: float = 40.0  # minimum bump "feel" (px/s)
+@export var screen_bump_rel_gain: float = 0.65       # scale relative lateral closing speed
+@export var screen_bump_cooldown_s: float = 0.10     # cooldown per pair for screen bumps
+
+# --- Screen-lane start gates (NEW) ---
+@export var screen_bump_warmup_s: float = 1.5         # ignore screen bumps for this long after Setup
+@export var screen_bump_min_speed_pxps: float = 20.0  # require at least one racer to be moving this fast
+@export var screen_bump_min_rel_lat_pxps: float = 10.0# or require lateral approach at least this fast
+
+# --- Screen-lane hysteresis / anti-spam (NEW) ---
+@export var screen_bump_depth_hyst_px: float = 6.0     # must leave window by this extra px to re-arm
+@export var screen_bump_lateral_hyst_px: float = 4.0   # same for lateral
+@export var screen_bump_max_chain: int = 3             # max consecutive bumps while latched
+@export var screen_bump_chain_reset_s: float = 0.60    # chain window; after this, count resets
+
+var _screen_bump_boot_s: float = 0.0
+var _screen_pair_latched := {}      # key -> bool
+var _screen_pair_chain   := {}      # key -> {count:int, last:float}
+
 # Depth along the camera forward (positive = in front of the player's position, negative = behind)
 func _depth_along_camera(el: WorldElement) -> float:
 	var p3d := get_node_or_null(pseudo3d_node)
@@ -189,10 +212,10 @@ func _someone_in_front_of_player() -> bool:
 
 func Setup(worldMatrix: Basis, mapSize: int, player: Racer) -> void:
 	_worldMatrix = worldMatrix
-	_inv_world = _worldMatrix.inverse()      # NEW: cache inverse immediately
+	_inv_world = _worldMatrix.inverse()
 	_mapSize = mapSize
 	_player = player
-	_screen_cached = _screen_size()          # NEW: prime screen cache
+	_screen_cached = _screen_size()
 
 	_worldElements.clear()
 	if is_instance_valid(player): _worldElements.append(player)
@@ -202,21 +225,17 @@ func Setup(worldMatrix: Basis, mapSize: int, player: Racer) -> void:
 	if auto_collect_world_elements:
 		_collect_world_elements()
 
-	# prime the player's screen position once
 	if is_instance_valid(player):
 		WorldToScreenPosition(player)
 
-	# Defer one frame so overlay/pseudo3D are ready before we touch them
 	if auto_apply_path:
 		call_deferred("_apply_path_from_overlay")
-		# Path is now applied → spawn
 		call_deferred("SpawnOpponentsFromDefaults")
 
-	print("World elements:", _worldElements.size())
-	for we in _worldElements:
-		prints("  -", we.name, "spr:", we.ReturnSpriteGraphic())
-		
 	_smoothed_scale.clear()
+
+	# NEW: start the screen-bump warmup timer
+	_screen_bump_boot_s = _now()
 
 func Update(worldMatrix: Basis) -> void:
 	if _is_updating: return
@@ -591,6 +610,17 @@ func _uv_to_px(v: Vector2) -> Vector2:
 func _px_to_uv(v: Vector2) -> Vector2:
 	return Vector2(v.x / _mapSize, v.y / _mapSize)
 
+# Robustly read a racer's map position in *pixels*, even if the node reports UV.
+func _pos_px_of(n: WorldElement) -> Vector2:
+	if n == null or not n.has_method("ReturnMapPosition"):
+		return Vector2.ZERO
+	var p3: Vector3 = n.ReturnMapPosition()
+	# Heuristic: values ≤2.0 are almost certainly UV
+	if abs(p3.x) <= 2.0 and abs(p3.z) <= 2.0:
+		return Vector2(p3.x * float(_mapSize), p3.z * float(_mapSize))
+	return Vector2(p3.x, p3.z)
+
+
 func _resolve_player_opponent_collisions() -> void:
 	if _player == null or _opponents == null or _opponents.size() == 0:
 		return
@@ -599,90 +629,210 @@ func _resolve_player_opponent_collisions() -> void:
 	var p_uv := Vector2(p3.x, p3.z)
 	var r_p := _get_collision_radius_uv(_player, true)
 
+	# PLAYER ↔ OPPONENT
 	for opp in _opponents:
 		if not is_instance_valid(opp) or opp == _player:
 			continue
 		var o3 := opp.ReturnMapPosition()
 		var o_uv := Vector2(o3.x, o3.z)
 		var r_o := _get_collision_radius_uv(opp, false)
-		_resolve_circle_overlap(_player, p_uv, r_p, opp, o_uv, r_o, p3.y, o3.y)
 
-	# opponent ↔ opponent
+		# 1) try physical UV overlap first
+		var did := _resolve_circle_overlap(_player, p_uv, r_p, opp, o_uv, r_o, p3.y, o3.y)
+		# 2) if not, try screen-lane overtake bump
+		if (not did) and screen_bump_enabled:
+			_screen_lane_bump(_player, opp)
+
+	# OPPONENT ↔ OPPONENT
 	for i in range(_opponents.size()):
-		var a = _opponents[i]
+		var a := _opponents[i]
 		if not is_instance_valid(a): continue
 		var a3 := a.ReturnMapPosition()
 		var a_uv := Vector2(a3.x, a3.z)
 		var r_a := _get_collision_radius_uv(a, false)
 
 		for j in range(i + 1, _opponents.size()):
-			var b = _opponents[j]
+			var b := _opponents[j]
 			if not is_instance_valid(b): continue
 			var b3 := b.ReturnMapPosition()
 			var b_uv := Vector2(b3.x, b3.z)
 			var r_b := _get_collision_radius_uv(b, false)
 
-			_resolve_circle_overlap(a, a_uv, r_a, b, b_uv, r_b, a3.y, b3.y)
+			var did2 := _resolve_circle_overlap(a, a_uv, r_a, b, b_uv, r_b, a3.y, b3.y)
+			if (not did2) and screen_bump_enabled:
+				_screen_lane_bump(a, b)
+
+func _screen_lane_bump(a: WorldElement, b: WorldElement) -> bool:
+	# 0) Warm-up: don't nudge at the start grid
+	if (_now() - _screen_bump_boot_s) < screen_bump_warmup_s:
+		return false
+
+	# 1) Camera axes in map space (unit vectors)
+	var ax := _camera_axes()
+	var cam_f: Vector2 = ax["f"]
+	var cam_r: Vector2 = ax["r"]
+
+	# 2) Positions in *pixels* (robust to UV reporters)
+	var pa := _pos_px_of(a)
+	var pb := _pos_px_of(b)
+	var d := pb - pa  # px delta
+
+	# Signed forward/lateral gaps in px (relative to camera)
+	var fwd_gap_px := d.dot(cam_f)
+	var lat_gap_px := d.dot(cam_r)
+
+	# Radii in px (auto-derived)
+	var ra_px := _get_collision_radius_uv(a, a == _player) * float(_mapSize)
+	var rb_px := _get_collision_radius_uv(b, b == _player) * float(_mapSize)
+	var sum_r_px := ra_px + rb_px
+
+	# Quick distance sanity: if far apart overall, skip
+	if d.length() > (sum_r_px + max(24.0, screen_lateral_pad_px) + overtake_depth_window_px * 2.0):
+		return false
+
+	# 3) Enter/Exit windows with hysteresis
+	var enter_same_row = abs(fwd_gap_px) <= overtake_depth_window_px
+	var enter_lat_hit = abs(lat_gap_px) <= (sum_r_px + screen_lateral_pad_px)
+
+	var exit_same_row  = abs(fwd_gap_px) > (overtake_depth_window_px + screen_bump_depth_hyst_px)
+	var exit_lat_clear = abs(lat_gap_px) > (sum_r_px + screen_lateral_pad_px + screen_bump_lateral_hyst_px)
+
+	var skey := _pair_key(a.get_instance_id(), b.get_instance_id()) + "_screen"
+
+	# 4) Chain bookkeeping (anti-spam)
+	var nowt := _now()
+	if not _screen_pair_chain.has(skey):
+		_screen_pair_chain[skey] = {"count": 0, "last": 0.0}
+	else:
+		var rec = _screen_pair_chain[skey]
+		if (nowt - float(rec["last"])) > screen_bump_chain_reset_s:
+			rec["count"] = 0
+			_screen_pair_chain[skey] = rec
+
+	# 5) Latch state machine
+	var latched := bool(_screen_pair_latched.get(skey, false))
+	if latched:
+		if exit_same_row or exit_lat_clear:
+			_screen_pair_latched.erase(skey)  # re-arm
+		return false
+	else:
+		if not (enter_same_row and enter_lat_hit):
+			return false
+
+	# 6) Motion gates (px/s). ReturnVelocity is px/frame; convert to px/s with dt.
+	var dt = max(get_process_delta_time(), 1e-6)
+	var va := Vector2.ZERO
+	var vb := Vector2.ZERO
+	if a.has_method("ReturnVelocity"):
+		var va3 = a.call("ReturnVelocity")
+		if va3 is Vector3: va = Vector2(va3.x, va3.z) / dt
+	if b.has_method("ReturnVelocity"):
+		var vb3 = b.call("ReturnVelocity")
+		if vb3 is Vector3: vb = Vector2(vb3.x, vb3.z) / dt
+
+	var max_speed = max(va.length(), vb.length())
+	var rel_lat_pxps := (vb - va).dot(cam_r)
+	var approach_lat = abs(rel_lat_pxps)
+
+	# Require motion or real lateral closing; prevents grid push & static “forever bumps”
+	if (max_speed < screen_bump_min_speed_pxps) and (approach_lat < screen_bump_min_rel_lat_pxps):
+		return false
+
+	# Only bump when closing sideways. If not closing, allow only if approach is clearly strong.
+	var closing := (lat_gap_px > 0.0 and rel_lat_pxps < 0.0) or (lat_gap_px < 0.0 and rel_lat_pxps > 0.0)
+	if not closing and approach_lat < (screen_bump_min_rel_lat_pxps * 1.5):
+		return false
+
+	# 7) Pair cooldown (separate from UV bumps)
+	if _last_collision_time.has(skey):
+		var last := float(_last_collision_time[skey])
+		if (nowt - last) < screen_bump_cooldown_s:
+			return false
+
+	# 8) Chain limiter
+	var rec2 = _screen_pair_chain[skey]
+	if int(rec2["count"]) >= screen_bump_max_chain:
+		return false
+
+	# 9) Magnitude and direction
+	var mag = max(screen_bump_min_feel_pxps, approach_lat * screen_bump_rel_gain)
+	var n_side := (cam_r if lat_gap_px > 0.0 else -cam_r).normalized()
+
+	var bump_a = Vector3(-n_side.x, 0.0, -n_side.y) * mag
+	var bump_b = Vector3( n_side.x, 0.0,  n_side.y) * mag
+
+	if a.has_method("SetCollisionBump"): a.call("SetCollisionBump", bump_a)
+	if b.has_method("SetCollisionBump"): b.call("SetCollisionBump", bump_b)
+
+	# 10) Latch, cooldown, chain update
+	_screen_pair_latched[skey] = true
+	_last_collision_time[skey] = nowt
+	rec2["count"] = int(rec2["count"]) + 1
+	rec2["last"]  = nowt
+	_screen_pair_chain[skey] = rec2
+
+	if spawn_debug:
+		print("BUMP(SCREEN-LATCH,px): pair=", skey,
+			  " fwd_gap_px=", fwd_gap_px, " lat_gap_px=", lat_gap_px,
+			  " rel_lat_pxps=", rel_lat_pxps, " mag=", mag,
+			  " chain=", int(rec2["count"]))
+	return true
 
 func _resolve_circle_overlap(a: WorldElement, a_uv: Vector2, a_r: float,
 							 b: WorldElement, b_uv: Vector2, b_r: float,
-							 a_y: float, b_y: float) -> void:
+							 a_y: float, b_y: float) -> bool:
 	var d_uv := b_uv - a_uv
 	var dist := d_uv.length()
 	var sum_r := a_r + b_r
 
-	# Quick exit
+	# miss / degenerate
 	if dist <= 0.0:
 		d_uv = Vector2(1, 0)
 		dist = 0.00001
-
 	if dist >= sum_r:
-		return
+		return false
 
-	# Normal + signed overlap
+	# --- We have an overlap in UV space ---
 	var n := d_uv / dist
 	var overlap_uv := sum_r - dist
+
 	if overlap_uv < min_overlap_to_bump_uv:
-		# Tiny graze: just do a gentle positional separate (no “bump”)
+		# tiny graze: just separate positionally
 		var push_uv := n * (overlap_uv * 0.5 * separate_fraction)
 		_apply_separation_uv(a, -push_uv, a_y)
 		_apply_separation_uv(b,  push_uv, b_y)
-		return
+		return true
 
-	# Cooldown gate (prevents jitter)
+	# cooldown
 	var key := _pair_key(a.get_instance_id(), b.get_instance_id())
 	var tnow := _now()
-	var last := -1000.0
 	if _last_collision_time.has(key):
-		last = float(_last_collision_time[key])
-	if (tnow - last) < collision_cooldown_s:
-		# still separate positionally so they never interpenetrate
-		var push_uv_cd := n * (overlap_uv * 0.5 * separate_fraction)
-		_apply_separation_uv(a, -push_uv_cd, a_y)
-		_apply_separation_uv(b,  push_uv_cd, b_y)
-		return
+		var last := float(_last_collision_time[key])
+		if (tnow - last) < collision_cooldown_s:
+			# still separate so they never interpenetrate
+			var push_uv_cd := n * (overlap_uv * 0.5 * separate_fraction)
+			_apply_separation_uv(a, -push_uv_cd, a_y)
+			_apply_separation_uv(b,  push_uv_cd, b_y)
+			return true
 	_last_collision_time[key] = tnow
 
-	# 1) Positional separation — slightly exaggerated so the player sees the push
+	# 1) positional separation (slightly exaggerated for readability)
 	var push_uv := n * (overlap_uv * 0.5 * separate_fraction * overlap_push_gain)
 	_apply_separation_uv(a, -push_uv, a_y)
 	_apply_separation_uv(b,  push_uv, b_y)
 
-	# 2) Visible “bump” impulse (proportional to overlap and relative closing speed)
-	#    Works whether these are Racers or any WorldElement exposing ReturnVelocity/SetCollisionBump.
+	# 2) visible bump impulse (px/s)
 	var rel_speed = _relative_speed_along_normal(a, b, n) # px/s along n
 	var overlap_px := overlap_uv * float(_mapSize)
-	var base_imp := overlap_px * bump_impulse_gain          # stronger overlap => stronger bump
-	var speed_bonus = max(rel_speed, 0.0) * 0.25           # approaching fast? add some pop
+	var base_imp := overlap_px * bump_impulse_gain
+	var speed_bonus = max(rel_speed, 0.0) * 0.25
 	var mag = (base_imp + speed_bonus) * bump_strength_sign
 
 	var bump_vec3 = Vector3(n.x, 0.0, n.y) * mag
 
-	# Feed a symmetric impulse: away from the contact, opposite directions
 	if a.has_method("SetCollisionBump"):
 		a.call("SetCollisionBump", -bump_vec3)
 	else:
-		# ultra-safe fallback: instant tiny displacement
 		var pa := a.ReturnMapPosition()
 		a.SetMapPosition(pa - bump_vec3 * get_process_delta_time())
 
@@ -691,10 +841,11 @@ func _resolve_circle_overlap(a: WorldElement, a_uv: Vector2, a_r: float,
 	else:
 		var pb := b.ReturnMapPosition()
 		b.SetMapPosition(pb + bump_vec3 * get_process_delta_time())
-		
+
 	if spawn_debug:
-		print("BUMP: A=", a.name, " B=", b.name, " overlap_uv=", overlap_uv)
-		
+		print("BUMP(UV): A=", a.name, " B=", b.name, " overlap_uv=", overlap_uv)
+
+	return true
 
 func _relative_speed_along_normal(a: WorldElement, b: WorldElement, n: Vector2) -> float:
 	var va := Vector3.ZERO
@@ -1300,3 +1451,18 @@ func SpawnOpponentsFromDefaults() -> void:
 		_spawn_dbg_print("spawned opp_" + str(i) + " at default UV=" + str(uv) + " (idx≈" + str(idx) + ")")
 
 	_spawn_dbg_print("opponent_count=" + str(_opponents.size()))
+
+# Camera axes in MAP space (forward + right), always normalized.
+func _camera_axes() -> Dictionary:
+	var f := Vector2(0, 1)
+	var r := Vector2(1, 0)
+	var p3d := get_node_or_null(pseudo3d_node)
+	if p3d != null and p3d.has_method("get_camera_forward_map"):
+		f = (p3d.call("get_camera_forward_map") as Vector2)
+		var L := f.length()
+		if L > 0.00001:
+			f /= L
+		else:
+			f = Vector2(0, 1)
+	r = Vector2(f.y, -f.x) # camera-right from forward
+	return {"f": f, "r": r}

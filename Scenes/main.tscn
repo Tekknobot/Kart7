@@ -1124,6 +1124,10 @@ turn_half_life = 0.12
 ref_distance_uv = 0.001
 radius_from_sprite_factor = 0.001
 min_radius_uv_auto = 0.002
+screen_bump_min_feel_pxps = 8.0
+screen_bump_rel_gain = 0.16
+screen_bump_min_speed_pxps = 16.0
+screen_bump_min_rel_lat_pxps = 12.0
 
 [node name="Racers" type="Node2D" parent="Sprite Handler"]
 
