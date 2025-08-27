@@ -176,8 +176,8 @@ func _s_px_from_seg_t(i: int, t: float) -> float:
 	var before := float(seg["cum_px"]) - float(seg["len_px"])
 	return before + t * float(seg["len_px"])
 
-# Rank comparator: (lap, s_px) in the forward direction, then stable id
-# Sort: finished first by finish_rank, then active racers by (lap, s_px), then id
+# Rank comparator: finished first by finish_rank, then active racers by (lap, s_px),
+# then (on near ties) by screen Y (lower on screen = ahead), then id.
 func _ahead(a: Dictionary, b: Dictionary) -> bool:
 	var fa := bool(a.get("finished", false))
 	var fb := bool(b.get("finished", false))
@@ -194,7 +194,7 @@ func _ahead(a: Dictionary, b: Dictionary) -> bool:
 		var bid := (b["node"] as Node).get_instance_id()
 		return aid < bid
 
-	# neither finished -> use lap/s_px + direction
+	# neither finished -> use lap/s_px with a small epsilon, then screen Y, then id
 	var la := int(a["lap"])
 	var lb := int(b["lap"])
 	if la != lb:
@@ -202,14 +202,26 @@ func _ahead(a: Dictionary, b: Dictionary) -> bool:
 
 	var sa := float(a["s_px"])
 	var sb := float(b["s_px"])
-	if sa != sb:
+
+	# If clearly different arc position, use it
+	var EPS_PX := 0.75  # ~0.75 px on a 1024 map is a sensible tie threshold at the grid
+	if abs(sa - sb) > EPS_PX:
 		if forward_increases_s_px:
 			return sa > sb
 		else:
 			return sa < sb
 
-	var aid := (a["node"] as Node).get_instance_id()
-	var bid := (b["node"] as Node).get_instance_id()
+	# Near tie on arc: decide by screen Y (lower on screen is "ahead")
+	var na: Node = a["node"]
+	var nb: Node = b["node"]
+	var ya := _screen_y_of(na)
+	var yb := _screen_y_of(nb)
+	if ya != yb:
+		return ya > yb   # larger Y = lower on screen (Godot Y increases downward)
+
+	# Absolute tie → stable id
+	var aid := na.get_instance_id()
+	var bid := nb.get_instance_id()
 	return aid < bid
 
 func Setup() -> void:

@@ -48,16 +48,6 @@ var _seg_tan: PackedVector2Array = PackedVector2Array()  # per-vertex unit tange
 
 var _spawn_locked: bool = false
 
-var DEFAULT_POINTS: PackedVector2Array = PackedVector2Array([
-	Vector2(950, 607),
-	Vector2(920, 631),
-	Vector2(950, 655),
-	Vector2(920, 679),
-	Vector2(950, 703),
-	Vector2(920, 727),
-	Vector2(950, 751)
-])
-
 # --- DIFFICULTY SCALING ---
 @export var race_manager_ref: NodePath
 
@@ -146,6 +136,18 @@ var _desired_yaw: float = 0.0   # smoothed target yaw (radians)
 var _right_smooth: Vector2 = Vector2.RIGHT
 @export var right_half_life_s: float = 0.06
 
+@export var merge_time_s: float = 1   # time to glide from grid -> path after GO
+
+var _merge_armed: bool = false
+var _merging: bool = false
+var _merge_t: float = 0.0
+var _merge_start_uv: Vector2 = Vector2.ZERO
+var _was_go: bool = false
+
+@export_group("Randomize")
+@export var randomize_on_ready: bool = false   # set true if you want self-randomization without the manager
+@export var random_seed: int = 0               # 0 = time+id; otherwise reproducible
+@export var assume_player_target_speed: float = 150.0  # used only if manager doesn't pass a value
 
 # --- helper: smoothed frame at arc length s ---
 func _uv_and_tangent_smooth(s_px: float, window_px: float = anti_snap_window_px) -> Dictionary:
@@ -244,6 +246,15 @@ func _try_cache_nodes() -> void:
 		_rm = get_node_or_null(race_manager_ref)
 
 		
+var DEFAULT_POINTS: PackedVector2Array = PackedVector2Array([
+	Vector2(950, 607),
+	Vector2(920, 631),
+	Vector2(950, 655),
+	Vector2(920, 679),
+	Vector2(950, 703),
+	Vector2(920, 727),
+	Vector2(950, 751)
+])
 
 # ---------------- lifecycle ----------------
 func _ready() -> void:
@@ -283,20 +294,49 @@ func _ready() -> void:
 		_maxMovementSpeed = max_speed_override
 		
 	# ---- difficulty baselines ----
-	_base_target_speed = target_speed
-	_base_max_speed = _maxMovementSpeed
-	_base_catchup_gain = catchup_gain_speed
-	_base_min_ratio = min_ratio_vs_player
+	_base_target_speed  = target_speed
+	_base_max_speed     = _maxMovementSpeed
+	_base_catchup_gain  = catchup_gain_speed
+	_base_min_ratio     = min_ratio_vs_player
 	_base_max_turn_rate = max_turn_rate
-	_base_corner_penalty = speed_damper_on_curve
+	_base_corner_penalty= speed_damper_on_curve
+
+	if randomize_on_ready:
+		var s: int
+		if random_seed != 0:
+			s = random_seed
+		else:
+			s = int(Time.get_unix_time_from_system()) ^ get_instance_id()
+		ApplyRandomProfile(s, assume_player_target_speed)
 
 func _process(delta: float) -> void:
 	if _uv_points.is_empty():
 		return
 	_try_cache_nodes()
+
+	# === GO edge-detect (start merge the first frame after GO) ===
+	var go_now := Globals.race_can_drive
+	if go_now and not _was_go and _merge_armed:
+		_merging = true
+		_merge_t = 0.0
+		_merge_armed = false
+	_was_go = go_now
+
+	# === LOCK AI UNTIL "GO" ===
+	if not Globals.race_can_drive:
+		# Keep them planted on the grid
+		_movementSpeed = 0.0
+		# keep their facing updated to the path so they don't look odd
+		var spf := Engine.get_process_frames()
+		if visual_update_stride <= 1 or (spf % visual_update_stride) == 0:
+			_update_angle_sprite_fast()
+			_update_depth_sort_fast()
+		return
+	# === /LOCK ===
+
 	_apply_dynamic_difficulty()
 
-	# === use smoothed frame instead of per-segment ===
+	# === smoothed local frame (gives fwd + right) ===
 	var frame_now := _uv_and_tangent_smooth(_s_px)
 	var p_uv: Vector2 = frame_now["uv"]
 	var fwd_smooth: Vector2 = frame_now["tan"]
@@ -307,7 +347,7 @@ func _process(delta: float) -> void:
 	var right: Vector2 = _right_smooth.normalized()
 
 	# --- steering target using smoothed lookahead ---
-	var tgt := _uv_and_tangent_smooth(_s_px + lookahead_px_base * 1.0)  # reuse your dynamic LA if you like
+	var tgt := _uv_and_tangent_smooth(_s_px + lookahead_px_base * 1.0)
 	var to_t = (tgt["uv"] - p_uv)
 	var to_t_len = to_t.length()
 	if to_t_len > 0.00001:
@@ -326,11 +366,10 @@ func _process(delta: float) -> void:
 	var dot_raw: float = clamp(t0.dot(t1), -1.0, 1.0)
 	var curv_approx: float = 1.0 - max(dot_raw, -1.0)
 
-	# ... keep your desired_speed logic (unchanged) ...
-	# --- base desired speed ---
+	# --- desired speed ---
 	var desired_speed: float = target_speed
 
-	# --- catch-up vs player (unchanged) ---
+	# catch-up vs player
 	var pl := _player()
 	if pl != null:
 		var pl_speed: float = 0.0
@@ -357,15 +396,13 @@ func _process(delta: float) -> void:
 		if desired_speed < min_over:
 			desired_speed = min_over
 
-	# --- curve damping using curv_approx you computed above ---
+	# curve damping
 	var curv_u = clamp(curv_approx / 0.6, 0.0, 1.0)
 	var corner_mult: float = lerp(1.0, speed_damper_on_curve, curv_u)
 	desired_speed *= corner_mult
 
-	# --- clamp to AI max ---
+	# clamp + accelerate/decelerate
 	desired_speed = min(desired_speed, _maxMovementSpeed)
-
-	# --- accelerate/decelerate toward target ---
 	if _movementSpeed < desired_speed:
 		_movementSpeed = min(desired_speed, _movementSpeed + accel * delta)
 	else:
@@ -374,22 +411,27 @@ func _process(delta: float) -> void:
 	# advance along path
 	_s_px = fposmod(_s_px + _movementSpeed * delta, _total_len_px)
 
-	# --- apply lane offset using the smoothed RIGHT, not the segment right ---
+	# --- placement (merge-aware) ---
 	var cur_uv: Vector2 = _uv_at_distance(_s_px)
-	var lane_px_now: float = lane_offset_px
+	var lane_px_now: float = lane_offset_px  # you can adjust this for humanization
+	var target_uv: Vector2 = cur_uv + (lane_px_now / _pos_scale_px()) * right
 
-	# (your humanization updates lane_px_now) ...
+	if _merging:
+		_merge_t += delta / max(0.0001, merge_time_s)
+		if _merge_t >= 1.0:
+			_merge_t = 1.0
+			_merging = false
+		var blend_uv: Vector2 = _merge_start_uv.lerp(target_uv, _merge_t)
+		var blend_px: Vector2 = blend_uv * _pos_scale_px()
+		SetMapPosition(Vector3(blend_px.x, 0.0, blend_px.y))
+	else:
+		var final_px: Vector2 = target_uv * _pos_scale_px()
+		SetMapPosition(Vector3(final_px.x, 0.0, final_px.y))
 
-	var final_uv: Vector2 = cur_uv + (lane_px_now / _pos_scale_px()) * right
-	var final_px: Vector2 = final_uv * _pos_scale_px()
-	SetMapPosition(Vector3(final_px.x, 0.0, final_px.y))
-
-	# ... visuals/depth as before, no changes needed ...
-
+	# collisions / visuals
 	if _isPushedBack:
 		ApplyCollisionBump()
-		
-	# visuals (throttled)
+
 	var f := Engine.get_process_frames()
 	if visual_update_stride <= 1 or (f % visual_update_stride) == 0:
 		_update_angle_sprite_fast()
@@ -820,3 +862,172 @@ func _exp_smooth_angle(prev: float, target: float, dt: float, half_life: float) 
 	var a := 1.0 - pow(0.5, dt / hl)
 	var d := wrapf(target - prev, -PI, PI)
 	return wrapf(prev + d * a, -PI, PI)
+
+# Arm a glide from an off-path grid UV to the on-path target after GO (no snap).
+func ArmMergeFromGrid(start_uv: Vector2, path_idx: int, lane_px: float = 0.0) -> void:
+	_try_cache_nodes()
+	_cache_path()
+	if _uv_points.size() < 2 or _total_len_px <= 0.0:
+		# cache intent; we'll still be locked so _ready() won't re-place us
+		start_index = clamp(path_idx, 0, max(0, _uv_points.size() - 2))
+		lane_offset_px = lane_px
+		_spawn_locked = true
+		return
+
+	start_index = clamp(path_idx, 0, max(0, _uv_points.size() - 2))
+	lane_offset_px = lane_px
+
+	# set internal path arc & heading (target we will glide toward)
+	_s_px = _arc_at_index(start_index) + max(0.0, start_offset_px)
+	_s_px = fposmod(_s_px, _total_len_px)
+	_heading = _tangent_angle_at_distance(_s_px)
+
+	# HOLD the visual at the grid UV for pre-GO countdown
+	var scale_px := _pos_scale_px()
+	_merge_start_uv = start_uv
+	var hold_px := _merge_start_uv * scale_px
+	SetMapPosition(Vector3(hold_px.x, 0.0, hold_px.y))
+
+	# arm the merge for GO
+	_merge_armed = true
+	_spawn_locked = true
+
+	# speed headroom like other spawns
+	if _maxMovementSpeed < max_speed_override:
+		_maxMovementSpeed = max_speed_override
+
+func _rf(rng: RandomNumberGenerator, a: float, b: float) -> float:
+	return rng.randf_range(a, b)
+
+func _pick_i(rng: RandomNumberGenerator, arr: Array) -> int:
+	if arr.is_empty(): return 0
+	return arr[rng.randi_range(0, arr.size() - 1)]
+
+# Public API: call this to (re)roll an opponent. Pass the player's target speed (150 now).
+func ApplyRandomProfile(seed: int = 0, player_speed: float = -1.0) -> void:
+	var rng := RandomNumberGenerator.new()
+	if seed == 0:
+		rng.randomize()
+	else:
+		rng.seed = seed
+
+	var pspd: float
+	if player_speed > 0.0:
+		pspd = player_speed
+	else:
+		pspd = assume_player_target_speed
+
+	# ---- choose an archetype (weighted) ----
+	var archetypes := ["Balanced", "Sprinter", "Cornerer", "Rubberband", "Human"]
+	var weights := [0.36, 0.18, 0.18, 0.16, 0.12]  # must sum ~1
+	var r := rng.randf()
+	var acc := 0.0
+	var arche := "Balanced"
+	for i in weights.size():
+		acc += weights[i]
+		if r <= acc:
+			arche = archetypes[i]
+			break
+
+	# ---- base rolls (soft, then arche tweaks) ----
+	var speed_factor := _rf(rng, 0.90, 1.15)     # vs player speed
+	if rng.randf() < 0.12:                       # rare "hot" rival
+		speed_factor = _rf(rng, 1.18, 1.23)
+
+	target_speed = pspd * speed_factor
+	accel        = _rf(rng, 150.0, 240.0)
+	max_turn_rate = _rf(rng, 2.2, 4.0)           # rad/s
+	steer_gain    = _rf(rng, 0.85, 1.25)
+	lookahead_px_base = _rf(rng, 110.0, 180.0)
+	speed_damper_on_curve = _rf(rng, 0.50, 0.85) # 1=no slow, 0.5=more slow on corners
+
+	catchup_gain_speed  = _rf(rng, 260.0, 440.0)
+	min_ratio_vs_player = _rf(rng, 1.02, 1.18)
+
+	# Smoothing / control feel
+	desired_yaw_half_life_s = _rf(rng, 0.08, 0.16)
+	heading_rate_limit       = _rf(rng, 2.1, 3.2)
+	anti_snap_window_px      = _rf(rng, 20.0, 40.0)
+	right_half_life_s        = _rf(rng, 0.05, 0.12)
+
+	# Traffic / passing
+	avoid_lookahead_s = _rf(rng, 0.60, 1.10)
+	avoid_width_px    = _rf(rng, 18.0, 26.0)
+	pass_bias_outer_on_turn = _rf(rng, 0.10, 0.28)
+	pass_cooldown_s   = _rf(rng, 0.45, 0.90)
+	block_slow_mult   = _rf(rng, 0.78, 0.90)
+	lane_lerp_hz      = _rf(rng, 4.0, 8.0)
+	lane_candidates_px = PackedFloat32Array([-32.0, -18.0, 0.0, 18.0, 32.0])
+
+	# Drafting
+	draft_enabled   = rng.randf() < 0.85
+	draft_dist_px   = _rf(rng, 50.0, 68.0)
+	draft_lateral_px= _rf(rng, 6.0, 14.0)
+	draft_speed_bonus = _rf(rng, 8.0, 16.0)
+
+	# Humanization
+	humanize_enabled     = true
+	humanize_amp_px      = _rf(rng, 3.0, 10.0)
+	humanize_freq_hz     = _rf(rng, 0.45, 0.75)
+	humanize_noise_hz    = _rf(rng, 0.25, 0.55)
+	humanize_corner_fade = _rf(rng, 0.30, 0.60)
+	humanize_nearby_fade_px = _rf(rng, 42.0, 64.0)
+
+	# Lane preference (small personality nudge)
+	var lane_pick := _pick_i(rng, [-28, 0, 28])
+	lane_offset_px = float(lane_pick) + _rf(rng, -6.0, 6.0)
+
+	# Archetype tweaks
+	match arche:
+		"Sprinter":
+			accel *= _rf(rng, 1.15, 1.35)
+			target_speed *= _rf(rng, 0.98, 1.03)
+			speed_damper_on_curve = min(0.78, speed_damper_on_curve) # slows more in turns
+		"Cornerer":
+			max_turn_rate *= _rf(rng, 1.15, 1.35)
+			steer_gain    *= _rf(rng, 1.05, 1.20)
+			speed_damper_on_curve = max(0.75, speed_damper_on_curve) # keeps speed in turns
+			lookahead_px_base     = _rf(rng, 150.0, 220.0)
+		"Rubberband":
+			target_speed *= _rf(rng, 0.94, 1.02)  # a tad lower base
+			catchup_gain_speed = _rf(rng, 420.0, 520.0)
+			min_ratio_vs_player = _rf(rng, 1.12, 1.22)
+		"Human":
+			humanize_amp_px   *= _rf(rng, 1.2, 1.6)
+			humanize_freq_hz  *= _rf(rng, 0.9, 1.2)
+			pass_cooldown_s   *= _rf(rng, 1.0, 1.4)
+		_:
+			pass # Balanced
+
+	# Respect caps and give some headroom over target speed
+	_maxMovementSpeed = min(diff_max_speed_cap, max_speed_override,
+		target_speed + _rf(rng, 40.0, 90.0))
+
+	# --- per-lap difficulty growth (kept modest, but varied) ---
+	if rng.randf() < 0.35:
+		diff_start_lap = 0
+	else:
+		diff_start_lap = 1
+
+	diff_speed_per_lap          = _rf(rng, 4.0, 9.0)
+	diff_max_speed_per_lap      = _rf(rng, 3.0, 6.0)
+	diff_catchup_gain_per_lap   = _rf(rng, 12.0, 28.0)
+	diff_min_ratio_per_lap      = _rf(rng, 0.005, 0.020)
+	diff_turn_per_lap           = _rf(rng, 0.03, 0.08)
+	diff_corner_penalty_decay   = _rf(rng, 0.010, 0.040)
+
+	# Make sure the curve penalty never exceeds bounds
+	diff_min_corner_penalty = 0.40
+	diff_max_min_ratio      = 1.40
+	diff_max_speed_cap      = 420.0
+
+	# ---- lock baselines so your dynamic difficulty scales from this new profile ----
+	_base_target_speed  = target_speed
+	_base_max_speed     = _maxMovementSpeed
+	_base_catchup_gain  = catchup_gain_speed
+	_base_min_ratio     = min_ratio_vs_player
+	_base_max_turn_rate = max_turn_rate
+	_base_corner_penalty= speed_damper_on_curve
+
+	# optional: remember we were randomized (helps avoid double-randomization)
+	_spawn_locked = _spawn_locked  # no-op; here just to show we do not change merge/spawn state

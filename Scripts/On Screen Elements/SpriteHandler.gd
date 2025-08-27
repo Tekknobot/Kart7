@@ -171,6 +171,17 @@ var _screen_bump_boot_s: float = 0.0
 var _screen_pair_latched := {}      # key -> bool
 var _screen_pair_chain   := {}      # key -> {count:int, last:float}
 
+var DEFAULT_POINTS: PackedVector2Array = PackedVector2Array([
+	Vector2(920, 583),	
+	Vector2(950, 607),
+	Vector2(920, 631),
+	Vector2(950, 655),
+	Vector2(920, 679),
+	Vector2(950, 703),
+	Vector2(920, 727),
+	Vector2(950, 751)
+])
+
 # Depth along the camera forward (positive = in front of the player's position, negative = behind)
 func _depth_along_camera(el: WorldElement) -> float:
 	var p3d := get_node_or_null(pseudo3d_node)
@@ -622,45 +633,92 @@ func _pos_px_of(n: WorldElement) -> Vector2:
 
 
 func _resolve_player_opponent_collisions() -> void:
-	if _player == null or _opponents == null or _opponents.size() == 0:
+	# Broadphase grid to avoid O(N^2) pairing
+	if _player == null or _opponents == null:
 		return
 
-	var p3 := _player.ReturnMapPosition()
-	var p_uv := Vector2(p3.x, p3.z)
-	var r_p := _get_collision_radius_uv(_player, true)
+	# Collect participants (player + valid opponents)
+	var racers: Array[WorldElement] = []
+	if is_instance_valid(_player):
+		racers.append(_player)
+	for o in _opponents:
+		if is_instance_valid(o) and o != _player:
+			racers.append(o)
+	if racers.size() <= 1:
+		return
 
-	# PLAYER ↔ OPPONENT
-	for opp in _opponents:
-		if not is_instance_valid(opp) or opp == _player:
-			continue
-		var o3 := opp.ReturnMapPosition()
-		var o_uv := Vector2(o3.x, o3.z)
-		var r_o := _get_collision_radius_uv(opp, false)
+	# --- build bins ---
+	var cells := 16                     # tweak: 12–24 works well
+	var bins := {}                      # key:String -> Array[WorldElement]
+	for el in racers:
+		var px := _pos_px_of(el)        # robust to px/uv reporters
+		var uv := _px_to_uv(px)         # 0..1
+		var key := _grid_key(_bin_index_from_uv(uv, cells))
+		if not bins.has(key):
+			bins[key] = []
+		bins[key].append(el)
 
-		# 1) try physical UV overlap first
-		var did := _resolve_circle_overlap(_player, p_uv, r_p, opp, o_uv, r_o, p3.y, o3.y)
-		# 2) if not, try screen-lane overtake bump
-		if (not did) and screen_bump_enabled:
-			_screen_lane_bump(_player, opp)
+	# Neighborhood offsets (3x3)
+	var neigh := [
+		Vector2i(-1,-1), Vector2i(0,-1), Vector2i(1,-1),
+		Vector2i(-1, 0), Vector2i(0, 0), Vector2i(1, 0),
+		Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1)
+	]
 
-	# OPPONENT ↔ OPPONENT
-	for i in range(_opponents.size()):
-		var a := _opponents[i]
-		if not is_instance_valid(a): continue
-		var a3 := a.ReturnMapPosition()
-		var a_uv := Vector2(a3.x, a3.z)
-		var r_a := _get_collision_radius_uv(a, false)
+	# Pair once
+	var done := {}   # pair_key -> true
 
-		for j in range(i + 1, _opponents.size()):
-			var b := _opponents[j]
-			if not is_instance_valid(b): continue
-			var b3 := b.ReturnMapPosition()
-			var b_uv := Vector2(b3.x, b3.z)
-			var r_b := _get_collision_radius_uv(b, false)
+	for k in bins.keys():
+		# Merge this bin + neighbors
+		var cxcy := _vec2i_from_key(k)
+		var bucket: Array[WorldElement] = []
+		for d in neigh:
+			var nk := _grid_key(cxcy + d)
+			if bins.has(nk):
+				bucket.append_array(bins[nk])
 
-			var did2 := _resolve_circle_overlap(a, a_uv, r_a, b, b_uv, r_b, a3.y, b3.y)
-			if (not did2) and screen_bump_enabled:
-				_screen_lane_bump(a, b)
+		# Local pairs
+		var N := bucket.size()
+		for i in range(N):
+			var a := bucket[i]
+			if not is_instance_valid(a): continue
+			var a3 := a.ReturnMapPosition()
+			var a_uv := Vector2(a3.x, a3.z)
+			var r_a := _get_collision_radius_uv(a, a == _player)
+
+			for j in range(i + 1, N):
+				var b := bucket[j]
+				if not is_instance_valid(b): continue
+
+				var pkey := _pair_key(a.get_instance_id(), b.get_instance_id())
+				if done.has(pkey):
+					continue
+				done[pkey] = true
+
+				var b3 := b.ReturnMapPosition()
+				var b_uv := Vector2(b3.x, b3.z)
+				var r_b := _get_collision_radius_uv(b, b == _player)
+
+				# 1) physical UV overlap
+				var did := _resolve_circle_overlap(a, a_uv, r_a, b, b_uv, r_b, a3.y, b3.y)
+
+				# 2) if no overlap, try screen-lane bump
+				if (not did) and screen_bump_enabled:
+					_screen_lane_bump(a, b)
+
+func _bin_index_from_uv(uv: Vector2, cells: int) -> Vector2i:
+	var cx = clamp(int(floor(uv.x * cells)), 0, cells - 1)
+	var cy = clamp(int(floor(uv.y * cells)), 0, cells - 1)
+	return Vector2i(cx, cy)
+
+func _grid_key(c: Vector2i) -> String:
+	return str(c.x, ",", c.y)
+
+func _vec2i_from_key(s: String) -> Vector2i:
+	var parts := s.split(",")
+	if parts.size() == 2:
+		return Vector2i(int(parts[0]), int(parts[1]))
+	return Vector2i.ZERO
 
 func _screen_lane_bump(a: WorldElement, b: WorldElement) -> bool:
 	# 0) Warm-up: don't nudge at the start grid
@@ -1253,6 +1311,10 @@ func _current_speed_of(el: WorldElement) -> float:
 	return 0.0
 
 func _tick_launch_profiles(dt: float) -> void:
+	# ✚ block any launch impulses until GO
+	if not Globals.race_can_drive:
+		return
+
 	if _launch_profiles.is_empty():
 		return
 	var to_remove: Array = []
@@ -1278,7 +1340,6 @@ func _tick_launch_profiles(dt: float) -> void:
 		if el.has_method("SetCollisionBump"):
 			el.call("SetCollisionBump", impulse)
 		else:
-			# ultra-safe fallback: tiny positional nudge if no bump method
 			var curr3 = el.ReturnMapPosition()
 			el.SetMapPosition(curr3 + impulse)
 
@@ -1368,7 +1429,7 @@ func _someone_lower_on_screen_than_player() -> bool:
 		if sp.y > p_pos.y + player_front_screen_epsilon:
 			return true
 	return false
-
+	
 func SpawnOpponentsFromDefaults() -> void:
 	# reset any prior launch profiles & markers
 	_launch_profiles.clear()
@@ -1380,77 +1441,105 @@ func SpawnOpponentsFromDefaults() -> void:
 	# read path (for tangents)
 	var pts := _get_default_path_points_uv()
 	var N := pts.size()
-	if N == 0:
+	if N < 2:
 		call_deferred("SpawnOpponentsFromDefaults")
 		return
-	if _opponents == null or _opponents.size() == 0:
+	if (_opponents == null or _opponents.size() == 0) and not is_instance_valid(_player):
 		return
 
-	# Prepare a shuffled palette order for this spawn pass
-	var keys: Array = []
-	for k in yoshi_keys:
-		keys.append(k)
+	# Build participant list: opponents first, player last in array
+	var racers: Array = []
+	if _opponents != null:
+		for o in _opponents:
+			if is_instance_valid(o):
+				racers.append(o)
+	var include_player := is_instance_valid(_player)
+	if include_player:
+		racers.append(_player)
 
-	# Fallback if empty
+	var grid_count := DEFAULT_POINTS.size()
+	if grid_count <= 0:
+		push_warning("SpawnOpponentsFromDefaults: no DEFAULT_POINTS defined")
+		return
+
+	# available grid slots [0..grid_count-1]
+	var slots: Array = []
+	for i in range(grid_count):
+		slots.append(i)
+
+	# shuffle slots so assignment is randomized
+	_rng.randomize()
+	for i in range(slots.size() - 1, 0, -1):
+		var j = int(_rng.randi() % (i + 1))
+		var tmp = slots[i]
+		slots[i] = slots[j]
+		slots[j] = tmp
+
+	# palette shuffle (opponents only)
+	var keys: Array = []
+	for k in yoshi_keys: keys.append(k)
 	if keys.is_empty():
 		keys = ["green"]
 	else:
-		# Fisher–Yates shuffle using your RNG
-		_rng.randomize()
 		for i in range(keys.size() - 1, 0, -1):
 			var j: int = int(_rng.randi() % (i + 1))
-			var tmp = keys[i]
-			keys[i] = keys[j]
-			keys[j] = tmp
+			var tmp = keys[i]; keys[i] = keys[j]; keys[j] = tmp
 
-
-	for i in range(_opponents.size()):
-		var opp := _opponents[i]
-		if not is_instance_valid(opp):
+	# assign slots
+	for i in range(racers.size()):
+		if i >= slots.size():
+			break
+		var r = racers[i]
+		if not is_instance_valid(r):
 			continue
 
-		# choose default spawn index for this AI
-		var di := i
-		if opp.has_method("DefaultCount"):
-			var cnt := int(opp.call("DefaultCount"))
-			if cnt > 0:
-				di = i % cnt
+		var di = slots[i]
+		var p_px := DEFAULT_POINTS[di]
+		var grid_uv := _px_to_uv(p_px)
+		grid_uv.x = clamp(grid_uv.x, 0.0, 1.0)
+		grid_uv.y = clamp(grid_uv.y, 0.0, 1.0)
 
-		# place at DEFAULT_POINTS[di] (exact pixels) and compute _s_px from the path
-		if opp.has_method("ApplySpawnFromDefaultIndex"):
-			opp.call("ApplySpawnFromDefaultIndex", di, 0.0)
-		else:
-			var idx_fallback = i % max(1, N)
-			if opp.has_method("ApplySpawnFromPathIndex"):
-				opp.call("ApplySpawnFromPathIndex", idx_fallback, 0.0)
+		# nearest path index + lane offset
+		var idx := _index_of_closest_point(pts, grid_uv)
+		if idx < 0: idx = 0
+		var lane_px := _lane_px_at(pts, grid_uv, idx)
 
-		# current UV (for debug + launch)
-		var scale_px := float(_mapSize)
-		var pos3: Vector3 = opp.ReturnMapPosition()
-		var uv := Vector2(pos3.x / scale_px, pos3.z / scale_px)
+		# ---------- PLACE ON GRID ----------
+		_place_world_element_uv(r, grid_uv)
+		_face_along_path_if_possible(r, pts, idx)
 
+		if r != _player:
+			if r.has_method("ArmMergeFromGrid"):
+				r.call("ArmMergeFromGrid", grid_uv, idx, lane_px)
+			elif r.has_method("ApplySpawnFromPathIndex"):
+				r.call("ApplySpawnFromPathIndex", idx, lane_px)
+
+		# debug marker
 		if spawn_debug_draw_markers:
-			_spawn_dbg_marker(uv, "opp_" + str(i))
+			var tag := "player_grid" if (include_player and r == _player) else ("opp_" + str(i))
+			_spawn_dbg_marker(grid_uv, tag)
 
-		# path tangent → launch profile
-		var idx := _index_of_closest_point(pts, uv)
-		if idx < 0:
-			idx = 0
+		# launch profile (opponents only)
 		var a := pts[idx]
 		var b := pts[(idx + 1) % N]
-		var tan := (b - a)
-		var fwd := Vector3(tan.x, 0.0, tan.y).normalized()
+		var tan := b - a
+		if tan.length() > 0.00001:
+			tan = tan.normalized()
+		var fwd := Vector3(tan.x, 0.0, tan.y)
 		var target := randf_range(launch_min_target_speed, launch_max_target_speed)
 		var accel := randf_range(launch_min_accel_ps,     launch_max_accel_ps)
-		_launch_profiles[opp.get_instance_id()] = { "target": target, "accel": accel, "dir": fwd }
+		_launch_profiles[r.get_instance_id()] = { "target": target, "accel": accel, "dir": fwd }
 
-		# >>> apply Yoshi shader right here <<<
-		var key = keys[i % keys.size()]
-		_attach_yoshi_shader(opp, key)
+		# recolor opponents only
+		if r != _player:
+			var key = keys[i % keys.size()]
+			_attach_yoshi_shader(r, key)
 
-		_spawn_dbg_print("spawned opp_" + str(i) + " at default UV=" + str(uv) + " (idx≈" + str(idx) + ")")
+		# log
+		var name_log := ("player" if r == _player else ("opp_" + str(i)))
+		_spawn_dbg_print("grid " + name_log + " idx=" + str(idx) + " lane_px=" + str(lane_px) + " slot=" + str(di))
 
-	_spawn_dbg_print("opponent_count=" + str(_opponents.size()))
+	_spawn_dbg_print("opponent_count=" + str(racers.size() - (1 if include_player else 0)) + " (player_included=" + str(include_player) + ")")
 
 # Camera axes in MAP space (forward + right), always normalized.
 func _camera_axes() -> Dictionary:
@@ -1466,3 +1555,20 @@ func _camera_axes() -> Dictionary:
 			f = Vector2(0, 1)
 	r = Vector2(f.y, -f.x) # camera-right from forward
 	return {"f": f, "r": r}
+
+# Lateral lane offset (px) at a path index, given a UV point near that segment.
+func _lane_px_at(pts: PackedVector2Array, uv_point: Vector2, idx: int) -> float:
+	var N := pts.size()
+	if N < 2:
+		return 0.0
+	var a := pts[idx]
+	var b := pts[(idx + 1) % N]
+	var t := b - a
+	var t_len := t.length()
+	if t_len > 0.00001:
+		t = t / t_len
+	else:
+		t = Vector2(1, 0)
+	var right := Vector2(-t.y, t.x)
+	var d := uv_point - a
+	return d.dot(right) * float(_mapSize) # UV → px

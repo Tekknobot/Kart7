@@ -295,6 +295,12 @@ func ReturnOnRoadType() -> Globals.RoadType:
 	return _onRoadType
 
 func UpdateMovementSpeed() -> void:
+	# Gate: freeze racers until the countdown finishes
+	if not Globals.race_can_drive:
+		_movementSpeed = 0.0
+		_currentMoveDirection = 0
+		return
+	
 	if _inputDir.y != 0.0:
 		if _inputDir.y != float(_currentMoveDirection) and _movementSpeed > 0.0:
 			Deaccelerate()
@@ -305,6 +311,8 @@ func UpdateMovementSpeed() -> void:
 			Deaccelerate()
 
 func Accelerate() -> void:
+	if not Globals.race_can_drive:
+		return
 	_movementSpeed += _movementAccel * get_process_delta_time()
 	_movementSpeed = min(_movementSpeed, _maxMovementSpeed * _speedMultiplier)
 	if _currentMoveDirection == int(_inputDir.y):
@@ -312,10 +320,17 @@ func Accelerate() -> void:
 	_currentMoveDirection = int(_inputDir.y)
 
 func Deaccelerate() -> void:
-	_movementSpeed -= _movementDeaccel * get_process_delta_time()
-	_movementSpeed = max(_movementSpeed, 0.0)
-	if _movementSpeed == 0.0 and _currentMoveDirection != int(_inputDir.y):
-		_currentMoveDirection = int(_inputDir.y)
+	if not Globals.race_can_drive:
+		_movementSpeed = 0.0
+		_currentMoveDirection = 0
+		return
+
+	# Clamp so we never cross below 0
+	_movementSpeed = max(0.0, _movementDeaccel * get_process_delta_time() * -1.0 + _movementSpeed)
+
+	if _movementSpeed == 0.0:
+		_currentMoveDirection = 0
+
 
 func SetCollisionBump(bumpDir: Vector3) -> void:
 	# Always (re)arm the bump on each contact

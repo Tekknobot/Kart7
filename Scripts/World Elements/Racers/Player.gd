@@ -469,6 +469,7 @@ func Update(mapForward : Vector3) -> void:
 	if _collisionHandler.IsCollidingWithWall(Vector2i(ceil(_mapPosition.x), ceil(nextPos.z))):
 		nextPos.z = _mapPosition.z
 		SetCollisionBump(Vector3(0.0, 0.0, -sign(ReturnVelocity().z)))
+	
 	HandleRoadType(nextPixelPos, _collisionHandler.ReturnCurrentRoadType(nextPixelPos))
 
 	SetMapPosition(nextPos)

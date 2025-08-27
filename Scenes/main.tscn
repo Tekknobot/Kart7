@@ -1,4 +1,4 @@
-[gd_scene load_steps=39 format=3 uid="uid://d2glnv32t8md1"]
+[gd_scene load_steps=40 format=3 uid="uid://d2glnv32t8md1"]
 
 [ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_emb0w"]
 [ext_resource type="Script" uid="uid://cex362lk6utnk" path="res://Scripts/On Screen Elements/BackgroundEffects.gd" id="2_330he"]
@@ -28,6 +28,7 @@
 [ext_resource type="PackedScene" uid="uid://bm1g128j70kea" path="res://Textures/VFX/StarNight.tscn" id="25_u50mg"]
 [ext_resource type="Script" uid="uid://dcfngv7oaf2c8" path="res://Scripts/RaceHUD.gd" id="26_cbgmd"]
 [ext_resource type="FontFile" uid="uid://dgugahs6bc7so" path="res://Fonts/magofonts/mago3.ttf" id="28_ueoa1"]
+[ext_resource type="PackedScene" uid="uid://cscln7aked6md" path="res://Scenes/CountdownUI.tscn" id="29_6vcvc"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_lhngl"]
 shader = ExtResource("3_okd74")
@@ -1132,6 +1133,7 @@ turn_half_life = 0.12
 ref_distance_uv = 0.001
 radius_from_sprite_factor = 0.001
 min_radius_uv_auto = 0.002
+spawn_debug = false
 screen_bump_min_feel_pxps = 8.0
 screen_bump_rel_gain = 0.16
 screen_bump_min_speed_pxps = 16.0
@@ -1142,9 +1144,6 @@ screen_bump_min_rel_lat_pxps = 12.0
 [node name="Voltage" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 position = Vector2(-1.52588e-05, 0)
 script = ExtResource("8_lejxo")
-_maxMovementSpeed = 180.0
-_movementAccel = 100.0
-_movementDeaccel = 80.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
 pseudo3d_ref = NodePath("../../../Map")
@@ -1176,6 +1175,7 @@ libraries = {
 speed_scale = 8.0
 
 [node name="Right Wheel" type="Sprite2D" parent="Sprite Handler/Racers/Voltage/Road Type Effects"]
+visible = false
 texture_filter = 1
 position = Vector2(48, 40)
 scale = Vector2(3, 3)
@@ -1185,6 +1185,7 @@ region_enabled = true
 region_rect = Rect2(96, 16, 8, 8)
 
 [node name="Right Wheel Special" type="Sprite2D" parent="Sprite Handler/Racers/Voltage/Road Type Effects"]
+visible = false
 texture_filter = 1
 position = Vector2(75, 50)
 scale = Vector2(3, 3)
@@ -1194,6 +1195,7 @@ region_enabled = true
 region_rect = Rect2(96, 0, 16, 16)
 
 [node name="Left Wheel" type="Sprite2D" parent="Sprite Handler/Racers/Voltage/Road Type Effects"]
+visible = false
 texture_filter = 1
 position = Vector2(-48, 40)
 scale = Vector2(3, 3)
@@ -1204,6 +1206,7 @@ region_enabled = true
 region_rect = Rect2(96, 16, 8, 8)
 
 [node name="Left Wheel Special" type="Sprite2D" parent="Sprite Handler/Racers/Voltage/Road Type Effects"]
+visible = false
 texture_filter = 1
 position = Vector2(-75, 50)
 scale = Vector2(3, 3)
@@ -1222,7 +1225,6 @@ texture = ExtResource("5_lfi8c")
 [node name="Grip" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Voltage")
-lane_offset_px = 8.0
 target_speed = 150.0
 accel = 120.0
 max_speed_override = 420.0
@@ -1237,6 +1239,8 @@ draft_dist_px = 128.0
 draft_lateral_px = 32.0
 draft_speed_bonus = 25.0
 humanize_amp_px = 3.0
+merge_time_s = 3.0
+randomize_on_ready = true
 _movementDeaccel = 100.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
@@ -1258,8 +1262,8 @@ texture = ExtResource("5_lfi8c")
 [node name="Torque" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Voltage")
-lane_offset_px = -8.0
-accel = 100.0
+target_speed = 150.0
+accel = 120.0
 max_speed_override = 420.0
 catchup_gain_speed = 0.0
 min_ratio_vs_player = 1.0
@@ -1272,6 +1276,9 @@ draft_dist_px = 128.0
 draft_lateral_px = 32.0
 draft_speed_bonus = 25.0
 humanize_amp_px = 3.0
+merge_time_s = 3.0
+randomize_on_ready = true
+random_seed = 1
 _maxMovementSpeed = 110.0
 _movementAccel = 100.0
 _movementDeaccel = 100.0
@@ -1296,8 +1303,8 @@ texture = ExtResource("5_lfi8c")
 [node name="Razor" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Voltage")
-lane_offset_px = 20.0
-accel = 100.0
+target_speed = 150.0
+accel = 120.0
 max_speed_override = 420.0
 catchup_gain_speed = 0.0
 min_ratio_vs_player = 1.0
@@ -1310,6 +1317,9 @@ draft_dist_px = 128.0
 draft_lateral_px = 32.0
 draft_speed_bonus = 25.0
 humanize_amp_px = 3.0
+merge_time_s = 3.0
+randomize_on_ready = true
+random_seed = 2
 _maxMovementSpeed = 110.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
@@ -1332,7 +1342,6 @@ texture = ExtResource("5_lfi8c")
 [node name="Havok" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Voltage")
-lane_offset_px = 16.0
 target_speed = 150.0
 accel = 120.0
 max_speed_override = 420.0
@@ -1347,6 +1356,9 @@ draft_dist_px = 128.0
 draft_lateral_px = 32.0
 draft_speed_bonus = 25.0
 humanize_amp_px = 3.0
+merge_time_s = 3.0
+randomize_on_ready = true
+random_seed = 3
 _collisionHandler = NodePath("../../../Map/Collision Handler")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
 pseudo3d_ref = NodePath("../../../Map")
@@ -1368,8 +1380,8 @@ texture = ExtResource("5_lfi8c")
 [node name="Blitz" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Voltage")
-lane_offset_px = -12.0
-accel = 100.0
+target_speed = 150.0
+accel = 120.0
 max_speed_override = 420.0
 catchup_gain_speed = 0.0
 min_ratio_vs_player = 1.0
@@ -1382,6 +1394,9 @@ draft_dist_px = 128.0
 draft_lateral_px = 32.0
 draft_speed_bonus = 25.0
 humanize_amp_px = 3.0
+merge_time_s = 3.0
+randomize_on_ready = true
+random_seed = 4
 _maxMovementSpeed = 110.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
@@ -1404,8 +1419,8 @@ texture = ExtResource("5_lfi8c")
 [node name="Nitro" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Voltage")
-lane_offset_px = 12.0
-accel = 100.0
+target_speed = 150.0
+accel = 120.0
 max_speed_override = 420.0
 catchup_gain_speed = 0.0
 min_ratio_vs_player = 1.0
@@ -1418,6 +1433,9 @@ draft_dist_px = 128.0
 draft_lateral_px = 32.0
 draft_speed_bonus = 25.0
 humanize_amp_px = 3.0
+merge_time_s = 3.0
+randomize_on_ready = true
+random_seed = 5
 _maxMovementSpeed = 110.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
@@ -1440,8 +1458,8 @@ texture = ExtResource("5_lfi8c")
 [node name="Rogue" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Voltage")
-lane_offset_px = 20.0
-accel = 100.0
+target_speed = 150.0
+accel = 120.0
 max_speed_override = 420.0
 catchup_gain_speed = 0.0
 min_ratio_vs_player = 1.0
@@ -1454,6 +1472,9 @@ draft_dist_px = 128.0
 draft_lateral_px = 32.0
 draft_speed_bonus = 25.0
 humanize_amp_px = 3.0
+merge_time_s = 3.0
+randomize_on_ready = true
+random_seed = 6
 _maxMovementSpeed = 110.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
@@ -1755,6 +1776,7 @@ last_lbl = NodePath("BottomRight/Vbox/Last")
 best_lbl = NodePath("BottomRight/Vbox/Best")
 default_font = ExtResource("23_gt3je")
 default_size = 16
+outline_size = 4
 time_font = ExtResource("23_gt3je")
 time_size = 16
 lap_font = ExtResource("23_gt3je")
@@ -1804,3 +1826,5 @@ layout_mode = 2
 
 [node name="Best" type="Label" parent="RaceHUD/BottomRight/Vbox"]
 layout_mode = 2
+
+[node name="CountdownUI" parent="." instance=ExtResource("29_6vcvc")]

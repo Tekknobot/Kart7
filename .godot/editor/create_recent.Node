@@ -1,4 +1,7 @@
+AudioStreamPlayer2D
 Label
+CenterContainer
+CanvasLayer
 VBoxContainer
 MarginContainer
 Control
@@ -10,4 +13,3 @@ Node
 Sprite2D
 CharacterBody2D
 SubViewport
-AudioStreamPlayer2D
