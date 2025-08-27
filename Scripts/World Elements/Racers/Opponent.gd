@@ -408,25 +408,27 @@ func _process(delta: float) -> void:
 	else:
 		_movementSpeed = max(desired_speed, _movementSpeed - accel * delta)
 
-	# advance along path
+	# advance along path (arc-length state stays the same)
 	_s_px = fposmod(_s_px + _movementSpeed * delta, _total_len_px)
 
-	# --- placement (merge-aware) ---
+	# compute current & target UVs for lane/humanization
 	var cur_uv: Vector2 = _uv_at_distance(_s_px)
-	var lane_px_now: float = lane_offset_px  # you can adjust this for humanization
+
+	# you can still modulate lane_px_now with humanization / passing
+	var lane_px_now: float = lane_offset_px
 	var target_uv: Vector2 = cur_uv + (lane_px_now / _pos_scale_px()) * right
 
+	# during merge, blend the target UV, but still **move** through the physics pipe
 	if _merging:
 		_merge_t += delta / max(0.0001, merge_time_s)
 		if _merge_t >= 1.0:
 			_merge_t = 1.0
 			_merging = false
-		var blend_uv: Vector2 = _merge_start_uv.lerp(target_uv, _merge_t)
-		var blend_px: Vector2 = blend_uv * _pos_scale_px()
-		SetMapPosition(Vector3(blend_px.x, 0.0, blend_px.y))
+		var target_uv_blend: Vector2 = _merge_start_uv.lerp(target_uv, _merge_t)
+		_physics_step_like_player(cur_uv, right, target_uv_blend, delta)
 	else:
-		var final_px: Vector2 = target_uv * _pos_scale_px()
-		SetMapPosition(Vector3(final_px.x, 0.0, final_px.y))
+		_physics_step_like_player(cur_uv, right, target_uv, delta)
+
 
 	# collisions / visuals
 	if _isPushedBack:
@@ -1031,3 +1033,81 @@ func ApplyRandomProfile(seed: int = 0, player_speed: float = -1.0) -> void:
 
 	# optional: remember we were randomized (helps avoid double-randomization)
 	_spawn_locked = _spawn_locked  # no-op; here just to show we do not change merge/spawn state
+
+# --- Opponent physics glue: move like Player (shared pipeline) ---
+
+# How fast we’re allowed to slide laterally toward our lane (px/s)
+@export var lane_chase_speed_px: float = 240.0
+
+# Soft damping for the lateral controller
+@export var lane_chase_damp: float = 6.0
+
+var _lane_side_vel: float = 0.0  # px/s along "right" (signed)
+
+func _physics_step_like_player(p_uv: Vector2, right: Vector2, target_uv: Vector2, dt: float) -> void:
+	# ensure 'right' is unit length (it should be, but be safe)
+	if right.length_squared() > 1.0001 or right.length_squared() < 0.9999:
+		right = right.normalized()
+
+	var scale_px := _pos_scale_px()
+
+	# REAL current position in map pixels (❗️previously: p_uv*scale)
+	var my_px := Vector2(_mapPosition.x, _mapPosition.z)
+
+	# ideal target in map pixels
+	var tgt_px := target_uv * scale_px
+
+	# build a local frame at current heading
+	var fwd := Vector2(cos(_heading), sin(_heading))      # unit
+	var rgt := right                                      # unit (from smoothed path)
+
+	# position error in world/map space
+	var err_vec := tgt_px - my_px
+	var err_side := err_vec.dot(rgt)                      # signed lateral px
+	var err_fwd  := err_vec.dot(fwd)                      # forward/backward px (useful for pinch recovery)
+
+	# --- lateral controller toward lane (critically-damped-ish) ---
+	var want_side_vel = clamp(err_side * lane_lerp_hz, -lane_chase_speed_px, lane_chase_speed_px)
+	_lane_side_vel = lerp(_lane_side_vel, want_side_vel, clamp(dt * lane_chase_damp, 0.0, 1.0))
+
+	# soft nudge forward if we’re behind the target along the track (prevents “stick on inside wall”)
+	var fwd_nudge := 0.0
+	if err_fwd > 0.0:
+		# small assist that diminishes with speed; tune 0.4..0.8
+		fwd_nudge = min(80.0, err_fwd * 0.6)
+
+	# compose intended velocity (px/s)
+	var v_forward := fwd * (_movementSpeed + fwd_nudge)
+	var v_side    := rgt * _lane_side_vel
+	var v_total   := v_forward + v_side
+
+	# predict, axis-resolve like Player
+	var nextPos := _mapPosition + Vector3(v_total.x, 0.0, v_total.y) * dt
+
+	# axis-wise wall resolution (slide along the free axis)
+	var hit_x = _collisionHandler.IsCollidingWithWall(Vector2i(ceil(nextPos.x), ceil(_mapPosition.z)))
+	if hit_x:
+		nextPos.x = _mapPosition.x
+		SetCollisionBump(Vector3(-sign(v_total.x), 0.0, 0.0))
+
+	var hit_z = _collisionHandler.IsCollidingWithWall(Vector2i(ceil(_mapPosition.x), ceil(nextPos.z)))
+	if hit_z:
+		nextPos.z = _mapPosition.z
+		SetCollisionBump(Vector3(0.0, 0.0, -sign(v_total.y)))
+
+	# if an axis hit, zero that component of our side velocity to stop grinding
+	if hit_x:
+		# projecting v_total onto x means side might be the culprit; damp lane chase so it re-plans
+		_lane_side_vel *= 0.5
+	if hit_z:
+		_lane_side_vel *= 0.5
+
+	# terrain + finalize (same as Player flow)
+	var nextPixelPos : Vector2i = Vector2i(ceil(nextPos.x), ceil(nextPos.z))
+	var curr_rt = _collisionHandler.ReturnCurrentRoadType(nextPixelPos)
+	HandleRoadType(nextPixelPos, curr_rt)
+
+	SetMapPosition(nextPos)
+	UpdateMovementSpeed()
+	var mapForward := Vector3(fwd.x, 0.0, fwd.y)
+	UpdateVelocity(mapForward)
