@@ -1,4 +1,4 @@
-[gd_scene load_steps=36 format=3 uid="uid://d2glnv32t8md1"]
+[gd_scene load_steps=39 format=3 uid="uid://d2glnv32t8md1"]
 
 [ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_emb0w"]
 [ext_resource type="Script" uid="uid://cex362lk6utnk" path="res://Scripts/On Screen Elements/BackgroundEffects.gd" id="2_330he"]
@@ -23,8 +23,11 @@
 [ext_resource type="Script" uid="uid://bkg7bm4cb65tt" path="res://Scripts/AI/PathOverlay2D.gd" id="21_pdsj5"]
 [ext_resource type="Script" uid="uid://cnmmx8tldt4vt" path="res://Scripts/LeaderBoard.gd" id="22_ee4r6"]
 [ext_resource type="FontFile" uid="uid://csnhk3q4gx0" path="res://Fonts/magofonts/mago1.ttf" id="23_gt3je"]
+[ext_resource type="FontFile" uid="uid://buw362wjb8o8d" path="res://Fonts/magofonts/mago2.ttf" id="23_u50mg"]
 [ext_resource type="Script" uid="uid://dtnsya35gcocj" path="res://Scripts/Minimap.gd" id="24_3pmx8"]
 [ext_resource type="PackedScene" uid="uid://bm1g128j70kea" path="res://Textures/VFX/StarNight.tscn" id="25_u50mg"]
+[ext_resource type="Script" uid="uid://dcfngv7oaf2c8" path="res://Scripts/RaceHUD.gd" id="26_cbgmd"]
+[ext_resource type="FontFile" uid="uid://dgugahs6bc7so" path="res://Fonts/magofonts/mago3.ttf" id="28_ueoa1"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_lhngl"]
 shader = ExtResource("3_okd74")
@@ -1036,7 +1039,7 @@ default_font_size = 16
 script = ExtResource("1_emb0w")
 _map = NodePath("Map")
 _collision = NodePath("Map/Collision Handler")
-_player = NodePath("Sprite Handler/Racers/Player")
+_player = NodePath("Sprite Handler/Racers/Voltage")
 _spriteHandler = NodePath("Sprite Handler")
 _animationHandler = NodePath("Sprite Handler/Animation Handler")
 _backgroundElements = NodePath("Background Elements")
@@ -1107,10 +1110,10 @@ _roadTypeColors = Array[Color]([Color(0, 0, 0, 1), Color(1, 1, 1, 1), Color(0.8,
 [node name="Sprite Handler" type="Node2D" parent="." node_paths=PackedStringArray("_hazards", "_opponents")]
 script = ExtResource("7_wmybs")
 _hazards = [NodePath("Hazards/Bridge/Green Pipe"), NodePath("Hazards/Bridge/Green Pipe2"), NodePath("Hazards/Bridge/Green Pipe3"), NodePath("Hazards/Bridge/Green Pipe4"), NodePath("Hazards/Shortcut/Green Pipe"), NodePath("Hazards/Shortcut/Green Pipe2"), NodePath("Hazards/Shortcut/Green Pipe3"), NodePath("Hazards/Shortcut/Green Pipe4"), NodePath("Hazards/Lake/Green Pipe"), NodePath("Hazards/Lake/Green Pipe2"), NodePath("Hazards/Lake/Green Pipe3"), NodePath("Hazards/Lake/Green Pipe4"), NodePath("Hazards/Last Turn/Green Pipe"), NodePath("Hazards/Last Turn/Green Pipe2"), NodePath("Hazards/Last Turn/Green Pipe3"), NodePath("Hazards/Last Turn/Green Pipe4")]
-_opponents = [NodePath("Racers/Vandal"), NodePath("Racers/Torque"), NodePath("Racers/Razor"), NodePath("Racers/Havok"), NodePath("Racers/Blitz"), NodePath("Racers/Nitro"), NodePath("Racers/Rogue")]
-pseudo3d_node = NodePath("Racers/Player")
+_opponents = [NodePath("Racers/Grip"), NodePath("Racers/Torque"), NodePath("Racers/Razor"), NodePath("Racers/Havok"), NodePath("Racers/Blitz"), NodePath("Racers/Nitro"), NodePath("Racers/Rogue")]
+pseudo3d_node = NodePath("Racers/Voltage")
 path_overlay_node = NodePath("../SubViewport/PathOverlay2D")
-sprite_graphic_path = NodePath("Racers/Vandal/GFX/AngleSprite")
+sprite_graphic_path = NodePath("Racers/Grip/GFX/AngleSprite")
 collect_under = NodePath("Racers")
 player_base_scale_abs = 2.6
 opponent_min_scale_abs = 0.01
@@ -1136,7 +1139,7 @@ screen_bump_min_rel_lat_pxps = 12.0
 
 [node name="Racers" type="Node2D" parent="Sprite Handler"]
 
-[node name="Player" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
+[node name="Voltage" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 position = Vector2(-1.52588e-05, 0)
 script = ExtResource("8_lejxo")
 _maxMovementSpeed = 180.0
@@ -1153,7 +1156,7 @@ _spriteGFX = NodePath("GFX")
 _mapPosition = Vector3(951, 0, 775)
 sprite_graphic_path = NodePath("GFX2/AngleSprite")
 
-[node name="GFX" type="Sprite2D" parent="Sprite Handler/Racers/Player"]
+[node name="GFX" type="Sprite2D" parent="Sprite Handler/Racers/Voltage"]
 visible = false
 z_index = 4096
 z_as_relative = false
@@ -1163,16 +1166,16 @@ texture = ExtResource("5_lfi8c")
 region_enabled = true
 region_rect = Rect2(0, 0, 32, 32)
 
-[node name="Road Type Effects" type="Node2D" parent="Sprite Handler/Racers/Player"]
+[node name="Road Type Effects" type="Node2D" parent="Sprite Handler/Racers/Voltage"]
 visible = false
 
-[node name="Effects Player" type="AnimationPlayer" parent="Sprite Handler/Racers/Player/Road Type Effects"]
+[node name="Effects Player" type="AnimationPlayer" parent="Sprite Handler/Racers/Voltage/Road Type Effects"]
 libraries = {
 &"": SubResource("AnimationLibrary_2e3ut")
 }
 speed_scale = 8.0
 
-[node name="Right Wheel" type="Sprite2D" parent="Sprite Handler/Racers/Player/Road Type Effects"]
+[node name="Right Wheel" type="Sprite2D" parent="Sprite Handler/Racers/Voltage/Road Type Effects"]
 texture_filter = 1
 position = Vector2(48, 40)
 scale = Vector2(3, 3)
@@ -1181,7 +1184,7 @@ offset = Vector2(-4, 0)
 region_enabled = true
 region_rect = Rect2(96, 16, 8, 8)
 
-[node name="Right Wheel Special" type="Sprite2D" parent="Sprite Handler/Racers/Player/Road Type Effects"]
+[node name="Right Wheel Special" type="Sprite2D" parent="Sprite Handler/Racers/Voltage/Road Type Effects"]
 texture_filter = 1
 position = Vector2(75, 50)
 scale = Vector2(3, 3)
@@ -1190,7 +1193,7 @@ offset = Vector2(-8, 0)
 region_enabled = true
 region_rect = Rect2(96, 0, 16, 16)
 
-[node name="Left Wheel" type="Sprite2D" parent="Sprite Handler/Racers/Player/Road Type Effects"]
+[node name="Left Wheel" type="Sprite2D" parent="Sprite Handler/Racers/Voltage/Road Type Effects"]
 texture_filter = 1
 position = Vector2(-48, 40)
 scale = Vector2(3, 3)
@@ -1200,7 +1203,7 @@ flip_h = true
 region_enabled = true
 region_rect = Rect2(96, 16, 8, 8)
 
-[node name="Left Wheel Special" type="Sprite2D" parent="Sprite Handler/Racers/Player/Road Type Effects"]
+[node name="Left Wheel Special" type="Sprite2D" parent="Sprite Handler/Racers/Voltage/Road Type Effects"]
 texture_filter = 1
 position = Vector2(-75, 50)
 scale = Vector2(3, 3)
@@ -1210,15 +1213,15 @@ flip_h = true
 region_enabled = true
 region_rect = Rect2(96, 0, 16, 16)
 
-[node name="GFX2" type="Node" parent="Sprite Handler/Racers/Player"]
+[node name="GFX2" type="Node" parent="Sprite Handler/Racers/Voltage"]
 
-[node name="AngleSprite" type="Sprite2D" parent="Sprite Handler/Racers/Player/GFX2"]
+[node name="AngleSprite" type="Sprite2D" parent="Sprite Handler/Racers/Voltage/GFX2"]
 z_index = 4096
 texture = ExtResource("5_lfi8c")
 
-[node name="Vandal" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
+[node name="Grip" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
-player_ref = NodePath("../Player")
+player_ref = NodePath("../Voltage")
 lane_offset_px = 8.0
 target_speed = 150.0
 accel = 120.0
@@ -1246,15 +1249,15 @@ ai_auto_throttle = true
 ai_throttle_delay_s = 1.0
 _spriteGFX = NodePath("GFX/AngleSprite")
 
-[node name="GFX" type="Node" parent="Sprite Handler/Racers/Vandal"]
+[node name="GFX" type="Node" parent="Sprite Handler/Racers/Grip"]
 
-[node name="AngleSprite" type="Sprite2D" parent="Sprite Handler/Racers/Vandal/GFX"]
+[node name="AngleSprite" type="Sprite2D" parent="Sprite Handler/Racers/Grip/GFX"]
 z_index = -1
 texture = ExtResource("5_lfi8c")
 
 [node name="Torque" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
-player_ref = NodePath("../Player")
+player_ref = NodePath("../Voltage")
 lane_offset_px = -8.0
 accel = 100.0
 max_speed_override = 420.0
@@ -1292,7 +1295,7 @@ texture = ExtResource("5_lfi8c")
 
 [node name="Razor" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
-player_ref = NodePath("../Player")
+player_ref = NodePath("../Voltage")
 lane_offset_px = 20.0
 accel = 100.0
 max_speed_override = 420.0
@@ -1328,7 +1331,7 @@ texture = ExtResource("5_lfi8c")
 
 [node name="Havok" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
-player_ref = NodePath("../Player")
+player_ref = NodePath("../Voltage")
 lane_offset_px = 16.0
 target_speed = 150.0
 accel = 120.0
@@ -1364,7 +1367,7 @@ texture = ExtResource("5_lfi8c")
 
 [node name="Blitz" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
-player_ref = NodePath("../Player")
+player_ref = NodePath("../Voltage")
 lane_offset_px = -12.0
 accel = 100.0
 max_speed_override = 420.0
@@ -1400,7 +1403,7 @@ texture = ExtResource("5_lfi8c")
 
 [node name="Nitro" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
-player_ref = NodePath("../Player")
+player_ref = NodePath("../Voltage")
 lane_offset_px = 12.0
 accel = 100.0
 max_speed_override = 420.0
@@ -1436,7 +1439,7 @@ texture = ExtResource("5_lfi8c")
 
 [node name="Rogue" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
-player_ref = NodePath("../Player")
+player_ref = NodePath("../Voltage")
 lane_offset_px = 20.0
 accel = 100.0
 max_speed_override = 420.0
@@ -1659,9 +1662,9 @@ _mapPosition = Vector3(64, 0, 816)
 
 [node name="Animation Handler" type="Node" parent="Sprite Handler" node_paths=PackedStringArray("_effectsPlayer", "_specialWheelEffect")]
 script = ExtResource("13_6hxns")
-_effectsPlayer = NodePath("../Racers/Player/Road Type Effects/Effects Player")
+_effectsPlayer = NodePath("../Racers/Voltage/Road Type Effects/Effects Player")
 _roadRoughness = 0
-_specialWheelEffect = [NodePath("../Racers/Player/Road Type Effects/Right Wheel Special"), NodePath("../Racers/Player/Road Type Effects/Left Wheel Special")]
+_specialWheelEffect = [NodePath("../Racers/Voltage/Road Type Effects/Right Wheel Special"), NodePath("../Racers/Voltage/Road Type Effects/Left Wheel Special")]
 
 [node name="SubViewport" type="SubViewport" parent="."]
 transparent_bg = true
@@ -1680,9 +1683,9 @@ script = ExtResource("21_ee4r6")
 pseudo3d_node = NodePath("../Map")
 path_overlay_node = NodePath("../SubViewport/PathOverlay2D")
 racers_root = NodePath("../Sprite Handler/Racers")
-player_path = NodePath("../Sprite Handler/Racers/Player")
+player_path = NodePath("../Sprite Handler/Racers/Voltage")
 force_player_on_top = false
-total_laps = 6
+total_laps = 4
 finish_auto_speed_px = 240.0
 
 [node name="LeaderBoard" type="Control" parent="."]
@@ -1696,7 +1699,7 @@ offset_bottom = 159.0
 theme = SubResource("Theme_gt3je")
 script = ExtResource("22_ee4r6")
 race_manager_path = NodePath("../RaceManager")
-player_path = NodePath("../Sprite Handler/Racers/Player")
+player_path = NodePath("../Sprite Handler/Racers/Voltage")
 row_height = 16
 animate_time = 0.8
 col_place_w = 30
@@ -1718,7 +1721,7 @@ offset_bottom = 360.0
 script = ExtResource("24_3pmx8")
 path_provider = NodePath("../SubViewport/PathOverlay2D")
 racers_root = NodePath("../Sprite Handler/Racers")
-player_path = NodePath("../Sprite Handler/Racers/Player")
+player_path = NodePath("../Sprite Handler/Racers/Voltage")
 path_width = 2
 resample_step_px = 2.24
 smooth_iterations = 1
@@ -1732,3 +1735,72 @@ flip_y = false
 pixel_dots = false
 dot_square_size = 2
 player_square_size = 2
+
+[node name="RaceHUD" type="Control" parent="." node_paths=PackedStringArray("time_lbl", "lap_lbl", "place_lbl", "speed_lbl", "last_lbl", "best_lbl")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("26_cbgmd")
+race_manager_path = NodePath("../RaceManager")
+player_path = NodePath("../Sprite Handler/Racers/Voltage")
+total_laps = 4
+time_lbl = NodePath("TopRight/Vbox/Time")
+lap_lbl = NodePath("TopRight/Vbox/Lap")
+place_lbl = NodePath("BottomRight/Vbox/Place")
+speed_lbl = NodePath("BottomRight/Vbox/Speed")
+last_lbl = NodePath("BottomRight/Vbox/Last")
+best_lbl = NodePath("BottomRight/Vbox/Best")
+default_font = ExtResource("23_gt3je")
+default_size = 16
+time_font = ExtResource("23_gt3je")
+time_size = 16
+lap_font = ExtResource("23_gt3je")
+lap_size = 16
+place_font = ExtResource("28_ueoa1")
+place_size = 64
+speed_font = ExtResource("23_u50mg")
+speed_size = 16
+last_font = ExtResource("23_gt3je")
+last_size = 16
+best_font = ExtResource("23_gt3je")
+best_size = 16
+
+[node name="TopRight" type="MarginContainer" parent="RaceHUD"]
+layout_mode = 0
+offset_left = 369.0
+offset_right = 480.0
+offset_bottom = 50.0
+
+[node name="Vbox" type="VBoxContainer" parent="RaceHUD/TopRight"]
+layout_mode = 2
+
+[node name="Time" type="Label" parent="RaceHUD/TopRight/Vbox"]
+layout_mode = 2
+
+[node name="Lap" type="Label" parent="RaceHUD/TopRight/Vbox"]
+layout_mode = 2
+
+[node name="BottomRight" type="MarginContainer" parent="RaceHUD"]
+layout_mode = 0
+offset_left = 371.0
+offset_top = 245.0
+offset_right = 480.0
+offset_bottom = 360.0
+
+[node name="Vbox" type="VBoxContainer" parent="RaceHUD/BottomRight"]
+layout_mode = 2
+
+[node name="Place" type="Label" parent="RaceHUD/BottomRight/Vbox"]
+layout_mode = 2
+
+[node name="Speed" type="Label" parent="RaceHUD/BottomRight/Vbox"]
+layout_mode = 2
+
+[node name="Last" type="Label" parent="RaceHUD/BottomRight/Vbox"]
+layout_mode = 2
+
+[node name="Best" type="Label" parent="RaceHUD/BottomRight/Vbox"]
+layout_mode = 2

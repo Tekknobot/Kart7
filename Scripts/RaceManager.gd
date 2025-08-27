@@ -337,7 +337,7 @@ func Update() -> void:
 				_progress[id]["total_ms"] = accum + lap_ms
 
 			# mark finished on crossing that reaches total_laps
-			if lap >= total_laps and not bool(_progress[id]["finished"]):
+			if lap > total_laps and not bool(_progress[id]["finished"]):
 				_progress[id]["finished"] = true
 				_finish_order.append(id)
 				_progress[id]["finish_rank"] = _finish_order.size()

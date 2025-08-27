@@ -6,3 +6,5 @@ res://Textures/VFX/StarNight.tscn
 res://Scripts/LeaderBoard.gd
 res://Scripts/Minimap.gd
 res://Scripts/World Elements/Racers/Opponent.gd
+res://Scripts/RaceHUD.gd
+res://Scripts/RaceManager.gd

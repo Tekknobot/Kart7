@@ -1,9 +1,10 @@
+Label
+VBoxContainer
+MarginContainer
 Control
 ColorRect
-Label
 HBoxContainer
 PanelContainer
-VBoxContainer
 Node2D
 Node
 Sprite2D
