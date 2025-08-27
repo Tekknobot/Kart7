@@ -1293,7 +1293,7 @@ texture = ExtResource("5_lfi8c")
 [node name="Razor" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Player")
-lane_offset_px = 16.0
+lane_offset_px = 20.0
 accel = 100.0
 max_speed_override = 420.0
 catchup_gain_speed = 0.0
@@ -1329,7 +1329,7 @@ texture = ExtResource("5_lfi8c")
 [node name="Havok" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Player")
-lane_offset_px = -8.0
+lane_offset_px = 16.0
 target_speed = 150.0
 accel = 120.0
 max_speed_override = 420.0
@@ -1365,7 +1365,7 @@ texture = ExtResource("5_lfi8c")
 [node name="Blitz" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Player")
-lane_offset_px = 8.0
+lane_offset_px = -12.0
 accel = 100.0
 max_speed_override = 420.0
 catchup_gain_speed = 0.0
@@ -1401,7 +1401,7 @@ texture = ExtResource("5_lfi8c")
 [node name="Nitro" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Player")
-lane_offset_px = 16.0
+lane_offset_px = 12.0
 accel = 100.0
 max_speed_override = 420.0
 catchup_gain_speed = 0.0
@@ -1437,7 +1437,7 @@ texture = ExtResource("5_lfi8c")
 [node name="Rogue" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Player")
-lane_offset_px = 8.0
+lane_offset_px = 20.0
 accel = 100.0
 max_speed_override = 420.0
 catchup_gain_speed = 0.0
