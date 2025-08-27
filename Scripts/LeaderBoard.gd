@@ -61,6 +61,7 @@ var _locked_ids := {}   # racer_id -> true after that racer finishes
 
 const TOGGLE_ACTION := "toggle_leaderboard"
 
+
 func _ensure_toggle_action() -> void:
 	if not InputMap.has_action(TOGGLE_ACTION):
 		InputMap.add_action(TOGGLE_ACTION)

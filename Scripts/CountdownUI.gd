@@ -21,10 +21,28 @@ var ready_color := Color8(255, 235, 59)   # yellow
 var set_color   := Color8(255, 87,  34)   # orange
 var go_color    := Color8(76,  175, 80)   # green
 
+# --- NEW: outline + width controls ------------------------------------------------
+@export_group("Text Appearance")
+@export var outline_enabled: bool = true
+@export_range(0, 64, 1) var outline_size: int = 6
+@export var outline_color: Color = Color(0, 0, 0, 1.0)
+@export var base_font_color: Color = Color(1, 1, 1, 1.0)
+
+@export_range(8, 256, 1) var font_size: int = 96   # NEW: base font size
+@export var max_text_width: int = 0
+
+
+# If > 0, the label will use this width and autowrap smartly (useful if you ever
+# show longer text than READY/SET/GO)
+# ----------------------------------------------------------------------------------
+
 func _ready() -> void:
 	# Fallback wiring if the export wasn't assigned in the Inspector
 	if word_lbl == null and _word_fallback != null:
 		word_lbl = _word_fallback
+
+	# Apply outline + width settings once the label is known
+	_apply_label_style()
 
 	visible = true
 	Globals.race_can_drive = false
@@ -37,13 +55,39 @@ func start_countdown() -> void:
 	await _fade_out_and_hide(0.25)
 	queue_free()
 
+func _apply_label_style() -> void:
+	if word_lbl == null:
+		return
+	if word_lbl.label_settings == null:
+		word_lbl.label_settings = LabelSettings.new()
+	var ls := word_lbl.label_settings
+
+	ls.font_size = font_size          # << new line
+	ls.font_color = base_font_color
+	ls.outline_size = outline_size if outline_enabled else 0
+	ls.outline_color = outline_color
+
+	# Optional width constraint + smart wrapping
+	if max_text_width > 0:
+		word_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		word_lbl.custom_minimum_size.x = float(max_text_width)
+	else:
+		word_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+		word_lbl.custom_minimum_size.x = 0.0
+
+	# Center alignment works well with the wobble/scale
+	word_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	word_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+
 func _show_word(txt: String, col: Color, dur: float, is_go: bool = false) -> void:
 	if word_lbl == null:
 		push_warning("CountdownUI: 'word_lbl' is not set and fallback wasn't found.")
 		return
 
+	# Make sure style matches any Inspector tweaks made at runtime
+	_apply_label_style()
+
 	word_lbl.text = txt
-	word_lbl.modulate = col
 	word_lbl.scale = Vector2(0.2, 0.2)
 
 	# optional sounds
@@ -63,7 +107,7 @@ func _show_word(txt: String, col: Color, dur: float, is_go: bool = false) -> voi
 	if settle != null:
 		settle.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
-	# light hue shift over duration (no to_hsv)
+	# light hue shift over duration (keep outline color fixed; animate fill via LabelSettings)
 	var t := 0.0
 	var base_h: float = col.h
 	while t < dur:
@@ -71,7 +115,11 @@ func _show_word(txt: String, col: Color, dur: float, is_go: bool = false) -> voi
 		t += dt
 		var wob := 0.02 * sin(TAU * (t / max(0.001, dur)) * 2.0)
 		var h := fposmod(base_h + wob, 1.0)
-		word_lbl.modulate = Color.from_hsv(h, 1.0, 1.0, 1.0)
+		if word_lbl.label_settings != null:
+			word_lbl.label_settings.font_color = Color.from_hsv(h, 1.0, 1.0, 1.0)
+		else:
+			# Fallback (older setups): tint whole label (outline will also tint)
+			word_lbl.modulate = Color.from_hsv(h, 1.0, 1.0, 1.0)
 		await get_tree().process_frame
 
 	# On GO: release the racers right away

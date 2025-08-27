@@ -420,11 +420,9 @@ func Update(mapForward : Vector3) -> void:
 		_item_cooldown_timer = max(0.0, _item_cooldown_timer - dt)
 
 	if Input.is_action_just_pressed("Item"):
-		# Optional: block during spin so you can't cheese out of it.
-		if not _is_spinning and _item_cooldown_timer <= 0.0:
+		if (not _is_spinning) and _item_cooldown_timer <= 0.0:
 			_item_boost_timer = ITEM_BOOST_TIME
 			_item_cooldown_timer = ITEM_BOOST_TIME + ITEM_COOLDOWN
-			# (Optional FX)
 			_emit_sparks(true)
 			_set_sparks_color(Color(0.6, 1.0, 0.4)) # greenish boost flash
 
@@ -435,20 +433,11 @@ func Update(mapForward : Vector3) -> void:
 	# --- Timers decay (do NOT write _speedMultiplier here) ---
 	if _item_boost_timer > 0.0:
 		_item_boost_timer = max(0.0, _item_boost_timer - dt)
-
-	# ✅ TURBO DECAY (the missing bit that caused speed creep)
 	if _turbo_timer > 0.0:
 		_turbo_timer = max(0.0, _turbo_timer - dt)
 
-	# unify ALL stacking here (hop/item/turbo/drift/spin)
-	_recompute_speed_multiplier()
-
-	var nextPos : Vector3 = _mapPosition + ReturnVelocity()
-	var nextPixelPos : Vector2i = Vector2i(ceil(nextPos.x), ceil(nextPos.z))
-
+	# --- DRIFT side-slip feed (visual/feel), no change when spinning ---
 	var right_vec := Vector3(-mapForward.z, 0.0, mapForward.x).normalized()
-
-	# keep your drift side-slip, but never add extra while spinning
 	if _is_drifting and not _is_spinning:
 		var speed := ReturnVelocity().length()
 		var steer_amt = abs(_inputDir.x)
@@ -460,22 +449,42 @@ func Update(mapForward : Vector3) -> void:
 	else:
 		_drift_side_slip = lerp(_drift_side_slip, 0.0, clamp(dt * DRIFT_SLIP_DAMP, 0.0, 1.0))
 
-	nextPos += right_vec * _drift_side_slip * dt
+	# --- Predict next position for terrain sample & pre-move wall checks ---
+	var nextPos : Vector3 = _mapPosition + ReturnVelocity()
+	var nextPixelPos : Vector2i = Vector2i(ceil(nextPos.x), ceil(nextPos.z))
 
-	# (collision & movement unchanged)
+	# Simple axis wall resolution (keep what you had)
 	if _collisionHandler.IsCollidingWithWall(Vector2i(ceil(nextPos.x), ceil(_mapPosition.z))):
 		nextPos.x = _mapPosition.x 
 		SetCollisionBump(Vector3(-sign(ReturnVelocity().x), 0.0, 0.0))
 	if _collisionHandler.IsCollidingWithWall(Vector2i(ceil(_mapPosition.x), ceil(nextPos.z))):
 		nextPos.z = _mapPosition.z
 		SetCollisionBump(Vector3(0.0, 0.0, -sign(ReturnVelocity().z)))
-	
-	HandleRoadType(nextPixelPos, _collisionHandler.ReturnCurrentRoadType(nextPixelPos))
 
+	# Apply drift side-slip after wall clamps
+	nextPos += right_vec * _drift_side_slip * dt
+
+	# --- TERRAIN FIRST: sets base multiplier from the ground under the kart ---
+	var curr_rt = _collisionHandler.ReturnCurrentRoadType(Vector2i(ceil(nextPos.x), ceil(nextPos.z)))
+	HandleRoadType(Vector2i(ceil(nextPos.x), ceil(nextPos.z)), curr_rt)
+
+	# --- BOOST SECOND: compute boost as a value; do not write the field here ---
+	var terrain_mult := _speedMultiplier
+	var boost_mult := _recompute_speed_multiplier()
+
+	# Optional: let item boost offset rough terrain a bit (your helper uses _speedMultiplier)
+	_speedMultiplier = terrain_mult        # set a working value so helper can use max()
+	_apply_item_terrain_comp(curr_rt)
+
+	# Final multiplier for this frame
+	_speedMultiplier = terrain_mult * boost_mult
+
+	# --- Move with the final multiplier applied ---
 	SetMapPosition(nextPos)
 	UpdateMovementSpeed()
 	UpdateVelocity(mapForward)
 
+	# --- Visuals / sprite ---
 	_apply_hop_sprite_offset()
 	_choose_and_apply_frame(get_process_delta_time())
 	_wall_hit_cd = max(0.0, _wall_hit_cd - dt)
@@ -873,33 +882,27 @@ func _finalize_move_with_item_comp(nextPos: Vector3, mapForward: Vector3) -> voi
 	UpdateMovementSpeed()
 	UpdateVelocity(mapForward)
 
-func _recompute_speed_multiplier() -> void:
+func _recompute_speed_multiplier() -> float:
 	var boost := 1.0
 
 	# hop boost
 	if _hop_timer > 0.0:
-		if boost < HOP_SPEED_BOOST:
-			boost = HOP_SPEED_BOOST
+		boost = max(boost, HOP_SPEED_BOOST)
 
-	# item boost (already timed)
+	# item boost
 	if _item_boost_timer > 0.0:
-		if boost < ITEM_BOOST_MULT:
-			boost = ITEM_BOOST_MULT
+		boost = max(boost, ITEM_BOOST_MULT)
 
-	# turbo boost (already timed)
+	# turbo
 	if _turbo_timer > 0.0:
-		# pick the bigger turbo mult based on what you last awarded
-		var maybe_turbo = max(TURBO_SMALL_MULT, TURBO_BIG_MULT)
-		if boost < maybe_turbo:
-			boost = maybe_turbo		
+		boost = max(boost, max(TURBO_SMALL_MULT, TURBO_BIG_MULT))
 
-	# drift: treat as a floor (classic slight slow), but don't suppress stronger boosts
+	# drift slight slow (as a floor, unless stronger boosts apply)
 	if _is_drifting:
-		if boost < DRIFT_SPEED_MULT:
-			boost = DRIFT_SPEED_MULT
+		boost = max(boost, DRIFT_SPEED_MULT)
 
-	# spin: hard cap (spin must be slow)
+	# spin caps speed hard
 	if _is_spinning:
 		boost = min(boost, SPIN_SPEED_MULT)
 
-	_speedMultiplier = boost
+	return boost

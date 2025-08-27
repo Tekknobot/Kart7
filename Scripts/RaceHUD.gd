@@ -43,6 +43,12 @@ var _update_dt := 0.05
 @export var best_font: Font
 @export var best_size: int = -1
 
+@export var place_gain_color := Color(0.2, 1.0, 0.2)
+@export var place_loss_color := Color(1.0, 0.25, 0.25)
+@export var place_anim_time  := 0.35
+var _last_place: int = 0
+var _place_arrow: Label
+
 func _ready() -> void:
 	_update_dt = max(0.01, 1.0 / updates_per_second)
 
@@ -65,6 +71,15 @@ func _ready() -> void:
 	best_lbl.text  = "BEST --"
 
 	set_process(true)
+	
+	_place_arrow = Label.new()
+	_place_arrow.text = ""
+	_place_arrow.visible = false
+	_place_arrow.add_theme_font_override("font", place_lbl.get_theme_font("font"))
+	_place_arrow.add_theme_font_size_override("font_size", place_lbl.get_theme_font_size("font_size"))
+	add_child(_place_arrow)
+	_place_arrow.global_position = place_lbl.global_position + Vector2(place_lbl.size.x + 8, 0)
+	
 
 func _process(delta: float) -> void:
 	_timer += delta
@@ -99,6 +114,57 @@ func _refresh() -> void:
 
 	var place: int = int(me.get("place", 0))
 	place_lbl.text = _ordinal_big(place)
+
+	# --- place change animation ---
+	if _last_place != 0 and place != _last_place:
+		var improved := place < _last_place
+
+		# pick color based on improvement
+		var from_col := place_lbl.modulate
+		var to_col: Color
+		if improved:
+			to_col = place_gain_color
+		else:
+			to_col = place_loss_color
+
+		# color flash + punch scale
+		var tw := create_tween()
+		place_lbl.scale = Vector2(1,1)
+		tw.tween_property(place_lbl, "scale", Vector2(1.25, 1.25), place_anim_time * 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tw.parallel().tween_property(place_lbl, "modulate", to_col, place_anim_time * 0.5)
+		await tw.finished
+
+		var tw2 := create_tween()
+		tw2.tween_property(place_lbl, "scale", Vector2(1.0, 1.0), place_anim_time * 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		tw2.parallel().tween_property(place_lbl, "modulate", from_col, place_anim_time * 0.5)
+
+		# arrow nudge
+		if improved:
+			_place_arrow.text = "↑"
+		else:
+			_place_arrow.text = "↓"
+
+		_place_arrow.modulate = to_col
+		_place_arrow.visible = true
+		_place_arrow.global_position = place_lbl.global_position + Vector2(place_lbl.size.x + 6, 0)
+
+		var tw3 := create_tween()
+		var start := _place_arrow.global_position
+		var end: Vector2
+		if improved:
+			end = start + Vector2(0, -8)
+		else:
+			end = start + Vector2(0, 8)
+
+		tw3.tween_property(_place_arrow, "global_position", end, place_anim_time).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		tw3.parallel().tween_property(_place_arrow, "modulate:a", 0.0, place_anim_time)
+		await tw3.finished
+
+		_place_arrow.visible = false
+		_place_arrow.modulate.a = 1.0
+
+	_last_place = place
+
 
 	var spd: float = float(me.get("cur_speed", 0.0))
 	if show_kmh:

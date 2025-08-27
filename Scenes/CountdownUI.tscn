@@ -1,21 +1,25 @@
 [gd_scene load_steps=3 format=3 uid="uid://7sye74odmhah"]
 
-[ext_resource type="Script" path="res://Scripts/CountdownUI.gd" id="1_xiknl"]
+[ext_resource type="Script" uid="uid://7kpydkep7115" path="res://Scripts/CountdownUI.gd" id="1_xiknl"]
 [ext_resource type="FontFile" uid="uid://dgugahs6bc7so" path="res://Fonts/magofonts/mago3.ttf" id="2_nrrq2"]
 
 [node name="CountdownUI" type="CanvasLayer" node_paths=PackedStringArray("word_lbl")]
 script = ExtResource("1_xiknl")
 word_lbl = NodePath("CenterContainer/Word")
+outline_size = 12
+font_size = 32
 
 [node name="CenterContainer" type="CenterContainer" parent="."]
-offset_right = 40.0
-offset_bottom = 40.0
+offset_top = 3.0
+offset_right = 480.0
+offset_bottom = 325.0
 
 [node name="Word" type="Label" parent="CenterContainer"]
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_nrrq2")
-theme_override_font_sizes/font_size = 64
+theme_override_font_sizes/font_size = 32
 text = "READY"
+horizontal_alignment = 1
 
 [node name="Beep" type="AudioStreamPlayer2D" parent="CenterContainer"]
 
