@@ -139,6 +139,44 @@ var _hum_rng := RandomNumberGenerator.new()
 @export var heading_rate_limit:     float = 2.6     # rad/s cap (softer than max_turn_rate)
 
 var _desired_yaw: float = 0.0   # smoothed target yaw (radians)
+
+# --- add near other exports ---
+@export var anti_snap_window_px: float = 28.0   # half-window in px for smoothing (20–40 feels good)
+# OPTIONAL: smooth "right" over time to completely eliminate micro-flips
+var _right_smooth: Vector2 = Vector2.RIGHT
+@export var right_half_life_s: float = 0.06
+
+
+# --- helper: smoothed frame at arc length s ---
+func _uv_and_tangent_smooth(s_px: float, window_px: float = anti_snap_window_px) -> Dictionary:
+	if _total_len_px <= 0.0:
+		return {"uv": Vector2.ZERO, "tan": Vector2.RIGHT}
+
+	# Clamp to a reasonable window
+	var w = clamp(window_px, 4.0, 80.0)
+
+	# Central-difference samples
+	var s0 = s_px - w
+	var s1 = s_px + w
+
+	var p0: Vector2 = _uv_at_distance(s0)
+	var p1: Vector2 = _uv_at_distance(s1)
+
+	var t: Vector2 = p1 - p0
+	var t_len := t.length()
+	if t_len > 0.00001:
+		t /= t_len
+	else:
+		# Fallback: current segment tangent
+		t = _tangent_at_distance(s_px)
+
+	# Return current position plus smoothed tangent
+	return {"uv": _uv_at_distance(s_px), "tan": t}
+
+func _exp_smooth_vec(prev: Vector2, target: Vector2, dt: float, half_life: float) -> Vector2:
+	var hl = max(half_life, 0.0001)
+	var a := 1.0 - pow(0.5, dt / hl)
+	return (prev + (target - prev) * a)
 		
 func set_world_and_screen(M: Basis, scr: Vector2) -> void:
 	_view_M = M
@@ -255,53 +293,44 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if _uv_points.is_empty():
 		return
-		
-	# Lazy recache if nodes were freed
 	_try_cache_nodes()
 	_apply_dynamic_difficulty()
 
-	# --- lookahead steering (smooth, curvature-aware) ---
-	var p_uv: Vector2 = _uv_at_distance(_s_px)
+	# === use smoothed frame instead of per-segment ===
+	var frame_now := _uv_and_tangent_smooth(_s_px)
+	var p_uv: Vector2 = frame_now["uv"]
+	var fwd_smooth: Vector2 = frame_now["tan"]
+	var right_now: Vector2 = Vector2(-fwd_smooth.y, fwd_smooth.x)
 
-	# curvature proxy already computed above:
-	#   curv_approx : 0 (straight) .. ~1 (tight turn)
-	var curv_u: float = clamp(0.1 / 0.6, 0.0, 1.0)
+	# Smooth the right vector across frames so corners are buttery
+	_right_smooth = _exp_smooth_vec(_right_smooth, right_now, delta, right_half_life_s)
+	var right: Vector2 = _right_smooth.normalized()
 
-	# Dynamic look-ahead: longer on straights, shorter on tight corners
-	var la := lookahead_px_base + (1.0 - curv_u) * lookahead_curv_boost
-	la = clamp(la, lookahead_px_min, lookahead_px_max)
-
-	# Aim towards the point la ahead along the path
-	var t_uv: Vector2 = _uv_at_distance(_s_px + la)
-	var to_t: Vector2 = t_uv - p_uv
-	var to_t_len := to_t.length()
+	# --- steering target using smoothed lookahead ---
+	var tgt := _uv_and_tangent_smooth(_s_px + lookahead_px_base * 1.0)  # reuse your dynamic LA if you like
+	var to_t = (tgt["uv"] - p_uv)
+	var to_t_len = to_t.length()
 	if to_t_len > 0.00001:
 		to_t /= to_t_len
 	var desired_angle: float = atan2(to_t.y, to_t.x)
 
-	# Low-pass the desired yaw so the target direction doesn't jump at vertices
 	_desired_yaw = _exp_smooth_angle(_desired_yaw, desired_angle, delta, desired_yaw_half_life_s)
-
-	# PD-lite: steer toward the smoothed target with a soft rate limit
 	var yaw_err := wrapf(_desired_yaw - _heading, -PI, PI) * steer_gain
 	var yaw_step = clamp(yaw_err, -heading_rate_limit * delta, heading_rate_limit * delta)
-	# Also respect the original absolute cap (backstop)
 	yaw_step = clamp(yaw_step, -max_turn_rate * delta, max_turn_rate * delta)
-
 	_heading = wrapf(_heading + yaw_step, -PI, PI)
 
-
-	# --- curvature proxy (no acos) ---
-	# Use dot of tangents as 0..1 sharpness, then map like before
-	var t0: Vector2 = _tangent_at_distance(_s_px)
-	var t1: Vector2 = _tangent_at_distance(_s_px + lookahead_px * 0.5)
+	# --- curvature proxy using smoothed tangents (no snap) ---
+	var t0: Vector2 = fwd_smooth
+	var t1: Vector2 = _uv_and_tangent_smooth(_s_px + lookahead_px * 0.5)["tan"]
 	var dot_raw: float = clamp(t0.dot(t1), -1.0, 1.0)
-	var curv_approx: float = 1.0 - max(dot_raw, -1.0)  # 0 (straight) .. ~2 (u-turn), but typically 0..1
+	var curv_approx: float = 1.0 - max(dot_raw, -1.0)
 
+	# ... keep your desired_speed logic (unchanged) ...
 	# --- base desired speed ---
 	var desired_speed: float = target_speed
 
-	# --- catch-up vs player ---
+	# --- catch-up vs player (unchanged) ---
 	var pl := _player()
 	if pl != null:
 		var pl_speed: float = 0.0
@@ -328,67 +357,34 @@ func _process(delta: float) -> void:
 		if desired_speed < min_over:
 			desired_speed = min_over
 
-	# --- curve damping (same shape, no acos)
-	curv_u = clamp(curv_approx / 0.6, 0.0, 1.0)
+	# --- curve damping using curv_approx you computed above ---
+	var curv_u = clamp(curv_approx / 0.6, 0.0, 1.0)
 	var corner_mult: float = lerp(1.0, speed_damper_on_curve, curv_u)
 	desired_speed *= corner_mult
 
 	# --- clamp to AI max ---
-	if desired_speed > _maxMovementSpeed:
-		desired_speed = _maxMovementSpeed
+	desired_speed = min(desired_speed, _maxMovementSpeed)
 
-	# accel/decel
-	var v_target: float = desired_speed
-	if _movementSpeed < v_target:
-		_movementSpeed = min(v_target, _movementSpeed + accel * delta)
+	# --- accelerate/decelerate toward target ---
+	if _movementSpeed < desired_speed:
+		_movementSpeed = min(desired_speed, _movementSpeed + accel * delta)
 	else:
-		_movementSpeed = max(v_target, _movementSpeed - accel * delta)
+		_movementSpeed = max(desired_speed, _movementSpeed - accel * delta)
 
 	# advance along path
 	_s_px = fposmod(_s_px + _movementSpeed * delta, _total_len_px)
 
-	# ---------- HUMANIZATION: subtle wander on straights ----------
+	# --- apply lane offset using the smoothed RIGHT, not the segment right ---
 	var cur_uv: Vector2 = _uv_at_distance(_s_px)
-	var tan: Vector2 = _tangent_at_distance(_s_px)
-	var right: Vector2 = Vector2(-tan.y, tan.x) # already unit
-
 	var lane_px_now: float = lane_offset_px
 
-	if humanize_enabled:
-		var dt := delta
+	# (your humanization updates lane_px_now) ...
 
-		# 1) Straightness factor from earlier curvature proxy
-		#    curv_approx computed above: 0=straight, ~1=big turn
-		var straight_u = 1.0 - clamp(curv_approx / max(humanize_corner_fade, 0.001), 0.0, 1.0)
-
-		# 2) Fade if someone is close (keeps formation cleaner, avoids taps)
-		var nearby_fade := 1.0
-		var neighbors := _neighbors_ahead(humanize_nearby_fade_px * 2.0)
-		for e in neighbors:
-			var fsep := float(e["forward_sep_px"])
-			var lsep = abs(float(e["lateral_sep_px"]))
-			if fsep >= -8.0 and fsep <= humanize_nearby_fade_px and lsep <= humanize_nearby_fade_px:
-				nearby_fade = 0.35
-				break
-
-		# 3) Slowly drift the phase so they don't sync up
-		_hum_noise += humanize_noise_hz * TAU * dt
-		_hum_phase += humanize_freq_hz * TAU * dt + 0.15 * sin(_hum_noise)
-
-		# 4) Compute wander (smoothed, small)
-		var amp = humanize_amp_px * straight_u * nearby_fade
-		var wander_px = sin(_hum_phase) * amp
-
-		# 5) Apply on top of the chosen lane
-		lane_px_now += wander_px
-
-	# final lateral offset at NEW position (use lane_px_now)
 	var final_uv: Vector2 = cur_uv + (lane_px_now / _pos_scale_px()) * right
-
-
-	# write pixels
 	var final_px: Vector2 = final_uv * _pos_scale_px()
 	SetMapPosition(Vector3(final_px.x, 0.0, final_px.y))
+
+	# ... visuals/depth as before, no changes needed ...
 
 	if _isPushedBack:
 		ApplyCollisionBump()

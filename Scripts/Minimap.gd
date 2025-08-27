@@ -10,7 +10,13 @@ class_name Minimap
 
 # ---------- Appearance ----------
 @export var path_color := Color(1, 1, 1, 0.9)
-@export var path_width: float = 2.0
+@export var path_width: int = 1                   # integer width helps the pixel look
+@export var pixel_lines: bool = true              # NEW: render path as crisp pixels
+@export var pixel_snap: bool = true               # NEW: snap vertices to pixel grid
+
+@export var resample_step_px: float = 6.0
+@export var smooth_iterations: int = 0            # keep corners; smoothing rounds pixels
+
 
 @export var dot_color := Color(0.20, 0.75, 1.00, 1.0)   # AI / others
 @export var player_dot_color := Color(1.00, 0.95, 0.20, 1.0)
@@ -25,8 +31,9 @@ class_name Minimap
 # Update throttling (for very large racer counts):
 @export var update_stride_frames: int = 1                  # 1 = every frame, 2 = every other, etc.
 
-@export var resample_step_px: float = 6.0   # target spacing along the polyline (panel pixels)
-@export var smooth_iterations: int = 0      # 0..3—apply Chaikin smoothing for rounder corners
+@export var pixel_dots: bool = true     # draw chunky pixel dots
+@export var dot_square_size: int = 3    # odd number (3,5,7…)
+@export var player_square_size: int = 5 # odd number (3,5,7…)
 
 # ---------- Internals ----------
 var _provider: Node = null
@@ -120,6 +127,18 @@ func _uv_to_panel(uv: Vector2) -> Vector2:
 		v = 1.0 - v
 	return off + Vector2(u * s, v * s)
 
+func _odd(n: int) -> int:
+	return n if (n % 2) != 0 else n + 1
+
+func _draw_pixel_square(center: Vector2, size_px: int, col: Color) -> void:
+	var s = max(1, _odd(size_px))
+	# snap to integer pixel center for crisp fill
+	var cx := int(round(center.x))
+	var cy := int(round(center.y))
+	var half = (s - 1) / 2
+	var top_left := Vector2(cx - half, cy - half)
+	draw_rect(Rect2(top_left, Vector2(s, s)), col, true)
+
 # ---------- Drawing ----------
 func _draw() -> void:
 	# Path
@@ -127,14 +146,12 @@ func _draw() -> void:
 		var pts := _resampled_panel_points(_uv_loop, resample_step_px, smooth_iterations)
 		if pts.size() >= 2:
 			# One AA call for the whole loop gives better continuity than many draw_line calls
-			draw_polyline(pts, path_color, path_width, true)
+			draw_polyline(pts, path_color, float(path_width), false)
 
 	# Dots (racers)
 	if _root != null:
 		for r in _root.get_children():
-			if not (r is Node):
-				continue
-			if not r.has_method("ReturnMapPosition"):
+			if not (r is Node) or not r.has_method("ReturnMapPosition"):
 				continue
 
 			var p3: Vector3 = r.call("ReturnMapPosition")
@@ -144,9 +161,14 @@ func _draw() -> void:
 			var id := r.get_instance_id()
 			var is_player := (_player != null and r == _player)
 			var col := player_dot_color if is_player else (lapped_dot_color if _lapped_ids.has(id) else dot_color)
-			var rad := player_dot_radius if is_player else dot_radius
 
-			draw_circle(p, rad, col)
+			if pixel_dots:
+				var s := player_square_size if is_player else dot_square_size
+				_draw_pixel_square(p, s, col)
+			else:
+				var rad := player_dot_radius if is_player else dot_radius
+				draw_circle(p, rad, col)
+
 
 # Resample + (optional) smooth the UV loop in panel space for crisp strokes
 func _resampled_panel_points(uv_loop: PackedVector2Array, step_px: float, smooth_iters: int) -> PackedVector2Array:
@@ -160,17 +182,30 @@ func _resampled_panel_points(uv_loop: PackedVector2Array, step_px: float, smooth
 	for i in range(N):
 		panel_pts[i] = _uv_to_panel(uv_loop[i])
 
-	# 2) Optional Chaikin smoothing in panel space
-	if smooth_iters > 0:
+	# 2) Optional (disable for pixel look)
+	if smooth_iters > 0 and not pixel_lines:
 		panel_pts = _chaikin(panel_pts, clamp(smooth_iters, 0, 4))
 
-	# 3) Evenly resample the polyline by arc length
-	if step_px <= 0.0:
-		return panel_pts
+	# 3) Resample (optional)
+	var out: PackedVector2Array
+	if step_px > 0.0:
+		out = _resample_even(panel_pts, step_px)
+	else:
+		out = panel_pts
 
+	# 4) SNAP TO PIXELS (crucial for crisp 1px lines)
+	if pixel_snap:
+		# Align to pixel centers: floor(x) + 0.5 to reduce half-pixel blur for width=1
+		for i in range(out.size()):
+			var p := out[i]
+			out[i] = Vector2(floor(p.x) + 0.5, floor(p.y) + 0.5)
+
+	return out
+
+# helper extracted from your current resampling body (unchanged logic)
+func _resample_even(panel_pts: PackedVector2Array, step_px: float) -> PackedVector2Array:
 	var out := PackedVector2Array()
 	out.append(panel_pts[0])
-
 	var acc := 0.0
 	for i in range(1, panel_pts.size()):
 		var a := panel_pts[i - 1]
@@ -178,17 +213,14 @@ func _resampled_panel_points(uv_loop: PackedVector2Array, step_px: float, smooth
 		var seg_len := a.distance_to(b)
 		if seg_len <= 0.0001:
 			continue
-
 		var t := step_px - acc
 		while t <= seg_len:
 			var p := a.lerp(b, t / seg_len)
 			out.append(p)
 			t += step_px
 		acc = seg_len - (t - step_px)
-	# keep final point
 	if out.size() == 0 or out[out.size() - 1] != panel_pts[panel_pts.size() - 1]:
 		out.append(panel_pts[panel_pts.size() - 1])
-
 	return out
 
 # Chaikin corner-cutting (simple curve smoothing)
