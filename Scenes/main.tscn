@@ -1,4 +1,4 @@
-[gd_scene load_steps=48 format=3 uid="uid://d2glnv32t8md1"]
+[gd_scene load_steps=49 format=3 uid="uid://d2glnv32t8md1"]
 
 [ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_emb0w"]
 [ext_resource type="Script" uid="uid://cex362lk6utnk" path="res://Scripts/On Screen Elements/BackgroundEffects.gd" id="2_330he"]
@@ -23,6 +23,7 @@
 [ext_resource type="AudioStream" uid="uid://dao0xo2qdbnow" path="res://Audio/pSE_EG_IDLE_B_AMB.wav" id="18_k2e45"]
 [ext_resource type="AudioStream" uid="uid://bdu3ele2dkq3w" path="res://Audio/pSE_EG_LOOP_B_AMB.wav" id="20_536cc"]
 [ext_resource type="AudioStream" uid="uid://b5m8w2chfjqdn" path="res://Audio/real_drift.mp3" id="20_jwpg7"]
+[ext_resource type="AudioStream" uid="uid://bjrk28dvey0cv" path="res://Audio/real_drift.wav" id="20_k2e45"]
 [ext_resource type="Script" uid="uid://15qg36alnh4" path="res://Scripts/RaceManager.gd" id="21_ee4r6"]
 [ext_resource type="Script" uid="uid://bkg7bm4cb65tt" path="res://Scripts/AI/PathOverlay2D.gd" id="21_pdsj5"]
 [ext_resource type="Script" uid="uid://cnmmx8tldt4vt" path="res://Scripts/LeaderBoard.gd" id="22_ee4r6"]
@@ -1127,9 +1128,6 @@ collect_under = NodePath("Racers")
 player_base_scale_abs = 2.6
 opponent_min_scale_abs = 0.01
 depth_gain = 256.0
-shrink_deadzone_abs = 0.001
-scale_half_life = 0.01
-scale_max_rate = 128.0
 player_radius_uv = 1.0
 opponent_radius_uv = 1.0
 separate_fraction = 1.2
@@ -1240,12 +1238,11 @@ player = NodePath("..")
 idle_stream = ExtResource("18_k2e45")
 mid_stream = ExtResource("20_536cc")
 high_stream = ExtResource("20_536cc")
-drift_stream = ExtResource("20_jwpg7")
+drift_stream = ExtResource("20_k2e45")
 boost_stream = ExtResource("22_k2e45")
 spin_stream = ExtResource("23_kwxat")
 collision_stream = ExtResource("24_aa8k8")
 offroad_stream = ExtResource("25_kqrg6")
-sfx_bus_volume_db = -12.0
 
 [node name="idle_loop" type="AudioStreamPlayer2D" parent="Sprite Handler/Racers/Voltage/Audio"]
 
@@ -1278,7 +1275,7 @@ draft_speed_bonus = 25.0
 humanize_amp_px = 3.0
 merge_time_s = 0.0
 randomize_on_ready = true
-assume_player_target_speed = 85.0
+assume_player_target_speed = 95.0
 _movementDeaccel = 100.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
@@ -1341,7 +1338,7 @@ humanize_amp_px = 3.0
 merge_time_s = 0.0
 randomize_on_ready = true
 random_seed = 1
-assume_player_target_speed = 85.0
+assume_player_target_speed = 95.0
 _maxMovementSpeed = 110.0
 _movementAccel = 100.0
 _movementDeaccel = 100.0
@@ -1407,7 +1404,7 @@ humanize_amp_px = 3.0
 merge_time_s = 0.0
 randomize_on_ready = true
 random_seed = 2
-assume_player_target_speed = 85.0
+assume_player_target_speed = 95.0
 _maxMovementSpeed = 110.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
@@ -1471,7 +1468,7 @@ humanize_amp_px = 3.0
 merge_time_s = 0.0
 randomize_on_ready = true
 random_seed = 3
-assume_player_target_speed = 85.0
+assume_player_target_speed = 95.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
 pseudo3d_ref = NodePath("../../../Map")
@@ -1534,7 +1531,7 @@ humanize_amp_px = 3.0
 merge_time_s = 0.0
 randomize_on_ready = true
 random_seed = 4
-assume_player_target_speed = 85.0
+assume_player_target_speed = 95.0
 _maxMovementSpeed = 110.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
@@ -1598,7 +1595,7 @@ humanize_amp_px = 3.0
 merge_time_s = 0.0
 randomize_on_ready = true
 random_seed = 5
-assume_player_target_speed = 85.0
+assume_player_target_speed = 95.0
 _maxMovementSpeed = 110.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
@@ -1662,7 +1659,7 @@ humanize_amp_px = 3.0
 merge_time_s = 0.0
 randomize_on_ready = true
 random_seed = 6
-assume_player_target_speed = 85.0
+assume_player_target_speed = 95.0
 _maxMovementSpeed = 110.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")

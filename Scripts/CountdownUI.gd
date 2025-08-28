@@ -9,8 +9,8 @@ signal go()   # emitted when GO happens
 @export var show_seconds_go: float    = 0.8
 
 # Optional beeps (hook if added in the scene)
-@export var beep: AudioStreamPlayer
-@export var go_sfx: AudioStreamPlayer
+@export var beep: AudioStreamPlayer2D
+@export var go_sfx: AudioStreamPlayer2D
 
 # Try to grab nodes by path if exports aren't set (adjust names if yours differ)
 @onready var _container: CanvasItem = get_node_or_null("CenterContainer")
@@ -31,6 +31,20 @@ var go_color    := Color8(76,  175, 80)   # green
 @export_range(8, 256, 1) var font_size: int = 96   # NEW: base font size
 @export var max_text_width: int = 0
 
+# --- UI SFX (READY/SET/GO) -------------------------------------------------
+@export_group("SFX")
+@export var beep_stream: AudioStream         # short blip for READY/SET
+@export var go_stream: AudioStream           # stronger blip for GO
+@export var sfx_bus_name: String = "SFX_UI"
+@export var beep_volume_db: float = -6.0
+@export var go_volume_db: float = -3.0
+@export var beep_pitch_ready: float = 1.00
+@export var beep_pitch_set:   float = 1.15
+@export var go_pitch:         float = 1.00
+@export var auto_create_players: bool = true  # if true, makes players if missing
+
+var _bus_idx: int = -1
+
 
 # If > 0, the label will use this width and autowrap smartly (useful if you ever
 # show longer text than READY/SET/GO)
@@ -40,6 +54,10 @@ func _ready() -> void:
 	# Fallback wiring if the export wasn't assigned in the Inspector
 	if word_lbl == null and _word_fallback != null:
 		word_lbl = _word_fallback
+
+	# SFX bus + players
+	_ensure_ui_bus()
+	_ensure_sfx_players()
 
 	# Apply outline + width settings once the label is known
 	_apply_label_style()
@@ -139,3 +157,38 @@ func _fade_out_and_hide(time: float) -> void:
 		fade.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	await tw.finished
 	visible = false
+
+func _ensure_ui_bus() -> void:
+	var idx := AudioServer.get_bus_index(sfx_bus_name)
+	if idx == -1:
+		AudioServer.add_bus(AudioServer.get_bus_count())
+		idx = AudioServer.get_bus_count() - 1
+		AudioServer.set_bus_name(idx, sfx_bus_name)
+		AudioServer.set_bus_send(idx, "Master")
+	_bus_idx = idx
+
+func _ensure_sfx_players() -> void:
+	# If you already dragged players in the Inspector, we just configure them.
+	# Otherwise (auto_create_players), we create them as children.
+	if beep == null and auto_create_players:
+		beep = AudioStreamPlayer2D.new()
+		beep.name = "Beep"
+		add_child(beep)
+	if go_sfx == null and auto_create_players:
+		go_sfx = AudioStreamPlayer2D.new()
+		go_sfx.name = "GoSFX"
+		add_child(go_sfx)
+
+	# Assign streams if provided
+	if beep != null and beep_stream != null:
+		beep.stream = beep_stream
+	if go_sfx != null and go_stream != null:
+		go_sfx.stream = go_stream
+
+	# Route to UI bus and set default levels
+	if beep != null:
+		beep.bus = sfx_bus_name
+		beep.volume_db = beep_volume_db
+	if go_sfx != null:
+		go_sfx.bus = sfx_bus_name
+		go_sfx.volume_db = go_volume_db

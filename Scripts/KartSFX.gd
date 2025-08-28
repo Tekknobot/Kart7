@@ -26,6 +26,15 @@ var _wired := false
 var _bus_index: int = -1
 var _last_bus_volume_db: float = 9999.0
 
+@export var engine_start_speed: float = 5.0     # u/s needed before engines start
+@export var engine_fade_in_time: float = 0.50   # seconds for fade-in
+@export var idle_target_db: float = -18.0       # target levels when fully faded in
+@export var mid_target_db: float  = -10.0
+@export var high_target_db: float = -8.0
+
+var _engines_started: bool = false
+var _engine_gain: float = 0.0   # 0..1 fade factor
+
 func _ready() -> void:
 	_wired = _check_wiring()
 	if not _wired:
@@ -47,12 +56,10 @@ func _ready() -> void:
 	if offroad != null and offroad_stream != null:
 		offroad.stream = offroad_stream
 
-	if idle != null:
-		idle.play()
-	if mid != null:
-		mid.play()
-	if high != null:
-		high.play()
+	if idle != null:   idle.volume_db = -80.0
+	if mid != null:    mid.volume_db  = -80.0
+	if high != null:   high.volume_db = -80.0
+	
 	if drift != null:
 		drift.stop()
 	if offroad != null:
@@ -69,6 +76,10 @@ func _process(_dt: float) -> void:
 		return
 
 	var spd: float = float(player.call("ReturnMovementSpeed"))
+
+	_start_engines_if_needed(spd)
+	_update_engine_fade(_dt)
+	_apply_engine_mix(spd)
 
 	var pitch = lerp(0.8, 1.5, clamp(spd / 150.0, 0.0, 1.0))
 	if mid != null:
@@ -174,3 +185,52 @@ func _apply_bus_volume() -> void:
 	if _last_bus_volume_db != sfx_bus_volume_db:
 		AudioServer.set_bus_volume_db(_bus_index, sfx_bus_volume_db)
 		_last_bus_volume_db = sfx_bus_volume_db
+
+func _start_engines_if_needed(spd: float) -> void:
+	# optionally also gate on race_can_drive if you have Globals in this scene
+	var can_drive := true
+	if "Globals" in Engine:
+		can_drive = true  # keep simple; if you want, check Globals.race_can_drive
+	if not _engines_started and can_drive and spd >= engine_start_speed:
+		if idle != null: idle.play()
+		if mid  != null: mid.play()
+		if high != null: high.play()
+		_engines_started = true
+		_engine_gain = 0.0  # begin fade-in
+
+func _update_engine_fade(dt: float) -> void:
+	if not _engines_started:
+		return
+	if engine_fade_in_time <= 0.0:
+		_engine_gain = 1.0
+	else:
+		var a := dt / engine_fade_in_time
+		if a < 0.0:
+			a = 0.0
+		if a > 1.0:
+			a = 1.0
+		_engine_gain = lerp(_engine_gain, 1.0, a)
+
+func _apply_engine_mix(spd: float) -> void:
+	# Pitch still scales with speed
+	var pitch = lerp(0.8, 1.5, clamp(spd / 150.0, 0.0, 1.0))
+	if mid != null:
+		mid.pitch_scale = pitch
+	if high != null:
+		high.pitch_scale = pitch * 1.2
+
+	# Base crossfade (speed) -> then multiply by fade-in gain
+	var idle_x = clamp(spd / 20.0, 0.0, 1.0)         # 0..1
+	var mid_x  = clamp(spd / 120.0, 0.0, 1.0)
+	var high_x = clamp((spd - 90.0) / 100.0, 0.0, 1.0)
+
+	# Compute target dB first (quieter than before), then lerp with fade-in
+	if idle != null:
+		var target_idle = lerp(idle_target_db, -60.0, idle_x)  # idle gets quieter as speed rises
+		idle.volume_db = lerp(-80.0, target_idle, _engine_gain)
+	if mid != null:
+		var target_mid = lerp(-60.0, mid_target_db, mid_x)
+		mid.volume_db = lerp(-80.0, target_mid, _engine_gain)
+	if high != null:
+		var target_high = lerp(-60.0, high_target_db, high_x)
+		high.volume_db = lerp(-80.0, target_high, _engine_gain)

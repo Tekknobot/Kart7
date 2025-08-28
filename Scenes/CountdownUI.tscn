@@ -1,13 +1,20 @@
-[gd_scene load_steps=3 format=3 uid="uid://7sye74odmhah"]
+[gd_scene load_steps=5 format=3 uid="uid://7sye74odmhah"]
 
 [ext_resource type="Script" uid="uid://7kpydkep7115" path="res://Scripts/CountdownUI.gd" id="1_xiknl"]
+[ext_resource type="AudioStream" uid="uid://dcsqb1cxdjdid" path="res://Audio/synth.wav" id="2_5ogad"]
 [ext_resource type="FontFile" uid="uid://dgugahs6bc7so" path="res://Fonts/magofonts/mago3.ttf" id="2_nrrq2"]
+[ext_resource type="AudioStream" uid="uid://dkat0nv3lms45" path="res://Audio/gun.wav" id="3_n2twd"]
 
-[node name="CountdownUI" type="CanvasLayer" node_paths=PackedStringArray("word_lbl")]
+[node name="CountdownUI" type="CanvasLayer" node_paths=PackedStringArray("word_lbl", "beep", "go_sfx")]
 script = ExtResource("1_xiknl")
 word_lbl = NodePath("CenterContainer/Word")
+beep = NodePath("Beep")
+go_sfx = NodePath("GoSfx")
 outline_size = 12
 font_size = 32
+beep_stream = ExtResource("2_5ogad")
+go_stream = ExtResource("3_n2twd")
+beep_volume_db = 0.0
 
 [node name="CenterContainer" type="CenterContainer" parent="."]
 offset_top = 3.0
@@ -21,6 +28,8 @@ theme_override_font_sizes/font_size = 32
 text = "READY"
 horizontal_alignment = 1
 
-[node name="Beep" type="AudioStreamPlayer2D" parent="CenterContainer"]
+[node name="Beep" type="AudioStreamPlayer2D" parent="."]
+position = Vector2(0, 3)
 
-[node name="GoSfx" type="AudioStreamPlayer2D" parent="CenterContainer"]
+[node name="GoSfx" type="AudioStreamPlayer2D" parent="."]
+position = Vector2(0, 3)

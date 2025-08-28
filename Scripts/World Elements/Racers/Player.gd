@@ -12,8 +12,8 @@ const DRIFT_SPEED_MULT := 0.92
 const DRIFT_BUILD_RATE := 28.0
 const TURBO_THRESHOLD_SMALL := 35.0
 const TURBO_THRESHOLD_BIG := 80.0
-const TURBO_SMALL_MULT := 1.01
-const TURBO_BIG_MULT := 1.02
+const TURBO_SMALL_MULT := 1.001
+const TURBO_BIG_MULT := 1.002
 const TURBO_TIME := 0.25
 
 var _hop_timer := 0.0
