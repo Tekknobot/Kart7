@@ -51,15 +51,24 @@ var _ui_root: Control
 @export var button_height: int = 56
 @export var enforce_exact_button_height := true
 
+@export var reload_scene_path: String = ""     # optional: set to your scene file path
+@export var reload_scene_packed: PackedScene   # optional: drag the scene here
+
+@export var ignore_input_until_ms := 400
+var _opened_at_ms := 0
+
 func _ready() -> void:
-	# Try to locate existing nodes by the exported paths.
+	set_process_unhandled_input(true)  # for JOY A
+	call_deferred("_deferred_init")
+		
+func _deferred_init() -> void:
+	# Locate existing nodes
 	_title_lbl = get_node_or_null(title_node_path) as Label
 	_subtitle_lbl = get_node_or_null(subtitle_node_path) as Label
 	_btn_continue = get_node_or_null(continue_btn_path) as Button
 	_btn_retry = get_node_or_null(retry_btn_path) as Button
 	_btn_quit = get_node_or_null(quit_btn_path) as Button
 
-	# If any key node is missing, build the whole UI now.
 	var need_build := false
 	if _title_lbl == null:
 		need_build = true
@@ -74,22 +83,14 @@ func _ready() -> void:
 
 	if need_build:
 		_build_ui_runtime()
-		# Re-bind references after building
+		# rebind after building
 		_title_lbl = get_node_or_null(title_node_path) as Label
 		_subtitle_lbl = get_node_or_null(subtitle_node_path) as Label
 		_btn_continue = get_node_or_null(continue_btn_path) as Button
 		_btn_retry = get_node_or_null(retry_btn_path) as Button
 		_btn_quit = get_node_or_null(quit_btn_path) as Button
 
-	# Safety prints so you can see what it found
-	prints("[PromptPanel] after build check:",
-		"title=", _title_lbl != null,
-		"subtitle=", _subtitle_lbl != null,
-		"continue=", _btn_continue != null,
-		"retry=", _btn_retry != null,
-		"quit=", _btn_quit != null)
-
-	# Wire signals + local actions
+	# wire signals
 	if _btn_continue != null:
 		_btn_continue.pressed.connect(_on_continue)
 	if _btn_retry != null:
@@ -97,35 +98,27 @@ func _ready() -> void:
 	if _btn_quit != null:
 		_btn_quit.pressed.connect(_on_quit)
 
-	# Apply text + styling
+	# apply initial texts
 	if _title_lbl != null:
 		_title_lbl.text = title_text
 	if _subtitle_lbl != null:
 		_subtitle_lbl.text = subtitle_text
 
-	_apply_fonts()
-	_apply_text_effects(self)
+	# wait one frame so theme/UI are fully ready (export-safe)
+	await get_tree().process_frame
 
-	# Start fully transparent; show on demand
+	# guard again then style
+	if is_instance_valid(_title_lbl) and is_instance_valid(_subtitle_lbl):
+		_apply_fonts()
+		_apply_text_effects(self)
+
 	_set_controls_alpha(0.0)
 	visible = true
 	if show_on_ready:
 		show_prompt()
 
-func _unhandled_input(event: InputEvent) -> void:
-	# Only handle input while the panel is visible
-	if not visible:
-		return
-
-	# Directly check for Joypad A (button 0)
-	if event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_A:
-		var focus_owner := get_viewport().gui_get_focus_owner()
-		if focus_owner != null and focus_owner is Button:
-			focus_owner.emit_signal("pressed")
-		get_viewport().set_input_as_handled()
-
 func show_prompt() -> void:
-	print("[PromptPanel] show_prompt called.")
+	_opened_at_ms = Time.get_ticks_msec()
 	visible = true
 	var tw := create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	_fade_control(_title_lbl, 1.0, 0.2, tw)
@@ -147,22 +140,6 @@ func hide_prompt() -> void:
 		visible = false
 	)
 
-# --- Button callbacks (emit + optional local handling) ---
-func _on_continue() -> void:
-	emit_signal("continue_pressed")
-	if handle_actions_locally:
-		get_tree().reload_current_scene()
-
-func _on_retry() -> void:
-	emit_signal("retry_pressed")
-	if handle_actions_locally:
-		get_tree().reload_current_scene()
-
-func _on_quit() -> void:
-	emit_signal("quit_pressed")
-	if handle_actions_locally:
-		get_tree().quit()
-
 # ---------- RUNTIME UI BUILD ----------
 func _build_ui_runtime() -> void:
 	print("[PromptPanel] Building runtime UI (CanvasLayer + Panel + Buttons).")
@@ -175,6 +152,7 @@ func _build_ui_runtime() -> void:
 	_ui_root.anchors_preset = Control.PRESET_FULL_RECT
 	_ui_root.anchor_right = 1.0
 	_ui_root.anchor_bottom = 1.0
+	_ui_root.mouse_filter = Control.MOUSE_FILTER_STOP   # capture UI clicks
 	_layer.add_child(_ui_root)
 
 	# Backdrop dimmer
@@ -254,37 +232,38 @@ func _build_ui_runtime() -> void:
 	_style_button(b_quit, Color(0.85, 0.0, 0.0))    # red
 	hbox.add_child(b_quit)
 
-	# Update the exported paths so the rest of the script can find them
+	# Update exported paths so the rest of the script can find them
 	title_node_path = NodePath(title.get_path())
 	subtitle_node_path = NodePath(subtitle.get_path())
 	continue_btn_path = NodePath(b_continue.get_path())
 	retry_btn_path = NodePath(b_retry.get_path())
 	quit_btn_path = NodePath(b_quit.get_path())
 
+	# Extra guard: viewport might attach next frame on some exports
+	if _layer.get_viewport() == null:
+		push_warning("[PromptPanel] CanvasLayer has no viewport yet; UI will attach when available.")
+
 func _style_button(btn: Button, base_color: Color) -> void:
 	var hover_color := base_color.lightened(0.20)
 	var pressed_color := base_color.darkened(0.20)
 	var focus_color := base_color.lightened(0.35)
 
-	# --- Height & sizing rules ---
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	btn.custom_minimum_size = Vector2(0, button_height)
 
 	var border_w := 2
 	var pad_x := 16
-	var pad_y := 6   # start point; we’ll clamp it below
+	var pad_y := 6
 
-	# If we must fit *exactly* into button_height, reduce font / padding accordingly
 	var target_font_size := button_font_size
 	if enforce_exact_button_height:
 		var usable_h = max(0, button_height - border_w * 2)
-		target_font_size = min(button_font_size, max(6, usable_h - 2*pad_y))
-		var need := target_font_size + 2*pad_y
+		target_font_size = min(button_font_size, max(6, usable_h - 2 * pad_y))
+		var need := target_font_size + 2 * pad_y
 		if need > usable_h:
 			pad_y = max(0, (usable_h - target_font_size) / 2)
 
-	# --- Styleboxes ---
 	var normal := StyleBoxFlat.new()
 	normal.bg_color = base_color
 	normal.corner_radius_top_left = 8
@@ -298,9 +277,17 @@ func _style_button(btn: Button, base_color: Color) -> void:
 
 	var hover := normal.duplicate()
 	hover.bg_color = hover_color
+	hover.corner_radius_top_left = 8
+	hover.corner_radius_top_right = 8
+	hover.corner_radius_bottom_left = 8
+	hover.corner_radius_bottom_right = 8
 
 	var pressed := normal.duplicate()
 	pressed.bg_color = pressed_color
+	pressed.corner_radius_top_left = 8
+	pressed.corner_radius_top_right = 8
+	pressed.corner_radius_bottom_left = 8
+	pressed.corner_radius_bottom_right = 8
 
 	var focus := normal.duplicate()
 	focus.bg_color = focus_color
@@ -323,7 +310,6 @@ func _style_button(btn: Button, base_color: Color) -> void:
 	btn.add_theme_stylebox_override("pressed", pressed)
 	btn.add_theme_stylebox_override("focus", focus)
 
-	# Text color + font sizing to actually fit
 	btn.add_theme_color_override("font_color", Color.WHITE)
 	btn.add_theme_color_override("font_hover_color", Color.WHITE)
 	btn.add_theme_color_override("font_pressed_color", Color.WHITE)
@@ -392,3 +378,81 @@ func _apply_text_effects(root: Node) -> void:
 			c.add_theme_constant_override("shadow_offset_y", shadow_offset.y)
 	for child in root.get_children():
 		_apply_text_effects(child)
+
+# --- Button callbacks (emit + optional local handling) ---
+func _on_continue() -> void:
+	emit_signal("continue_pressed")
+	if handle_actions_locally:
+		_restart_scene_safe()
+
+func _on_retry() -> void:
+	emit_signal("retry_pressed")
+	if handle_actions_locally:
+		_restart_scene_safe()
+
+func _on_quit() -> void:
+	emit_signal("quit_pressed")
+	if handle_actions_locally:
+		get_tree().quit()
+
+# --- Exact JOYPAD A (south) support ---
+func _unhandled_input(event: InputEvent) -> void:
+	if not visible:
+		return
+
+	# ignore accidental pulses briefly after opening
+	var now_ms := Time.get_ticks_msec()
+	if now_ms - _opened_at_ms < ignore_input_until_ms:
+		return
+
+	# explicit Joypad A (south) → activate focused button
+	if event is InputEventJoypadButton and event.pressed and event.button_index == JOY_BUTTON_A:
+		var focus_owner := get_viewport().gui_get_focus_owner()
+		if focus_owner != null and focus_owner is Button:
+			focus_owner.emit_signal("pressed")
+		var vp := get_viewport()
+		if vp != null:
+			vp.set_input_as_handled()
+
+
+# --- Safe scene reload that works even if current scene has no file path ---
+@export var allow_pack_fallback := false  # set true only if you really need it
+
+func _restart_scene_safe() -> void:
+	var st := get_tree()
+	if st == null:
+		push_warning("[PromptPanel] No SceneTree; cannot reload.")
+		return
+
+	# 1) Explicit path (recommended)
+	if reload_scene_path != "":
+		if not FileAccess.file_exists(reload_scene_path):
+			push_warning("[PromptPanel] reload_scene_path not found in PCK: " + reload_scene_path)
+		var e0 := st.change_scene_to_file(reload_scene_path)
+		if e0 != OK:
+			push_warning("[PromptPanel] change_scene_to_file(reload_scene_path) failed: " + str(e0))
+		return
+
+	# 2) Packed scene provided in Inspector
+	if reload_scene_packed != null:
+		st.change_scene_to_packed(reload_scene_packed)
+		return
+
+	# 3) Current scene’s own file path (if it has one)
+	var cs := st.current_scene
+	if cs != null:
+		var p := cs.scene_file_path
+		if p != "":
+			var e1 := st.change_scene_to_file(p)
+			if e1 != OK:
+				push_warning("[PromptPanel] change_scene_to_file(current) failed: " + str(e1))
+			return
+
+	# 4) Optional last resort (disabled by default)
+	if allow_pack_fallback and cs != null:
+		var ps := PackedScene.new()
+		if ps.pack(cs):
+			st.change_scene_to_packed(ps)
+			return
+
+	push_warning("[PromptPanel] Reload failed: set reload_scene_path or reload_scene_packed.")
