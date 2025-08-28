@@ -2,17 +2,6 @@ res://Scenes/main.tscn
 res://Scripts/Shaders/ModeSeven.gdshader
 res://Scripts/Shaders/GasDistort.gdshader
 res://Scripts/Shaders/YoshiSwap.gdshader
-res://Textures/VFX/StarNight.tscn
-res://Scripts/LeaderBoard.gd
-res://Scripts/Minimap.gd
-res://Scripts/World Elements/Racers/Opponent.gd
-res://Scripts/RaceHUD.gd
-res://Scripts/RaceManager.gd
-res://Scripts/General/Collision.gd
-res://Scripts/World Elements/Racers/Player.gd
-res://Scripts/CountdownUI.gd
-res://Scripts/General/Globals.gd
-res://Scripts/World Elements/Racers/Racer.gd
+res://Scripts/PromptPanel.gd
 res://Scenes/CountdownUI.tscn
-res://Scripts/On Screen Elements/SpriteHandler.gd
-res://Scripts/KartSFX.gd
+res://Scenes/PromptPanel.tscn

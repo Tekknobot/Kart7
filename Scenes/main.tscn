@@ -1,4 +1,4 @@
-[gd_scene load_steps=49 format=3 uid="uid://d2glnv32t8md1"]
+[gd_scene load_steps=51 format=3 uid="uid://d2glnv32t8md1"]
 
 [ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_emb0w"]
 [ext_resource type="Script" uid="uid://cex362lk6utnk" path="res://Scripts/On Screen Elements/BackgroundEffects.gd" id="2_330he"]
@@ -38,6 +38,8 @@
 [ext_resource type="Script" uid="uid://dcfngv7oaf2c8" path="res://Scripts/RaceHUD.gd" id="26_cbgmd"]
 [ext_resource type="FontFile" uid="uid://dgugahs6bc7so" path="res://Fonts/magofonts/mago3.ttf" id="28_ueoa1"]
 [ext_resource type="PackedScene" uid="uid://7sye74odmhah" path="res://Scenes/CountdownUI.tscn" id="29_6vcvc"]
+[ext_resource type="Script" uid="uid://dcb4blo4uiyti" path="res://Scripts/PostRaceController.gd" id="39_8cuat"]
+[ext_resource type="PackedScene" uid="uid://bgkivo666nl2a" path="res://Scenes/PromptPanel.tscn" id="40_o1aky"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_lhngl"]
 shader = ExtResource("3_okd74")
@@ -1916,8 +1918,8 @@ path_overlay_node = NodePath("../SubViewport/PathOverlay2D")
 racers_root = NodePath("../Sprite Handler/Racers")
 player_path = NodePath("../Sprite Handler/Racers/Voltage")
 force_player_on_top = false
-total_laps = 4
-finish_auto_speed_px = 240.0
+total_laps = 0
+finish_auto_speed_px = 200.0
 
 [node name="LeaderBoard" type="Control" parent="."]
 visible = false
@@ -2039,3 +2041,10 @@ layout_mode = 2
 layout_mode = 2
 
 [node name="CountdownUI" parent="." instance=ExtResource("29_6vcvc")]
+
+[node name="PostRaceController" type="Node2D" parent="."]
+script = ExtResource("39_8cuat")
+race_manager_path = NodePath("../RaceManager")
+leaderboard_path = NodePath("../LeaderBoard")
+prompt_scene = ExtResource("40_o1aky")
+delay_seconds = 3.0

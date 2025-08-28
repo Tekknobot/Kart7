@@ -410,6 +410,14 @@ func Update() -> void:
 
 	_apply_z_order()
 
+	if not _race_over and is_instance_valid(_player):
+		var pid := _player.get_instance_id()
+		if _progress.has(pid) and bool(_progress[pid].get("finished", false)):
+			_race_over = true
+			# Deep copy so listeners can’t mutate internal state
+			var results := board.duplicate(true)
+			emit_signal("race_finished", results)
+			
 	# signature/debug (muted)
 	var sig_parts := []
 	for i in range(board.size()):
