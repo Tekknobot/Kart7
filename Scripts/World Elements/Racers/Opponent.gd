@@ -1,6 +1,9 @@
 # Scripts/World Elements/Racers/Opponent.gd  (perf-tuned)
 extends "res://Scripts/World Elements/Racers/Racer.gd"
 
+@onready var _sfx_ai: Node = get_node_or_null(^"Audio")
+var _hit_sfx_cd: float = 0.0
+
 # Only NEW settings here; everything else comes from Racer.gd
 @export var player_ref: NodePath
 
@@ -90,7 +93,7 @@ var _view_valid: bool = false
 @export var avoid_enabled: bool = true
 @export var avoid_lookahead_s: float = 0.75      # predict ~0.75s ahead
 @export var avoid_width_px: float = 22.0         # half-width "lane" of a kart
-@export var lane_candidates_px := PackedFloat32Array([-28.0, 0.0, 28.0])
+@export var lane_candidates_px := PackedFloat32Array([-16.0, 0.0, 16.0])
 @export var lane_lerp_hz: float = 6.0            # smooth lane changes (higher = snappier)
 
 @export var pass_bias_outer_on_turn: float = 0.20  # prefer outside of upcoming corner
@@ -258,6 +261,11 @@ var DEFAULT_POINTS: PackedVector2Array = PackedVector2Array([
 
 # ---------------- lifecycle ----------------
 func _ready() -> void:
+	if _sfx_ai != null:
+		# Make sure the SFX script knows who to poll (speed, drift, road type)
+		if "player" in _sfx_ai:
+			_sfx_ai.player = self
+	
 	add_to_group("racers")
 	_hum_rng.randomize()
 	_hum_phase = _hum_rng.randf_range(0.0, TAU)
@@ -442,6 +450,10 @@ func _process(delta: float) -> void:
 	if debug_log_ai_sprite and (f % 60 == 0):
 		var sp := ReturnSpriteGraphic()
 		prints("AI sprite:", sp, " path:", str(get("sprite_graphic_path")))
+		
+	if _hit_sfx_cd > 0.0:
+		_hit_sfx_cd = max(0.0, _hit_sfx_cd - delta)
+		
 		
 func _apply_dynamic_difficulty() -> void:
 	# Determine lap driving the difficulty
@@ -1089,11 +1101,17 @@ func _physics_step_like_player(p_uv: Vector2, right: Vector2, target_uv: Vector2
 	if hit_x:
 		nextPos.x = _mapPosition.x
 		SetCollisionBump(Vector3(-sign(v_total.x), 0.0, 0.0))
+		if _hit_sfx_cd <= 0.0 and _sfx_ai != null and _sfx_ai.has_method("play_collision"):
+			_sfx_ai.play_collision()
+			_hit_sfx_cd = 0.12
 
 	var hit_z = _collisionHandler.IsCollidingWithWall(Vector2i(ceil(_mapPosition.x), ceil(nextPos.z)))
 	if hit_z:
 		nextPos.z = _mapPosition.z
 		SetCollisionBump(Vector3(0.0, 0.0, -sign(v_total.y)))
+		if _hit_sfx_cd <= 0.0 and _sfx_ai != null and _sfx_ai.has_method("play_collision"):
+			_sfx_ai.play_collision()
+			_hit_sfx_cd = 0.12
 
 	# if an axis hit, zero that component of our side velocity to stop grinding
 	if hit_x:

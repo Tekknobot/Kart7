@@ -12,9 +12,9 @@ const DRIFT_SPEED_MULT := 0.92
 const DRIFT_BUILD_RATE := 28.0
 const TURBO_THRESHOLD_SMALL := 35.0
 const TURBO_THRESHOLD_BIG := 80.0
-const TURBO_SMALL_MULT := 1.15
-const TURBO_BIG_MULT := 1.28
-const TURBO_TIME := 0.45
+const TURBO_SMALL_MULT := 1.01
+const TURBO_BIG_MULT := 1.02
+const TURBO_TIME := 0.25
 
 var _hop_timer := 0.0
 var _hop_boost_timer := 0.0
@@ -103,6 +103,7 @@ var _item_boost_timer := 0.0
 var _item_cooldown_timer := 0.0
 
 var _has_base_sprite_offset: bool = false
+@onready var _sfx: Node = get_node_or_null(^"Audio")  # KartSFX.gd lives here
 
 # --- Item boost terrain compensation (tune to taste) ---
 @export var ITEM_COMP_OFF_ROAD := 1.40   # extra “anti-slow” while boosting on OFF_ROAD
@@ -457,9 +458,14 @@ func Update(mapForward : Vector3) -> void:
 	if _collisionHandler.IsCollidingWithWall(Vector2i(ceil(nextPos.x), ceil(_mapPosition.z))):
 		nextPos.x = _mapPosition.x 
 		SetCollisionBump(Vector3(-sign(ReturnVelocity().x), 0.0, 0.0))
+		if _sfx and _sfx.has_method("play_collision"):
+			_sfx.play_collision()
+
 	if _collisionHandler.IsCollidingWithWall(Vector2i(ceil(_mapPosition.x), ceil(nextPos.z))):
 		nextPos.z = _mapPosition.z
 		SetCollisionBump(Vector3(0.0, 0.0, -sign(ReturnVelocity().z)))
+		if _sfx and _sfx.has_method("play_collision"):
+			_sfx.play_collision()
 
 	# Apply drift side-slip after wall clamps
 	nextPos += right_vec * _drift_side_slip * dt
@@ -776,10 +782,14 @@ func _end_drift_with_award() -> void:
 		_turbo_timer = TURBO_TIME
 		_speedMultiplier = TURBO_BIG_MULT
 		_drift_release_timer = DRIFT_RELEASE_BURST_TIME
+		if _sfx and _sfx.has_method("play_boost"):
+			_sfx.play_boost()
 	elif _drift_charge >= TURBO_THRESHOLD_SMALL:
 		_turbo_timer = TURBO_TIME
 		_speedMultiplier = TURBO_SMALL_MULT
 		_drift_release_timer = DRIFT_RELEASE_BURST_TIME * 0.75
+		if _sfx and _sfx.has_method("play_boost"):
+			_sfx.play_boost()
 	else:
 		_drift_release_timer = 0.0
 
@@ -846,6 +856,9 @@ func _spinout_start() -> void:
 	_spin_phase = 0.0
 	_spin_meter = 0.0
 	#_speedMultiplier = SPIN_SPEED_MULT
+
+	if _sfx and _sfx.has_method("play_spin"):
+		_sfx.play_spin()
 
 	_emit_dust(true)
 	_emit_sparks(true)
