@@ -851,7 +851,7 @@ func _resolve_circle_overlap(a: WorldElement, a_uv: Vector2, a_r: float,
 	var overlap_uv := sum_r - dist
 
 	if overlap_uv < min_overlap_to_bump_uv:
-		# tiny graze: just separate positionally
+		# tiny graze: just separate positionally (no SFX)
 		var push_uv := n * (overlap_uv * 0.5 * separate_fraction)
 		_apply_separation_uv(a, -push_uv, a_y)
 		_apply_separation_uv(b,  push_uv, b_y)
@@ -863,7 +863,7 @@ func _resolve_circle_overlap(a: WorldElement, a_uv: Vector2, a_r: float,
 	if _last_collision_time.has(key):
 		var last := float(_last_collision_time[key])
 		if (tnow - last) < collision_cooldown_s:
-			# still separate so they never interpenetrate
+			# still separate so they never interpenetrate (no SFX during cooldown)
 			var push_uv_cd := n * (overlap_uv * 0.5 * separate_fraction)
 			_apply_separation_uv(a, -push_uv_cd, a_y)
 			_apply_separation_uv(b,  push_uv_cd, b_y)
@@ -895,6 +895,15 @@ func _resolve_circle_overlap(a: WorldElement, a_uv: Vector2, a_r: float,
 	else:
 		var pb := b.ReturnMapPosition()
 		b.SetMapPosition(pb + bump_vec3 * get_process_delta_time())
+
+	# --- bump SFX (pair-wise), gated by the same cooldown as impulses ---
+	var sfx_a := a.get_node_or_null(^"Audio")
+	if sfx_a != null and sfx_a.has_method("play_bump"):
+		sfx_a.play_bump()
+
+	var sfx_b := b.get_node_or_null(^"Audio")
+	if sfx_b != null and sfx_b.has_method("play_bump"):
+		sfx_b.play_bump()
 
 	if spawn_debug:
 		print("BUMP(UV): A=", a.name, " B=", b.name, " overlap_uv=", overlap_uv)

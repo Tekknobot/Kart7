@@ -1,4 +1,4 @@
-[gd_scene load_steps=51 format=3 uid="uid://d2glnv32t8md1"]
+[gd_scene load_steps=52 format=3 uid="uid://d2glnv32t8md1"]
 
 [ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_emb0w"]
 [ext_resource type="Script" uid="uid://cex362lk6utnk" path="res://Scripts/On Screen Elements/BackgroundEffects.gd" id="2_330he"]
@@ -33,6 +33,7 @@
 [ext_resource type="FontFile" uid="uid://buw362wjb8o8d" path="res://Fonts/magofonts/mago2.ttf" id="23_u50mg"]
 [ext_resource type="Script" uid="uid://dtnsya35gcocj" path="res://Scripts/Minimap.gd" id="24_3pmx8"]
 [ext_resource type="AudioStream" uid="uid://ch151vyr1o65" path="res://Audio/collision_thud.wav" id="24_aa8k8"]
+[ext_resource type="AudioStream" uid="uid://cjlujousugdtr" path="res://Audio/jump.wav" id="25_8cuat"]
 [ext_resource type="AudioStream" uid="uid://dr0ab3ogjrbbl" path="res://Audio/offroad_rumble.wav" id="25_kqrg6"]
 [ext_resource type="PackedScene" uid="uid://bm1g128j70kea" path="res://Textures/VFX/StarNight.tscn" id="25_u50mg"]
 [ext_resource type="Script" uid="uid://dcfngv7oaf2c8" path="res://Scripts/RaceHUD.gd" id="26_cbgmd"]
@@ -1246,6 +1247,10 @@ boost_stream = ExtResource("22_k2e45")
 spin_stream = ExtResource("23_kwxat")
 collision_stream = ExtResource("24_aa8k8")
 offroad_stream = ExtResource("25_kqrg6")
+hop_stream = ExtResource("25_8cuat")
+bump_stream = ExtResource("24_aa8k8")
+hop_volume_db = 6.0
+bump_volume_db = 6.0
 
 [node name="idle_loop" type="AudioStreamPlayer2D" parent="Sprite Handler/Racers/Voltage/Audio"]
 
@@ -1258,6 +1263,12 @@ offroad_stream = ExtResource("25_kqrg6")
 [node name="one_shots" type="AudioStreamPlayer2D" parent="Sprite Handler/Racers/Voltage/Audio"]
 
 [node name="offroad_loop" type="AudioStreamPlayer2D" parent="Sprite Handler/Racers/Voltage/Audio"]
+
+[node name="hop_shot" type="AudioStreamPlayer2D" parent="Sprite Handler/Racers/Voltage/Audio"]
+stream = ExtResource("25_8cuat")
+
+[node name="bump_shot" type="AudioStreamPlayer2D" parent="Sprite Handler/Racers/Voltage/Audio"]
+stream = ExtResource("25_8cuat")
 
 [node name="Grip" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")

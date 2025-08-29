@@ -17,6 +17,16 @@ extends Node
 @onready var drift: AudioStreamPlayer2D     = get_node_or_null(^"drift_loop")
 @onready var one_shot: AudioStreamPlayer2D  = get_node_or_null(^"one_shots")
 @onready var offroad: AudioStreamPlayer2D   = get_node_or_null(^"offroad_loop")
+@onready var hop_shot: AudioStreamPlayer2D   = get_node_or_null(^"hop_shot")
+@onready var bump_shot: AudioStreamPlayer2D   = get_node_or_null(^"bump_shot")
+
+@export var hop_stream: AudioStream
+@export var bump_stream: AudioStream
+
+@export var hop_volume_db: float = -8.0
+@export var bump_volume_db: float = -6.0
+@export var hop_pitch: float = 1.0
+@export var bump_pitch: float = 1.0
 
 var _wired := false
 
@@ -177,6 +187,8 @@ func _assign_players_to_bus() -> void:
 	if drift != null:    drift.bus = sfx_bus_name
 	if offroad != null:  offroad.bus = sfx_bus_name
 	if one_shot != null: one_shot.bus = sfx_bus_name
+	if hop_shot != null: hop_shot.bus = sfx_bus_name
+	if bump_shot != null: bump_shot.bus = sfx_bus_name
 
 func _apply_bus_volume() -> void:
 	if _bus_index < 0:
@@ -234,3 +246,30 @@ func _apply_engine_mix(spd: float) -> void:
 	if high != null:
 		var target_high = lerp(-60.0, high_target_db, high_x)
 		high.volume_db = lerp(-80.0, target_high, _engine_gain)
+
+func play_hop() -> void:
+	# Prefer the dedicated hop_shot player if present, else fall back to the generic one-shot helper
+	if hop_shot != null and hop_stream != null:
+		hop_shot.stop()
+		hop_shot.stream = hop_stream
+		hop_shot.volume_db = hop_volume_db
+		hop_shot.pitch_scale = hop_pitch
+		hop_shot.bus = sfx_bus_name
+		hop_shot.play()
+
+func play_bump() -> void:
+	# Prefer the dedicated bump_shot player if present; fall back to one_shot
+	if bump_shot != null and bump_stream != null:
+		bump_shot.stop()
+		bump_shot.stream = bump_stream
+		bump_shot.volume_db = bump_volume_db
+		bump_shot.pitch_scale = bump_pitch
+		bump_shot.bus = sfx_bus_name
+		bump_shot.play()
+	elif one_shot != null and bump_stream != null:
+		one_shot.stop()
+		one_shot.stream = bump_stream
+		one_shot.volume_db = bump_volume_db
+		one_shot.pitch_scale = bump_pitch
+		one_shot.bus = sfx_bus_name
+		one_shot.play()

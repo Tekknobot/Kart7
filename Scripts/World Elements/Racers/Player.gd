@@ -124,6 +124,10 @@ var _primed_sprite := false
 @export var TURBO_TEMP_CAP_FACTOR := 1.45  # temporary headroom while turbo is active
 @export var HOP_TEMP_CAP_FACTOR   := 1.10  # tiny headroom while hop is active
 
+@export var BUMP_SFX_MIN_IMPULSE: float = 1.10   # >1.0 skips wall axis-bumps, catches racer bumps
+@export var BUMP_SFX_COOLDOWN_S: float = 0.10    # avoid rapid repeats
+var _bump_sfx_cd := 0.0
+
 func _compute_temp_cap(base_cap: float) -> float:
 	var cap := base_cap
 
@@ -413,6 +417,7 @@ func Update(mapForward : Vector3) -> void:
 		ApplyCollisionBump()
 
 	var dt := get_process_delta_time()
+	_bump_sfx_cd = max(0.0, _bump_sfx_cd - dt)
 
 	if _drift_cap_timer > 0.0:
 		_drift_cap_timer = max(0.0, _drift_cap_timer - dt)
@@ -570,7 +575,9 @@ func _handle_hop_and_drift(input_vec : Vector2) -> void:
 		_hop_timer = HOP_DURATION
 		_hop_boost_timer = HOP_DURATION
 		_drift_arm_timer = DRIFT_ARM_WINDOW
-
+		if _sfx != null and _sfx.has_method("play_hop"):
+			_sfx.play_hop()
+			
 	# decay timers
 	if _hop_boost_timer > 0.0:
 		_hop_boost_timer = max(0.0, _hop_boost_timer - dt)
@@ -971,3 +978,18 @@ func _recompute_speed_multiplier() -> float:
 			boost = SPIN_SPEED_MULT
 
 	return boost
+
+func SetCollisionBump(bumpDir: Vector3) -> void:
+	# keep base bump behavior
+	super.SetCollisionBump(bumpDir)
+
+	# play bump SFX from the player only, with a tiny cooldown to avoid spam
+	if _bump_sfx_cd > 0.0:
+		return
+	if _sfx == null:
+		return
+	if not _sfx.has_method("play_bump"):
+		return
+
+	_sfx.play_bump()
+	_bump_sfx_cd = BUMP_SFX_COOLDOWN_S
