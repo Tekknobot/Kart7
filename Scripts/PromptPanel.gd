@@ -57,6 +57,9 @@ var _ui_root: Control
 @export var ignore_input_until_ms := 400
 var _opened_at_ms := 0
 
+@export var show_retry := false
+@export var show_quit := false
+
 func _ready() -> void:
 	set_process_unhandled_input(true)  # for JOY A
 	call_deferred("_deferred_init")
@@ -104,6 +107,16 @@ func _deferred_init() -> void:
 	if _subtitle_lbl != null:
 		_subtitle_lbl.text = subtitle_text
 
+	# Hide unwanted buttons so layout packs around Continue
+	if _btn_retry != null:
+		if not show_retry:
+			_btn_retry.visible = false
+
+	if _btn_quit != null:
+		if not show_quit:
+			_btn_quit.visible = false
+
+
 	# wait one frame so theme/UI are fully ready (export-safe)
 	await get_tree().process_frame
 
@@ -124,8 +137,10 @@ func show_prompt() -> void:
 	_fade_control(_title_lbl, 1.0, 0.2, tw)
 	_fade_control(_subtitle_lbl, 1.0, 0.2, tw)
 	_fade_control(_btn_continue, 1.0, 0.2, tw)
-	_fade_control(_btn_retry, 1.0, 0.2, tw)
-	_fade_control(_btn_quit, 1.0, 0.2, tw)
+	if _btn_retry != null and _btn_retry.visible:
+		_fade_control(_btn_retry, 1.0, 0.2, tw)
+	if _btn_quit != null and _btn_quit.visible:
+		_fade_control(_btn_quit, 1.0, 0.2, tw)
 	if _btn_continue != null:
 		_btn_continue.grab_focus()
 
@@ -134,8 +149,10 @@ func hide_prompt() -> void:
 	_fade_control(_title_lbl, 0.0, 0.15, tw)
 	_fade_control(_subtitle_lbl, 0.0, 0.15, tw)
 	_fade_control(_btn_continue, 0.0, 0.15, tw)
-	_fade_control(_btn_retry, 0.0, 0.15, tw)
-	_fade_control(_btn_quit, 0.0, 0.15, tw)
+	if _btn_retry != null and _btn_retry.visible:
+		_fade_control(_btn_retry, 0.0, 0.15, tw)
+	if _btn_quit != null and _btn_quit.visible:
+		_fade_control(_btn_quit, 0.0, 0.15, tw)
 	tw.finished.connect(func():
 		visible = false
 	)
@@ -178,10 +195,10 @@ func _build_ui_runtime() -> void:
 
 	var margin := MarginContainer.new()
 	margin.name = "Margin"
-	margin.add_theme_constant_override("margin_left", 8)
-	margin.add_theme_constant_override("margin_right", 8)
-	margin.add_theme_constant_override("margin_top", 24)
-	margin.add_theme_constant_override("margin_bottom", 8)
+	margin.add_theme_constant_override("margin_left", 32)
+	margin.add_theme_constant_override("margin_right", 32)
+	margin.add_theme_constant_override("margin_top", 32)
+	margin.add_theme_constant_override("margin_bottom", 32)
 	panel.add_child(margin)
 
 	var vbox := VBoxContainer.new()

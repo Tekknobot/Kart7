@@ -6,3 +6,4 @@ res://Scenes/PromptPanel.tscn
 res://Scripts/World Elements/Racers/Player.gd
 res://Scripts/KartSFX.gd
 res://Scripts/On Screen Elements/SpriteHandler.gd
+res://Scripts/PromptPanel.gd
