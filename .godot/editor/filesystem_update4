@@ -1,7 +1,9 @@
-res://Scenes/CountdownUI.tscn
-res://Scripts/Shaders/GasDistort.gdshader
-res://Scripts/Shaders/ModeSeven.gdshader
-res://Scripts/Shaders/YoshiSwap.gdshader
-res://Scenes/PromptPanel.tscn
-res://Scripts/PromptPanel.gd
 res://Scenes/main.tscn
+res://Scripts/Shaders/ModeSeven.gdshader
+res://Scripts/Shaders/GasDistort.gdshader
+res://Scripts/Shaders/YoshiSwap.gdshader
+res://Scripts/RaceManager.gd
+res://Scenes/PromptPanel.tscn
+res://Scripts/On Screen Elements/SpriteHandler.gd
+res://Scripts/PromptPanel.gd
+res://Scripts/World Elements/Racers/Player.gd
