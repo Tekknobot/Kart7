@@ -11,12 +11,12 @@
 [ext_resource type="Texture2D" uid="uid://bvioi2jfn2hmv" path="res://Textures/Racers/Yoshi Back.png" id="5_lfi8c"]
 [ext_resource type="Script" uid="uid://dhfy5381d720i" path="res://Scripts/General/Collision.gd" id="6_q57ja"]
 [ext_resource type="Script" uid="uid://5uqme7h2yul3" path="res://Scripts/On Screen Elements/SpriteHandler.gd" id="7_wmybs"]
-[ext_resource type="Texture2D" uid="uid://blxkqrqmapowt" path="res://Textures/Tracks/MarioTrack.png" id="8_fevyy"]
 [ext_resource type="Script" uid="uid://by6cg8pjfml46" path="res://Scripts/World Elements/Racers/Player.gd" id="8_lejxo"]
+[ext_resource type="Texture2D" uid="uid://c4578mt27jlfk" path="res://Textures/Tracks/MyTrack.png" id="10_o1aky"]
 [ext_resource type="Script" uid="uid://crr8fhlnitj4a" path="res://Scripts/World Elements/Hazard.gd" id="11_gfs62"]
 [ext_resource type="Texture2D" uid="uid://dwtfoow25238t" path="res://Textures/Racers/Particles/Road_Type_Effects_Sheet.png" id="11_w61pk"]
-[ext_resource type="Texture2D" uid="uid://cpbay01qhxufs" path="res://Textures/Tracks/MarioTrack - Road Type.png" id="12_hibaj"]
 [ext_resource type="Script" uid="uid://bomqe0y8c30wy" path="res://Scripts/General/AnimationHandler.gd" id="13_6hxns"]
+[ext_resource type="Texture2D" uid="uid://bkw5uqykuwole" path="res://Textures/Tracks/MyTrack_Road.png" id="13_kwxat"]
 [ext_resource type="Script" uid="uid://cq2qm30peuh2" path="res://Scripts/World Elements/Racers/Opponent.gd" id="16_hibaj"]
 [ext_resource type="Texture2D" uid="uid://d1nvgl514d4vw" path="res://Textures/Hazards/Orange_Pipes.png" id="16_t3snl"]
 [ext_resource type="Script" uid="uid://jwsfedkwc2mf" path="res://Scripts/KartSFX.gd" id="17_7k868"]
@@ -44,7 +44,7 @@
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_lhngl"]
 shader = ExtResource("3_okd74")
-shader_parameter/trackTexture = ExtResource("8_fevyy")
+shader_parameter/trackTexture = ExtResource("10_o1aky")
 shader_parameter/grassTexture = ExtResource("4_7c8ey")
 shader_parameter/mapMatrix = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
 
@@ -1100,7 +1100,7 @@ texture_repeat = 1
 material = SubResource("ShaderMaterial_lhngl")
 position = Vector2(240, 180)
 scale = Vector2(0.46875, 0.351563)
-texture = ExtResource("8_fevyy")
+texture = ExtResource("10_o1aky")
 script = ExtResource("4_s71t4")
 _mapStartRotationAngle = Vector2(4.9, 6.25)
 _mapMaxRotationSpeed = 1.5
@@ -1116,7 +1116,7 @@ finish_duration = 60.0
 
 [node name="Collision Handler" type="Node" parent="Map"]
 script = ExtResource("6_q57ja")
-_collisionMap = ExtResource("12_hibaj")
+_collisionMap = ExtResource("13_kwxat")
 _wallColor = Color(0.4, 0.4, 0.4, 1)
 _roadTypeColors = Array[Color]([Color(0, 0, 0, 1), Color(1, 1, 1, 1), Color(0.8, 0.8, 0.8, 1), Color(0.603922, 0.603922, 0.603922, 1), Color(0.4, 0.4, 0.4, 1), Color(0.2, 0.2, 0.2, 1)])
 
@@ -1289,7 +1289,7 @@ draft_speed_bonus = 25.0
 humanize_amp_px = 3.0
 merge_time_s = 0.0
 randomize_on_ready = true
-assume_player_target_speed = 120.0
+assume_player_target_speed = 80.0
 lane_chase_speed_px = 200.0
 _movementDeaccel = 100.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
@@ -1353,7 +1353,7 @@ humanize_amp_px = 3.0
 merge_time_s = 0.0
 randomize_on_ready = true
 random_seed = 1
-assume_player_target_speed = 120.0
+assume_player_target_speed = 80.0
 lane_chase_speed_px = 200.0
 _maxMovementSpeed = 110.0
 _movementAccel = 100.0
@@ -1420,7 +1420,7 @@ humanize_amp_px = 3.0
 merge_time_s = 0.0
 randomize_on_ready = true
 random_seed = 2
-assume_player_target_speed = 120.0
+assume_player_target_speed = 80.0
 lane_chase_speed_px = 200.0
 _maxMovementSpeed = 110.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
@@ -1485,7 +1485,7 @@ humanize_amp_px = 3.0
 merge_time_s = 0.0
 randomize_on_ready = true
 random_seed = 3
-assume_player_target_speed = 120.0
+assume_player_target_speed = 80.0
 lane_chase_speed_px = 200.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
@@ -1549,7 +1549,7 @@ humanize_amp_px = 3.0
 merge_time_s = 0.0
 randomize_on_ready = true
 random_seed = 4
-assume_player_target_speed = 120.0
+assume_player_target_speed = 80.0
 lane_chase_speed_px = 200.0
 _maxMovementSpeed = 110.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
@@ -1614,7 +1614,7 @@ humanize_amp_px = 3.0
 merge_time_s = 0.0
 randomize_on_ready = true
 random_seed = 5
-assume_player_target_speed = 120.0
+assume_player_target_speed = 80.0
 lane_chase_speed_px = 200.0
 _maxMovementSpeed = 110.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
@@ -1679,7 +1679,7 @@ humanize_amp_px = 3.0
 merge_time_s = 0.0
 randomize_on_ready = true
 random_seed = 6
-assume_player_target_speed = 120.0
+assume_player_target_speed = 80.0
 lane_chase_speed_px = 200.0
 _maxMovementSpeed = 110.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
@@ -1925,7 +1925,7 @@ size = Vector2i(1024, 1024)
 script = ExtResource("21_pdsj5")
 line_width = 2.0
 color = Color(1, 0, 0, 0)
-points = PackedVector2Array(937, 551, 933, 425, 250, 73, 131, 86, 75, 191, 78, 708, 151, 749, 469, 589, 551, 606, 692, 874, 818, 918, 931, 857, 920, 800)
+points = PackedVector2Array(937, 551, 935, 150, 864, 170, 826, 158, 800, 232, 789, 483, 737, 498, 660, 440, 662, 127, 590, 77, 246, 95, 224, 137, 202, 297, 89, 374, 99, 836, 214, 832, 229, 656, 360, 520, 367, 226, 491, 227, 513, 888, 924, 909)
 show_debug_markers = false
 follow_speed_px_sec = 160.0
 
@@ -1936,7 +1936,7 @@ path_overlay_node = NodePath("../SubViewport/PathOverlay2D")
 racers_root = NodePath("../Sprite Handler/Racers")
 player_path = NodePath("../Sprite Handler/Racers/Voltage")
 force_player_on_top = false
-total_laps = 0
+total_laps = 4
 finish_auto_speed_px = 200.0
 
 [node name="LeaderBoard" type="Control" parent="."]
