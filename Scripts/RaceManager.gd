@@ -427,8 +427,6 @@ func Update() -> void:
 		var spx := float(it["s_px"])
 		sig_parts.append(str(rid, ":", lap_i, ":", int(spx)))
 	var sig := ",".join(sig_parts)
-
-	var do_periodic := (Engine.get_process_frames() % 30) == 0
 	var order_changed := (sig != _last_board_sig)
 	_last_board_sig = sig
 

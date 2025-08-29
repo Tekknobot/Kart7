@@ -125,7 +125,7 @@ func Update(player: Racer) -> void:
 	RotateMap(steer, speed)
 	KeepRotationDistance(player)
 
-	# Temporarily yaw 180° for rendering when rear view is held.
+	# Temporarily yaw 180Â° for rendering when rear view is held.
 	if _rearview_on():
 		_mapRotationAngle.y = WrapAngle(_mapRotationAngle.y + PI)
 		UpdateShader()

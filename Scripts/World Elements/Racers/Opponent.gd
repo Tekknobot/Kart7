@@ -106,9 +106,6 @@ var _view_valid: bool = false
 @export var draft_speed_bonus: float = 12.0      # +u/s while drafting
 
 # internals
-var _avoid_target_lane_px: float = 0.0
-var _pass_side: int = 0            # -1 left, 0 none, +1 right
-var _pass_cooldown: float = 0.0
 
 # ===== Humanization (subtle wandering on straights) =====
 @export var humanize_enabled: bool = true

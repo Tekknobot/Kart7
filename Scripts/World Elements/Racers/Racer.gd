@@ -118,7 +118,7 @@ func _set_frame_idx(dir_idx: int) -> void:
 		spr.frame = clamp(dir_idx, 0, DIRECTIONS - 1)
 
 func _set_turn_angle(angle_deg: float) -> void:
-	var step := 360.0 / float(DIRECTIONS)  # 30°
+	var step := 360.0 / float(DIRECTIONS)  # 30Â°
 	var idx := int(floor((wrapf(angle_deg, 0.0, 360.0) + step * 0.5) / step)) % DIRECTIONS
 	_set_frame_idx(idx)
 

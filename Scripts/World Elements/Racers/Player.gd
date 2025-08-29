@@ -4,7 +4,7 @@ extends "res://Scripts/World Elements/Racers/Racer.gd"
 # === Controls & Drift/Hop Settings ===
 const HOP_DURATION := 0.18
 const HOP_HEIGHT := 10.0
-const HOP_SPEED_BOOST := 1.08
+const HOP_SPEED_BOOST := 1.01
 
 const DRIFT_MIN_SPEED := 20.0
 const DRIFT_STEER_MULT := 1.65
@@ -12,8 +12,8 @@ const DRIFT_SPEED_MULT := 0.92
 const DRIFT_BUILD_RATE := 28.0
 const TURBO_THRESHOLD_SMALL := 35.0
 const TURBO_THRESHOLD_BIG := 80.0
-const TURBO_SMALL_MULT := 1.001
-const TURBO_BIG_MULT := 1.002
+const TURBO_SMALL_MULT := 1.1
+const TURBO_BIG_MULT := 1.03
 const TURBO_TIME := 0.25
 
 var _hop_timer := 0.0
@@ -23,9 +23,6 @@ var _drift_dir := 0
 var _drift_charge := 0.0
 var _turbo_timer := 0.0
 var _base_sprite_offset_y := 0.0
-
-const FRAME_W := 32
-const FRAME_H := 32
 const FRAMES_PER_ROW := 12
 
 const TURN_STRAIGHT_INDEX := 0
@@ -38,7 +35,6 @@ const STEER_SIGN := -1.0
 
 var _lean_visual := 0.0
 var _lean_left_visual := false
-var _frame_anim_time := 0.0
 
 # === Sprite drift behavior (SNES-ish) ===
 const DRIFT_WOBBLE_FREQ := 8
@@ -60,7 +56,6 @@ const DRIFT_ARM_WINDOW := 0.20
 var _drift_arm_timer := 0.0
 
 const DRIFT_MIN_TURN_BIAS := 0.55
-const DRIFT_STEER_INFLUENCE := 0.65
 const DRIFT_VISUAL_STEER_GAIN := 0.22
 
 const DRIFT_BREAK_DEADZONE := 0.12
@@ -73,7 +68,6 @@ const TAU := PI * 2.0
 
 # --- SNES-ish feel controls ---
 const DRIFT_GRIP := 0.55
-const DRIFT_COUNTERSTEER_GAIN := 1.6
 const DRIFT_SLIP_GAIN := 0.9
 const DRIFT_SLIP_DAMP := 6.0
 var _drift_side_slip := 0.0

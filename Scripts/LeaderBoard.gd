@@ -30,8 +30,6 @@ class_name Leaderboard
 @export var color_row_odd  := Color(0.12, 0.12, 0.12, 0.35)
 
 @export var arrow_flash_frames: int = 30   # ~0.5s if standings update ~60fps
-var _arrow_frames_left := {}               # racer_id -> int frames
-var _arrow_dir := {}                       # racer_id -> int (+1 up / -1 down)
 
 # ---------------- internals ----------------
 var _rm: Node = null
@@ -52,8 +50,6 @@ var _leader_lap := 0
 var _leader_s_px := 0.0
 
 @export var highlight_seconds: float = -1.0  # -1 = use animate_time
-var _highlight_until := {}                   # racer_id -> time(s) when highlight ends
-var _bg_tween_by_id := {}                    # racer_id -> Tween for BG fade (killed on refresh)
 
 @export var lock_on_finish: bool = true
 var _locked: bool = false
@@ -431,7 +427,7 @@ func _fmt_ms(ms: int) -> String:
 func _fmt_speed(u: float) -> String:
 	return String.num(u, 0) + " u/s"
 
-# Builds the GAP column text: "—" for leader, "+1L/2L" if lapped, otherwise "+Xs"
+# Builds the GAP column text: "â€”" for leader, "+1L/2L" if lapped, otherwise "+Xs"
 func _format_gap_text(id: int, lap: int, s_px: float, speed: float) -> String:
 	if id == _leader_id or _loop_len_px <= 0.0:
 		return "--"

@@ -31,9 +31,6 @@ var _is_updating: bool = false
 @export var shrink_when_away := true  # true = shrink when away; false = shrink when near
 
 # --- auto-correct state (per racer) ---
-var _last_absdot := {}      # instance_id -> float
-var _last_scale  := {}      # instance_id -> float
-const _AUTO_EPS := 0.0001
 
 @export var shrink_start_abs: float = 0.00  # start shrinking only after this abs distance
 @export var depth_gamma: float = 1.00       # curve exponent ( >1 gentler, <1 harsher )
@@ -52,7 +49,6 @@ var _smoothed_scale := {}  # instance_id -> float
 @export var min_angle_weight   : float = 0.55   # never suppress more than this
 
 var _cam_f_smooth : Vector2 = Vector2(0, 1)
-var _d_abs_smooth := {}  # id -> float
 
 # --- Z-order: keep player on top ---
 @export var force_player_on_top := true
