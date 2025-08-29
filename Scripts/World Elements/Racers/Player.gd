@@ -12,10 +12,11 @@ const DRIFT_SPEED_MULT := 0.92
 const DRIFT_BUILD_RATE := 28.0
 const TURBO_THRESHOLD_SMALL := 35.0
 const TURBO_THRESHOLD_BIG := 80.0
-const TURBO_SMALL_MULT := 1.1
-const TURBO_BIG_MULT := 1.03
+const TURBO_SMALL_MULT := 1.06
+const TURBO_BIG_MULT := 1.18
 const TURBO_TIME := 0.25
 
+var _turbo_pulse := 1.0
 var _hop_timer := 0.0
 var _hop_boost_timer := 0.0
 var _is_drifting := false
@@ -62,6 +63,12 @@ const DRIFT_BREAK_DEADZONE := 0.12
 const DRIFT_BREAK_GRACE := 0.10
 const DRIFT_REVERSE_BREAK := 0.25
 const POST_DRIFT_SETTLE_TIME_BREAK := 0.12
+
+# --- Brief cap headroom when drift starts (avoids hard clamp) ---
+@export var DRIFT_TEMP_CAP_FACTOR := 1.08
+const DRIFT_CAP_ENTRY_TIME := 0.40  # seconds of extra headroom after drift starts
+
+var _drift_cap_timer := 0.0
 
 var _drift_break_timer := 0.0
 const TAU := PI * 2.0
@@ -131,6 +138,12 @@ func _compute_temp_cap(base_cap: float) -> float:
 			cap = c
 	if _hop_timer > 0.0:
 		var c := base_cap * HOP_TEMP_CAP_FACTOR
+		if cap < c:
+			cap = c
+
+	# brief headroom when drift just started to avoid sudden clamp
+	if _drift_cap_timer > 0.0:
+		var c := base_cap * DRIFT_TEMP_CAP_FACTOR
 		if cap < c:
 			cap = c
 
@@ -401,6 +414,9 @@ func Update(mapForward : Vector3) -> void:
 
 	var dt := get_process_delta_time()
 
+	if _drift_cap_timer > 0.0:
+		_drift_cap_timer = max(0.0, _drift_cap_timer - dt)
+
 	if _post_spin_lock > 0.0:
 		_post_spin_lock = max(0.0, _post_spin_lock - dt)
 
@@ -470,7 +486,34 @@ func Update(mapForward : Vector3) -> void:
 
 	# --- BOOST SECOND: compute boost as a value; do not write the field here ---
 	var terrain_mult := _speedMultiplier
+	if terrain_mult <= 0.0:
+		terrain_mult = 1.0
+
 	var boost_mult := _recompute_speed_multiplier()
+	if boost_mult <= 0.0:
+		boost_mult = 1.0
+
+	# Let item boost offset rough terrain a bit (uses _speedMultiplier internally)
+	_speedMultiplier = terrain_mult
+	_apply_item_terrain_comp(curr_rt)
+
+	# Apply one-frame turbo pulse (from drift release) AFTER terrain/item adjustments
+	boost_mult = boost_mult * _turbo_pulse
+	_turbo_pulse = 1.0  # consume pulse; only one frame
+
+	# Final multiplier (epsilon clamp)
+	_speedMultiplier = terrain_mult * boost_mult
+	if _speedMultiplier < 0.01:
+		_speedMultiplier = 0.01
+
+	# Let item offset rough terrain a bit
+	_speedMultiplier = terrain_mult
+	_apply_item_terrain_comp(curr_rt)
+
+	# Final multiplier (epsilon clamp)
+	_speedMultiplier = terrain_mult * boost_mult
+	if _speedMultiplier < 0.01:
+		_speedMultiplier = 0.01
 
 	# Optional: let item boost offset rough terrain a bit (your helper uses _speedMultiplier)
 	_speedMultiplier = terrain_mult        # set a working value so helper can use max()
@@ -515,48 +558,59 @@ func ReturnPlayerInput() -> Vector2:
 func _handle_hop_and_drift(input_vec : Vector2) -> void:
 	var dt := get_process_delta_time()
 
-	# --- Inputs / gates ---
+	# Inputs / gates
 	var hop_pressed := Input.is_action_just_pressed("Hop")
 	var drift_down := Input.is_action_pressed("Drift")
 	var moving_fast := _movementSpeed >= DRIFT_MIN_SPEED
 	var steer_abs = abs(input_vec.x)
 	var steer_sign = sign(input_vec.x)
 
-	# --- Hop: arm a short window where drift can begin (SNES-style) ---
+	# Hop: opens a short "arm" window where drift can begin
 	if hop_pressed and not _is_drifting:
 		_hop_timer = HOP_DURATION
 		_hop_boost_timer = HOP_DURATION
-		# NOTE: no speed boost from hop anymore
 		_drift_arm_timer = DRIFT_ARM_WINDOW
 
-	# decay hop window/timer (no speed resets)
+	# decay timers
 	if _hop_boost_timer > 0.0:
 		_hop_boost_timer = max(0.0, _hop_boost_timer - dt)
-
-	# keep arm window alive briefly after hop
 	if _drift_arm_timer > 0.0:
 		_drift_arm_timer = max(0.0, _drift_arm_timer - dt)
 
-	# --- Start DRIFT: only if armed by hop, fast enough, and steering clearly ---
+	# Start drift if armed, fast enough, and steering clearly
 	if (not _is_drifting) and drift_down and (_drift_arm_timer > 0.0) and moving_fast and (steer_abs >= DRIFT_STEER_DEADZONE):
 		var dir := 1
 		if steer_sign < 0.0:
 			dir = -1
 		_start_drift_snes(dir)
 
-	# --- While DRIFTING (SNES-style fixed slip) ---
+	# While drifting: keep momentum, bias steering outward, build charge
 	if _is_drifting and drift_down:
-		# Keep speed almost intact while drifting (classic SMK keeps momentum)
-		#_speedMultiplier = DRIFT_SPEED_MULT
+		# Speed-neutral: do NOT touch _speedMultiplier here
 
+		# Outward bias (SMK feel): push input toward fixed target per drift side
 		var bias := float(_drift_dir) * DRIFT_MIN_TURN_BIAS
-		var raw_target = clamp(bias, -1.0, 1.0)
+		var clamped := bias
+		if clamped < -1.0:
+			clamped = -1.0
+		if clamped > 1.0:
+			clamped = 1.0
 
-		var grip_t = clamp(dt * (DRIFT_GRIP * 10.0), 0.0, 1.0)
-		_inputDir.x = lerp(_inputDir.x, raw_target * DRIFT_STEER_MULT, grip_t)
+		# Grip toward target with a little smoothing
+		var grip_t := dt * (DRIFT_GRIP * 10.0)
+		if grip_t < 0.0:
+			grip_t = 0.0
+		if grip_t > 1.0:
+			grip_t = 1.0
+		_inputDir.x = lerp(_inputDir.x, clamped * DRIFT_STEER_MULT, grip_t)
 
-		_drift_charge += (0.75 + 0.25 * steer_abs) * DRIFT_BUILD_RATE * dt
+		# Build drift charge faster with more steer pressure
+		var add = (0.75 + 0.25 * steer_abs) * DRIFT_BUILD_RATE * dt
+		_drift_charge += add
+		if _drift_charge < 0.0:
+			_drift_charge = 0.0
 
+		# Cancel rules: reverse steer or let go too long — SMK quick-cancel feel
 		if steer_sign != 0 and steer_sign == -_drift_dir and steer_abs >= DRIFT_REVERSE_BREAK:
 			_cancel_drift_no_award(POST_DRIFT_SETTLE_TIME_BREAK)
 		elif steer_abs < DRIFT_BREAK_DEADZONE:
@@ -566,7 +620,7 @@ func _handle_hop_and_drift(input_vec : Vector2) -> void:
 		else:
 			_drift_break_timer = 0.0
 
-	# --- Release drift button: award mini-boost / turbo ---
+	# Release: award mini-boost/turbo
 	if _is_drifting and not drift_down:
 		_end_drift_with_award()
 
@@ -579,21 +633,24 @@ func _start_drift_snes(dir: int) -> void:
 	else:
 		_drift_dir = 1
 
+	# brief headroom to avoid instant cap slap when entering drift fast
+	_drift_cap_timer = DRIFT_CAP_ENTRY_TIME
+
 	_drift_wobble_phase = 0.0
 	_drift_break_timer = 0.0
 	_drift_charge = 0.0
 	_lean_left_visual = (_drift_dir < 0)
 	_post_settle_time = 0.0
 
-	# Fixed outward slip feel (stronger for SNES vibe; adjust to taste)
-	# You already add side-slip in Update(), so seed it harder at start:
+	# Fixed outward slip feel (SMK vibe): small one-off outward impulse
 	var outward_sign := 1.0
 	if _drift_dir >= 0:
 		outward_sign = -1.0
-	_drift_side_slip += outward_sign * 0.65  # one-off impulse
+	_drift_side_slip += outward_sign * 0.65
 
-	# Keep speed nearly intact while drifting
-	#_speedMultiplier = DRIFT_SPEED_MULT
+	# No drift slow here; drifting is speed-neutral
+	_emit_dust(true)
+	_emit_sparks(false)
 
 func _register_default_actions() -> void:
 	# Ensure actions exist once
@@ -768,19 +825,19 @@ func _cancel_drift_no_award(settle_time: float) -> void:
 
 func _end_drift_with_award() -> void:
 	_is_drifting = false
-	_speedMultiplier = 1.0
 	_emit_dust(false)
 	_emit_sparks(false)
 
+	# Award: one-frame pulse + temporary cap headroom via _turbo_timer
 	if _drift_charge >= TURBO_THRESHOLD_BIG:
 		_turbo_timer = TURBO_TIME
-		_speedMultiplier = TURBO_BIG_MULT
+		_turbo_pulse = TURBO_BIG_MULT
 		_drift_release_timer = DRIFT_RELEASE_BURST_TIME
 		if _sfx and _sfx.has_method("play_boost"):
 			_sfx.play_boost()
 	elif _drift_charge >= TURBO_THRESHOLD_SMALL:
 		_turbo_timer = TURBO_TIME
-		_speedMultiplier = TURBO_SMALL_MULT
+		_turbo_pulse = TURBO_SMALL_MULT
 		_drift_release_timer = DRIFT_RELEASE_BURST_TIME * 0.75
 		if _sfx and _sfx.has_method("play_boost"):
 			_sfx.play_boost()
@@ -790,6 +847,9 @@ func _end_drift_with_award() -> void:
 	_post_settle_time = POST_DRIFT_SETTLE_TIME
 	_lean_left_visual = (_drift_dir < 0)
 	_drift_charge = 0.0
+
+	# Reset any temporary manual multiplier writes
+	_speedMultiplier = 1.0
 
 func ReturnIsHopping() -> bool:
 	return _hop_timer > 0.0
@@ -892,24 +952,22 @@ func _finalize_move_with_item_comp(nextPos: Vector3, mapForward: Vector3) -> voi
 func _recompute_speed_multiplier() -> float:
 	var boost := 1.0
 
-	# hop boost
+	# Hop pop (subtle)
 	if _hop_timer > 0.0:
-		boost = max(boost, HOP_SPEED_BOOST)
+		if HOP_SPEED_BOOST > boost:
+			boost = HOP_SPEED_BOOST
 
-	# item boost
+	# Item mushroom (sustained while timer runs)
 	if _item_boost_timer > 0.0:
-		boost = max(boost, ITEM_BOOST_MULT)
+		if ITEM_BOOST_MULT > boost:
+			boost = ITEM_BOOST_MULT
 
-	# turbo
-	if _turbo_timer > 0.0:
-		boost = max(boost, max(TURBO_SMALL_MULT, TURBO_BIG_MULT))
+	# Drifting is speed-neutral; turbo multiplier is handled as a one-frame pulse,
+	# and cap headroom is handled in _compute_temp_cap via _turbo_timer.
 
-	# drift slight slow (as a floor, unless stronger boosts apply)
-	if _is_drifting:
-		boost = max(boost, DRIFT_SPEED_MULT)
-
-	# spin caps speed hard
+	# Spin is a hard cap
 	if _is_spinning:
-		boost = min(boost, SPIN_SPEED_MULT)
+		if SPIN_SPEED_MULT < boost:
+			boost = SPIN_SPEED_MULT
 
 	return boost
