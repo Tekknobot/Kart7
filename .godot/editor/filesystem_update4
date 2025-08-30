@@ -3,7 +3,4 @@ res://Scripts/Shaders/ModeSeven.gdshader
 res://Scripts/Shaders/GasDistort.gdshader
 res://Scripts/Shaders/YoshiSwap.gdshader
 res://Scenes/PromptPanel.tscn
-res://Scripts/World Elements/Racers/Player.gd
-res://Scripts/KartSFX.gd
-res://Scripts/On Screen Elements/SpriteHandler.gd
-res://Scripts/PromptPanel.gd
+res://Scripts/On Screen Elements/BackgroundEffects.gd
