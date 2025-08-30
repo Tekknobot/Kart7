@@ -938,11 +938,19 @@ func _relative_speed_along_normal(a: WorldElement, b: WorldElement, n: Vector2) 
 	return (vb_n - va_n)
 
 func _apply_separation_uv(el: WorldElement, delta_uv: Vector2, y_uv: float) -> void:
-	# Read current UV, convert to pixels, add delta
-	var curr := el.ReturnMapPosition()
-	var new_uv := Vector2(curr.x, curr.z) + delta_uv
-	var new_px := _uv_to_px(new_uv)
-	var y_px := y_uv * _mapSize
+	# Read current position robustly in PX, convert to UV, apply UV delta, back to PX.
+	var curr_px: Vector2 = _pos_px_of(el)          # always pixels (robust helper)
+	var curr_uv: Vector2 = _px_to_uv(curr_px)      # -> UV 0..1
+	var new_uv: Vector2 = curr_uv + delta_uv       # apply separation in UV space
+
+	# Optional: keep inside map bounds (avoids warping off-map)
+	if new_uv.x < 0.0: new_uv.x = 0.0
+	if new_uv.x > 1.0: new_uv.x = 1.0
+	if new_uv.y < 0.0: new_uv.y = 0.0
+	if new_uv.y > 1.0: new_uv.y = 1.0
+
+	var new_px: Vector2 = _uv_to_px(new_uv)
+	var y_px: float = y_uv * _mapSize              # y supplied in UV; convert to px
 	el.SetMapPosition(Vector3(new_px.x, y_px, new_px.y))
 
 func _scale_for_element(el_uv: Vector2, base3: float, floor_abs: float) -> float:
