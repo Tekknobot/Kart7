@@ -12,8 +12,8 @@ const DRIFT_SPEED_MULT := 0.92
 const DRIFT_BUILD_RATE := 28.0
 const TURBO_THRESHOLD_SMALL := 35.0
 const TURBO_THRESHOLD_BIG := 80.0
-const TURBO_SMALL_MULT := 1.06
-const TURBO_BIG_MULT := 1.18
+const TURBO_SMALL_MULT := 1.16
+const TURBO_BIG_MULT := 1.32
 const TURBO_TIME := 0.25
 
 var _turbo_pulse := 1.0
@@ -660,8 +660,8 @@ func _start_drift_snes(dir: int) -> void:
 	_emit_sparks(false)
 
 func _register_default_actions() -> void:
-	# Ensure actions exist once
-	for action in ["Forward", "Left", "Right", "Brake", "Hop", "Drift", "Item"]:
+	# Ensure actions exist once (now includes RearView)
+	for action in ["Forward", "Left", "Right", "Brake", "Hop", "Drift", "Item", "RearView"]:
 		if not InputMap.has_action(action):
 			InputMap.add_action(action)
 
@@ -680,6 +680,10 @@ func _register_default_actions() -> void:
 	InputMap.action_add_event("Left", jb.duplicate())
 	jb.button_index = JOY_BUTTON_DPAD_RIGHT
 	InputMap.action_add_event("Right", jb.duplicate())
+
+	# RearView (gamepad): Right Stick click (RS)
+	jb.button_index = JOY_BUTTON_RIGHT_STICK
+	InputMap.action_add_event("RearView", jb.duplicate())
 
 	# Keyboard
 	var ev: InputEventKey
@@ -702,12 +706,15 @@ func _register_default_actions() -> void:
 	ev = InputEventKey.new(); ev.keycode = KEY_SPACE;   InputMap.action_add_event("Hop", ev)
 
 	# Drift: Shift (both)
-	ev = InputEventKey.new(); ev.keycode = KEY_SHIFT;  InputMap.action_add_event("Drift", ev)
+	ev = InputEventKey.new(); ev.keycode = KEY_SHIFT;   InputMap.action_add_event("Drift", ev)
 
 	# Item: E (keyboard) / B (pad)
 	ev = InputEventKey.new(); ev.keycode = KEY_E;       InputMap.action_add_event("Item", ev)
 	jb.button_index = JOY_BUTTON_B
 	InputMap.action_add_event("Item", jb.duplicate())
+
+	# RearView (keyboard): TAB (hold to look back)
+	ev = InputEventKey.new(); ev.keycode = KEY_TAB;     InputMap.action_add_event("RearView", ev)
 
 func _apply_hop_sprite_offset() -> void:
 	var spr := ReturnSpriteGraphic()

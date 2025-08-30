@@ -1,4 +1,4 @@
-[gd_scene load_steps=52 format=3 uid="uid://d2glnv32t8md1"]
+[gd_scene load_steps=53 format=3 uid="uid://d2glnv32t8md1"]
 
 [ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_emb0w"]
 [ext_resource type="Script" uid="uid://cex362lk6utnk" path="res://Scripts/On Screen Elements/BackgroundEffects.gd" id="2_330he"]
@@ -13,6 +13,7 @@
 [ext_resource type="Script" uid="uid://5uqme7h2yul3" path="res://Scripts/On Screen Elements/SpriteHandler.gd" id="7_wmybs"]
 [ext_resource type="Script" uid="uid://by6cg8pjfml46" path="res://Scripts/World Elements/Racers/Player.gd" id="8_lejxo"]
 [ext_resource type="Texture2D" uid="uid://0xm32rqy0sjy" path="res://Textures/Tracks/My Tracks/Track_01.png" id="9_8cuat"]
+[ext_resource type="Texture2D" uid="uid://c80jwe8c2vkb1" path="res://Textures/Tracks/My Tracks/Track_01_cyberpunk_final.png" id="9_o1aky"]
 [ext_resource type="Script" uid="uid://crr8fhlnitj4a" path="res://Scripts/World Elements/Hazard.gd" id="11_gfs62"]
 [ext_resource type="Texture2D" uid="uid://dwtfoow25238t" path="res://Textures/Racers/Particles/Road_Type_Effects_Sheet.png" id="11_w61pk"]
 [ext_resource type="Texture2D" uid="uid://d1pw55e38rqo" path="res://Textures/Tracks/My Tracks/Track_01_Road.png" id="12_8cuat"]
@@ -44,7 +45,7 @@
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_lhngl"]
 shader = ExtResource("3_okd74")
-shader_parameter/trackTexture = ExtResource("9_8cuat")
+shader_parameter/trackTexture = ExtResource("9_o1aky")
 shader_parameter/grassTexture = ExtResource("4_7c8ey")
 shader_parameter/mapMatrix = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
 
@@ -1293,7 +1294,6 @@ draft_speed_bonus = 25.0
 humanize_amp_px = 3.0
 merge_time_s = 0.0
 randomize_on_ready = true
-assume_player_target_speed = 120.0
 lane_chase_speed_px = 110.0
 _movementDeaccel = 100.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
@@ -1357,7 +1357,6 @@ humanize_amp_px = 3.0
 merge_time_s = 0.0
 randomize_on_ready = true
 random_seed = 1
-assume_player_target_speed = 120.0
 lane_chase_speed_px = 110.0
 _maxMovementSpeed = 110.0
 _movementAccel = 100.0
@@ -1424,7 +1423,6 @@ humanize_amp_px = 3.0
 merge_time_s = 0.0
 randomize_on_ready = true
 random_seed = 2
-assume_player_target_speed = 120.0
 lane_chase_speed_px = 110.0
 _maxMovementSpeed = 110.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
@@ -1489,7 +1487,6 @@ humanize_amp_px = 3.0
 merge_time_s = 0.0
 randomize_on_ready = true
 random_seed = 3
-assume_player_target_speed = 120.0
 lane_chase_speed_px = 110.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
 path_ref = NodePath("../../../SubViewport/PathOverlay2D")
@@ -1553,7 +1550,6 @@ humanize_amp_px = 3.0
 merge_time_s = 0.0
 randomize_on_ready = true
 random_seed = 4
-assume_player_target_speed = 120.0
 lane_chase_speed_px = 110.0
 _maxMovementSpeed = 110.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
@@ -1618,7 +1614,6 @@ humanize_amp_px = 3.0
 merge_time_s = 0.0
 randomize_on_ready = true
 random_seed = 5
-assume_player_target_speed = 120.0
 lane_chase_speed_px = 110.0
 _maxMovementSpeed = 110.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")
@@ -1683,7 +1678,6 @@ humanize_amp_px = 3.0
 merge_time_s = 0.0
 randomize_on_ready = true
 random_seed = 6
-assume_player_target_speed = 120.0
 lane_chase_speed_px = 110.0
 _maxMovementSpeed = 110.0
 _collisionHandler = NodePath("../../../Map/Collision Handler")

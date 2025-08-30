@@ -5,3 +5,10 @@ res://Scripts/Shaders/YoshiSwap.gdshader
 res://Scenes/PromptPanel.tscn
 res://Scripts/On Screen Elements/BackgroundEffects.gd
 res://Scripts/On Screen Elements/SpriteHandler.gd
+res://Scenes/Buildings/building_03.tscn
+res://Scenes/Buildings/building_01.tscn
+res://Scripts/Facade.gd
+res://Scenes/Buildings/building_02.tscn
+res://Scenes/Buildings/building_04.tscn
+res://Scripts/Shaders/Tunnel.gdshader
+res://Scripts/World Elements/Racers/Player.gd

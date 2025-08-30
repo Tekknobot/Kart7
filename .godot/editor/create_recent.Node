@@ -1,13 +1,13 @@
+ColorRect
+CanvasLayer
 Node2D
 AudioStreamPlayer2D
 AudioListener2D
 Label
 CenterContainer
-CanvasLayer
 VBoxContainer
 MarginContainer
 Control
-ColorRect
 HBoxContainer
 PanelContainer
 Node
