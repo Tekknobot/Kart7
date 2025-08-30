@@ -644,11 +644,11 @@ func _resolve_player_opponent_collisions() -> void:
 		return
 
 	# --- build bins ---
-	var cells := 16                     # tweak: 12–24 works well
-	var bins := {}                      # key:String -> Array[WorldElement]
+	var cells := 16
+	var bins := {}
 	for el in racers:
-		var px := _pos_px_of(el)        # robust to px/uv reporters
-		var uv := _px_to_uv(px)         # 0..1
+		var px := _pos_px_of(el)          # robust to px/uv reporters
+		var uv := _px_to_uv(px)           # ALWAYS UV for binning
 		var key := _grid_key(_bin_index_from_uv(uv, cells))
 		if not bins.has(key):
 			bins[key] = []
@@ -678,9 +678,7 @@ func _resolve_player_opponent_collisions() -> void:
 		for i in range(N):
 			var a := bucket[i]
 			if not is_instance_valid(a): continue
-			var a3 := a.ReturnMapPosition()
-			var a_uv := Vector2(a3.x, a3.z)
-			var r_a := _get_collision_radius_uv(a, a == _player)
+			var r_a := _get_collision_radius_uv(a, a == _player)  # UV radius
 
 			for j in range(i + 1, N):
 				var b := bucket[j]
@@ -691,12 +689,26 @@ func _resolve_player_opponent_collisions() -> void:
 					continue
 				done[pkey] = true
 
+				var r_b := _get_collision_radius_uv(b, b == _player)  # UV radius
+
+				# --- FIX: build positions in PX, then convert to UV for overlap math ---
+				var a_px := _pos_px_of(a)     # Vector2 px (robust)
+				var b_px := _pos_px_of(b)     # Vector2 px (robust)
+				var a_uv := _px_to_uv(a_px)   # Vector2 UV
+				var b_uv := _px_to_uv(b_px)   # Vector2 UV
+
+				# Y in UV too (so _apply_separation_uv(..., y_uv) is consistent)
+				var a3 := a.ReturnMapPosition()
 				var b3 := b.ReturnMapPosition()
-				var b_uv := Vector2(b3.x, b3.z)
-				var r_b := _get_collision_radius_uv(b, b == _player)
+				var a_y_uv := a3.y
+				if abs(a_y_uv) > 2.0:
+					a_y_uv = a_y_uv / float(_mapSize)
+				var b_y_uv := b3.y
+				if abs(b_y_uv) > 2.0:
+					b_y_uv = b_y_uv / float(_mapSize)
 
 				# 1) physical UV overlap
-				var did := _resolve_circle_overlap(a, a_uv, r_a, b, b_uv, r_b, a3.y, b3.y)
+				var did := _resolve_circle_overlap(a, a_uv, r_a, b, b_uv, r_b, a_y_uv, b_y_uv)
 
 				# 2) if no overlap, try screen-lane bump
 				if (not did) and screen_bump_enabled:

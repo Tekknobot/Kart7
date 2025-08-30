@@ -4,3 +4,4 @@ res://Scripts/Shaders/GasDistort.gdshader
 res://Scripts/Shaders/YoshiSwap.gdshader
 res://Scenes/PromptPanel.tscn
 res://Scripts/On Screen Elements/BackgroundEffects.gd
+res://Scripts/On Screen Elements/SpriteHandler.gd
