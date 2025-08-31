@@ -286,10 +286,9 @@ func Update(worldMatrix: Basis) -> void:
 			HandleSpriteDetail(_worldElements[i])
 		WorldToScreenPosition(_worldElements[i])
 
-
 	# Collisions, overlay, sorting
 	if enable_player_opponent_collision:
-		_resolve_player_opponent_collisions()
+		call_deferred("_resolve_player_opponent_collisions")  # <— defer one frame-end
 
 	# Update overlay less often to reduce churn
 	if (Engine.get_frames_drawn() % 2) == 0:
@@ -627,19 +626,23 @@ func _pos_px_of(n: WorldElement) -> Vector2:
 		return Vector2(p3.x * float(_mapSize), p3.z * float(_mapSize))
 	return Vector2(p3.x, p3.z)
 
-
-func _resolve_player_opponent_collisions() -> void:
 	# Broadphase grid to avoid O(N^2) pairing
-	if _player == null or _opponents == null:
-		return
-
-	# Collect participants (player + valid opponents)
+func _resolve_player_opponent_collisions() -> void:
+	# Build the participant list from the "racers" group so AI↔AI pairs are included.
 	var racers: Array[WorldElement] = []
-	if is_instance_valid(_player):
-		racers.append(_player)
-	for o in _opponents:
-		if is_instance_valid(o) and o != _player:
-			racers.append(o)
+	for n in get_tree().get_nodes_in_group("racers"):
+		if n != null and is_instance_valid(n) and n is WorldElement:
+			racers.append(n)
+
+	# Fallback: if the group isn't used yet, include the explicitly-wired arrays.
+	if racers.is_empty():
+		if is_instance_valid(_player):
+			racers.append(_player)
+		if _opponents != null:
+			for o in _opponents:
+				if is_instance_valid(o) and o != _player:
+					racers.append(o)
+
 	if racers.size() <= 1:
 		return
 
@@ -830,6 +833,13 @@ func _screen_lane_bump(a: WorldElement, b: WorldElement) -> bool:
 	if a.has_method("SetCollisionBump"): a.call("SetCollisionBump", bump_a)
 	if b.has_method("SetCollisionBump"): b.call("SetCollisionBump", bump_b)
 
+	# >>> notify racers as well (use mag, and use the pair's “radius sum” as an overlap proxy)
+	var overlap_guess_uv := (sum_r_px / float(_mapSize))
+	if a.has_method("OnBumped"):
+		a.call("OnBumped", b, mag, overlap_guess_uv)
+	if b.has_method("OnBumped"):
+		b.call("OnBumped", a, mag, overlap_guess_uv)
+
 	# 10) Latch, cooldown, chain update
 	_screen_pair_latched[skey] = true
 	_last_collision_time[skey] = nowt
@@ -908,6 +918,13 @@ func _resolve_circle_overlap(a: WorldElement, a_uv: Vector2, a_r: float,
 		var pb := b.ReturnMapPosition()
 		b.SetMapPosition(pb + bump_vec3 * get_process_delta_time())
 
+	# >>> INSERT HOOK *HERE* (between impulses and SFX) <<<
+	if a.has_method("OnBumped"):
+		a.call("OnBumped", b, mag, overlap_uv)   # other, strength(px/s), overlap(uv)
+	if b.has_method("OnBumped"):
+		b.call("OnBumped", a, mag, overlap_uv)
+	# <<< END INSERT >>>
+
 	# --- bump SFX (pair-wise), gated by the same cooldown as impulses ---
 	var sfx_a := a.get_node_or_null(^"Audio")
 	if sfx_a != null and sfx_a.has_method("play_bump"):
@@ -916,6 +933,12 @@ func _resolve_circle_overlap(a: WorldElement, a_uv: Vector2, a_r: float,
 	var sfx_b := b.get_node_or_null(^"Audio")
 	if sfx_b != null and sfx_b.has_method("play_bump"):
 		sfx_b.play_bump()
+
+	# >>> notify racers so AI can react (change lane, damp speed, etc.)
+	if a.has_method("OnBumped"):
+		a.call("OnBumped", b, mag, overlap_uv)
+	if b.has_method("OnBumped"):
+		b.call("OnBumped", a, mag, overlap_uv)
 
 	if spawn_debug:
 		print("BUMP(UV): A=", a.name, " B=", b.name, " overlap_uv=", overlap_uv)
@@ -994,31 +1017,26 @@ func _scale_for_element(el_uv: Vector2, base3: float, floor_abs: float) -> float
 		return clamp(s, floor_abs, base3)
 
 func _get_collision_radius_uv(el: WorldElement, is_player: bool) -> float:
-	# Mode 2: ask the element (per-entity)
+	# Mode 2: per-entity override stays the same
 	if collision_radius_mode == 2:
 		if el.has_method("ReturnCollisionRadiusUV"):
 			var r := float(el.call("ReturnCollisionRadiusUV"))
 			return max(0.0001, r) * radius_scale_global
 
-	# Mode 1: derive from sprite height in pixels -> UV
+	# Mode 1: derive from sprite height in pixels -> UV (NO visual scale)
 	if collision_radius_mode == 1:
 		var spr := el.ReturnSpriteGraphic()
-		if spr != null:
+		if spr != null and spr is Sprite2D:
 			var s2 := spr as Sprite2D
-			var h_px := 0.0
+			var h_px := 32.0
 			if "region_rect" in s2 and s2.region_rect.size.y > 0.0:
 				h_px = s2.region_rect.size.y
-			else:
-				h_px = 32.0
-			# use current on-screen scale so radius matches visual size
-			var sc := (s2 as Node2D).scale.y
-			var h_visual_px := h_px * sc
-			var r_px := (h_visual_px * radius_from_sprite_factor)
+			var r_px := h_px * radius_from_sprite_factor           # <- removed screen scale
 			var r_uv := r_px / float(_mapSize)
 			r_uv = max(min_radius_uv_auto, r_uv)
 			return r_uv * radius_scale_global
 
-	# Mode 0 (fallback): use fixed exports
+	# Mode 0: fixed
 	return (player_radius_uv if is_player else opponent_radius_uv) * radius_scale_global
 
 func _get_path_points_uv() -> PackedVector2Array:

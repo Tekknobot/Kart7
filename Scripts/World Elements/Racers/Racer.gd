@@ -20,7 +20,7 @@ var _bumpDir : Vector3 = Vector3.ZERO
 var _isPushedBack : bool = false
 var _pushbackTime : float = 0.3
 var _currPushbackTime : float = 0.0
-var _bumpIntensity : float = 0.1
+var _bumpIntensity : float = 0.06
 
 # --- DROP-IN: references required by helpers ---
 @export var path_ref: NodePath

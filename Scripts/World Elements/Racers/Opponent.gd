@@ -149,6 +149,15 @@ var _was_go: bool = false
 @export var random_seed: int = 0               # 0 = time+id; otherwise reproducible
 @export var assume_player_target_speed: float = 150.0  # used only if manager doesn't pass a value
 
+@export var bump_debug: bool = true   # flip OFF to silence
+
+func _bname(n: Node) -> String:
+	return (n.name if n != null and "name" in n else str(n.get_instance_id()))
+
+func _bprint(msg: String) -> void:
+	if bump_debug:
+		print("[AI-BUMP] ", msg)
+
 # --- helper: smoothed frame at arc length s ---
 func _uv_and_tangent_smooth(s_px: float, window_px: float = anti_snap_window_px) -> Dictionary:
 	if _total_len_px <= 0.0:
@@ -319,6 +328,17 @@ func _process(delta: float) -> void:
 		return
 	_try_cache_nodes()
 
+	# --- terrain sample at current position (for speed cap, like player) ---
+	var my3: Vector3 = ReturnMapPosition()
+	var rt_cur = _collisionHandler.ReturnCurrentRoadType(Vector2i(ceil(my3.x), ceil(my3.z)))
+	var terr_mult := 1.0
+	match rt_cur:
+		Globals.RoadType.ROAD:     terr_mult = mult_road
+		Globals.RoadType.GRAVEL:   terr_mult = mult_gravel
+		Globals.RoadType.OFF_ROAD: terr_mult = mult_offroad
+		Globals.RoadType.SINK:     terr_mult = mult_sink
+		_:                         terr_mult = 1.0
+
 	# === GO edge-detect (start merge the first frame after GO) ===
 	var go_now := Globals.race_can_drive
 	if go_now and not _was_go and _merge_armed:
@@ -329,9 +349,7 @@ func _process(delta: float) -> void:
 
 	# === LOCK AI UNTIL "GO" ===
 	if not Globals.race_can_drive:
-		# Keep them planted on the grid
 		_movementSpeed = 0.0
-		# keep their facing updated to the path so they don't look odd
 		var spf := Engine.get_process_frames()
 		if visual_update_stride <= 1 or (spf % visual_update_stride) == 0:
 			_update_angle_sprite_fast()
@@ -347,7 +365,6 @@ func _process(delta: float) -> void:
 	var fwd_smooth: Vector2 = frame_now["tan"]
 	var right_now: Vector2 = Vector2(-fwd_smooth.y, fwd_smooth.x)
 
-	# Smooth the right vector across frames so corners are buttery
 	_right_smooth = _exp_smooth_vec(_right_smooth, right_now, delta, right_half_life_s)
 	var right: Vector2 = _right_smooth.normalized()
 
@@ -371,10 +388,10 @@ func _process(delta: float) -> void:
 	var dot_raw: float = clamp(t0.dot(t1), -1.0, 1.0)
 	var curv_approx: float = 1.0 - max(dot_raw, -1.0)
 
-	# --- desired speed ---
+	# --- desired speed base ---
 	var desired_speed: float = target_speed
 
-	# catch-up vs player
+	# --- catch-up vs player (do this before corner/terrain clamps) ---
 	var pl := _player()
 	if pl != null:
 		var pl_speed: float = 0.0
@@ -389,9 +406,8 @@ func _process(delta: float) -> void:
 			if c_len > 0.00001:
 				cam_f /= c_len
 
-		var my_pos3: Vector3 = ReturnMapPosition()
 		var pl_pos3: Vector3 = (pl.call("ReturnMapPosition") as Vector3)
-		var fwd_gap: float = (Vector2(pl_pos3.x - my_pos3.x, pl_pos3.z - my_pos3.z)).dot(cam_f)
+		var fwd_gap: float = (Vector2(pl_pos3.x - my3.x, pl_pos3.z - my3.z)).dot(cam_f)
 
 		if fwd_gap > catchup_deadzone_uv:
 			var eff_gap: float = fwd_gap - catchup_deadzone_uv
@@ -401,29 +417,32 @@ func _process(delta: float) -> void:
 		if desired_speed < min_over:
 			desired_speed = min_over
 
-	# curve damping
+	# --- corner damping ---
 	var curv_u = clamp(curv_approx / 0.6, 0.0, 1.0)
 	var corner_mult: float = lerp(1.0, speed_damper_on_curve, curv_u)
 	desired_speed *= corner_mult
 
-	# clamp + accelerate/decelerate
-	desired_speed = min(desired_speed, _maxMovementSpeed)
-	if _movementSpeed < desired_speed:
-		_movementSpeed = min(desired_speed, _movementSpeed + accel * delta)
-	else:
-		_movementSpeed = max(desired_speed, _movementSpeed - accel * delta)
+	# --- terrain slow-down & cap (like player) ---
+	desired_speed *= terr_mult
+	desired_speed = min(desired_speed, _maxMovementSpeed * terr_mult)
 
-	# advance along path (arc-length state stays the same)
+	# --- accel/decel toward desired (optionally scale accel by surface grip) ---
+	var accel_eff: float = accel * lerp(1.0, terr_mult, accel_surface_gain)
+	
+	if _movementSpeed < desired_speed:
+		_movementSpeed = min(desired_speed, _movementSpeed + accel_eff * delta)
+	else:
+		_movementSpeed = max(desired_speed, _movementSpeed - accel_eff * delta)
+
+	# advance along path
 	_s_px = fposmod(_s_px + _movementSpeed * delta, _total_len_px)
 
 	# compute current & target UVs for lane/humanization
 	var cur_uv: Vector2 = _uv_at_distance(_s_px)
-
-	# you can still modulate lane_px_now with humanization / passing
 	var lane_px_now: float = lane_offset_px
 	var target_uv: Vector2 = cur_uv + (lane_px_now / _pos_scale_px()) * right
 
-	# during merge, blend the target UV, but still **move** through the physics pipe
+	# during merge, blend the target UV, but still move through the physics pipe
 	if _merging:
 		_merge_t += delta / max(0.0001, merge_time_s)
 		if _merge_t >= 1.0:
@@ -433,7 +452,6 @@ func _process(delta: float) -> void:
 		_physics_step_like_player(cur_uv, right, target_uv_blend, delta)
 	else:
 		_physics_step_like_player(cur_uv, right, target_uv, delta)
-
 
 	# collisions / visuals
 	if _isPushedBack:
@@ -447,11 +465,10 @@ func _process(delta: float) -> void:
 	if debug_log_ai_sprite and (f % 60 == 0):
 		var sp := ReturnSpriteGraphic()
 		prints("AI sprite:", sp, " path:", str(get("sprite_graphic_path")))
-		
+
 	if _hit_sfx_cd > 0.0:
 		_hit_sfx_cd = max(0.0, _hit_sfx_cd - delta)
-		
-		
+	
 func _apply_dynamic_difficulty() -> void:
 	# Determine lap driving the difficulty
 	var lap_for_diff := 0
@@ -968,7 +985,7 @@ func ApplyRandomProfile(seed: int = 0, player_speed: float = -1.0) -> void:
 	pass_cooldown_s   = _rf(rng, 0.45, 0.90)
 	block_slow_mult   = _rf(rng, 0.78, 0.90)
 	lane_lerp_hz      = _rf(rng, 4.0, 8.0)
-	lane_candidates_px = PackedFloat32Array([-32.0, -18.0, 0.0, 18.0, 32.0])
+	lane_candidates_px = PackedFloat32Array([-16.0, -16.0, 0.0, 16.0, 16.0])
 
 	# Drafting
 	draft_enabled   = rng.randf() < 0.85
@@ -1117,12 +1134,114 @@ func _physics_step_like_player(p_uv: Vector2, right: Vector2, target_uv: Vector2
 	if hit_z:
 		_lane_side_vel *= 0.5
 
+	# ... after hit_x / hit_z handling
+
+	# AI↔AI body collision & separation (this frame)
+	nextPos = _ai_resolve_body_overlap(nextPos, dt)
+
 	# terrain + finalize (same as Player flow)
 	var nextPixelPos : Vector2i = Vector2i(ceil(nextPos.x), ceil(nextPos.z))
 	var curr_rt = _collisionHandler.ReturnCurrentRoadType(nextPixelPos)
 	HandleRoadType(nextPixelPos, curr_rt)
 
 	SetMapPosition(nextPos)
-	UpdateMovementSpeed()
+	# UpdateMovementSpeed()   # keep this disabled for AI
 	var mapForward := Vector3(fwd.x, 0.0, fwd.y)
 	UpdateVelocity(mapForward)
+
+func OnBumped(other: Node, strength_pxps: float, overlap_uv: float) -> void:
+	# lane shove (no ternary)
+	var side: float = -1.0
+	if randf() >= 0.5:
+		side = 1.0
+	lane_offset_px = clamp(
+		lane_offset_px + side * min(16.0, 0.16 * strength_pxps),
+		-16.0, 16.0
+	)
+
+	# small speed hit on hard bumps
+	if strength_pxps > 80.0:
+		_movementSpeed *= 0.90
+
+	# quick flash so you can *see* it happened
+	var spr := ReturnSpriteGraphic()
+	if spr != null:
+		var pre := spr.modulate
+		var tw := create_tween()
+		tw.tween_property(spr, "modulate", Color(1.0,0.65,0.25,1.0), 0.05)
+		tw.tween_property(spr, "modulate", pre, 0.12)
+		
+	_bprint("%s OnBumped by %s  strength=%.1f  overlap_uv=%.5f  lane_px=%.1f"
+		% [_bname(self), _bname(other), strength_pxps, overlap_uv, lane_offset_px])
+		
+
+# 40% of sprite row height, with a floor (in pixels)
+func _ai_collision_radius_px() -> float:
+	var spr := ReturnSpriteGraphic()
+	var h := 32.0
+	if spr != null and "region_rect" in spr and spr.region_rect.size.y > 0.0:
+		h = spr.region_rect.size.y
+	return max(10.0, h * 0.40)
+
+# Resolve overlap against nearby racers (AI and player) and add a small impulse
+func _ai_resolve_body_overlap(next_pos: Vector3, dt: float) -> Vector3:
+	var my_px := Vector2(next_pos.x, next_pos.z)
+	var my_r  := _ai_collision_radius_px()
+
+	# Quick spatial filter (cheap AABB before sqrt)
+	var racers := get_tree().get_nodes_in_group("racers")
+	for n in racers:
+		if n == self: continue
+		if not is_instance_valid(n): continue
+		if not n.has_method("ReturnMapPosition"): continue
+
+		var p3: Vector3 = n.ReturnMapPosition()
+		var other_px := Vector2(p3.x, p3.z)
+
+		# Estimate other radius similarly (works for player/opponents)
+		var orad := my_r
+		if n.has_method("ReturnCollisionRadiusUV"):
+			# if someone exposes UV radius, prefer it
+			var ruv := float(n.call("ReturnCollisionRadiusUV"))
+			orad = max(8.0, ruv * _pos_scale_px())
+		else:
+			# fallback: 40% of their sprite height
+			if n.has_method("ReturnSpriteGraphic"):
+				var s = n.call("ReturnSpriteGraphic")
+				if s != null and "region_rect" in s and s.region_rect.size.y > 0.0:
+					orad = max(8.0, s.region_rect.size.y * 0.40)
+
+		# broad-phase AABB
+		var pad := my_r + orad + 8.0
+		if abs(other_px.x - my_px.x) > pad or abs(other_px.y - my_px.y) > pad:
+			continue
+
+		# narrow-phase circle
+		var d := other_px - my_px
+		var L := d.length()
+		if L <= 0.0001:
+			d = Vector2(1, 0); L = 0.0001
+		var need := my_r + orad
+		if L < need:
+			var nrm := d / L
+			var overlap := need - L
+
+			# push *me* back half the overlap; the other will do its half in its own step
+			my_px -= nrm * (overlap * 0.5)
+
+			# give both a visible shove (px/s scaled by overlap)
+			var mag := (overlap * 18.0)  # tune feel
+			SetCollisionBump(Vector3(-nrm.x, 0.0, -nrm.y) * mag)
+			if n.has_method("SetCollisionBump"):
+				n.call("SetCollisionBump", Vector3(nrm.x, 0.0, nrm.y) * mag)
+
+			# lane nudge for the AI we touched (nice readability)
+			if n.has_method("OnBumped"):
+				n.call("OnBumped", self, mag, overlap / _pos_scale_px())
+			if has_method("OnBumped"):
+				OnBumped(n, mag, overlap / _pos_scale_px())
+
+			_bprint("%s vs %s OVERLAP  uv=%.5f  L=%.2f  need=%.2f"
+				% [_bname(self), _bname(n), (need - L) / _pos_scale_px(), L, need])
+				
+	return Vector3(my_px.x, next_pos.y, my_px.y)

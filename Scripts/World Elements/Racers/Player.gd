@@ -240,6 +240,8 @@ func _ready() -> void:
 
 	_prime_sprite_grid_once()   # <- ensure single frame, grid mode, no region
 	_base_sprite_offset_y = spr.offset.y
+	
+	add_to_group("racers")
 
 func _process(_dt: float) -> void:
 	# publish camera/player position for pseudo-3D projection
