@@ -103,6 +103,9 @@ const ITEM_COOLDOWN := 3       # small cooldown before you can use another
 var _item_boost_timer := 0.0
 var _item_cooldown_timer := 0.0
 
+var _dust_was_on := false
+var _sparks_was_on := false
+
 var _has_base_sprite_offset: bool = false
 @onready var _sfx: Node = get_node_or_null(^"Audio")  # KartSFX.gd lives here
 
@@ -759,31 +762,43 @@ func _emit_dust(on: bool) -> void:
 	# Set target density; don't yank the system immediately
 	_dust_mult_target = DUST_ON_MULT if on else DUST_OFF_MULT
 
+	# Rising edge detection
+	var rising := on and (not _dust_was_on)
+	_dust_was_on = on
+
 	if p is GPUParticles2D:
 		var gp := p as GPUParticles2D
 		if _dust_base < 0:
 			_dust_base = max(1, gp.amount)
 
-		# Ensure emitting when turning ON
-		if on and not gp.emitting:
-			gp.emitting = true
-
-		# Only turn OFF once we've eased back to base
-		if (not on) and gp.emitting and _dust_mult <= DUST_OFF_MULT + 0.01:
-			gp.emitting = false
+		if on:
+			# On edge only: force a fresh emission so it never looks stuck
+			if rising:
+				gp.emitting = false
+				gp.emitting = true
+				gp.restart()
+		else:
+			# Only turn OFF once we've eased back to base
+			if gp.emitting and _dust_mult <= DUST_OFF_MULT + 0.01:
+				gp.emitting = false
 		return
 
 	if p is AnimatedSprite2D:
 		var aspr := p as AnimatedSprite2D
-		# visibility handled by easing below; ensure an anim exists
 		if on:
 			aspr.visible = true
+			# Choose a default animation if none
 			if aspr.sprite_frames != null and not aspr.sprite_frames.get_animation_names().is_empty():
 				if aspr.animation == "":
 					aspr.animation = aspr.sprite_frames.get_animation_names()[0]
-				if not aspr.is_playing(): aspr.play()
+			# On edge only: hard restart so it doesn't resume on the last frame
+			if rising:
+				aspr.play()
+				aspr.frame = 0
+			if not aspr.is_playing():
+				aspr.play()
 		else:
-			# let easing fade the speed; we’ll hide when near zero below
+			# let smoothing reduce speed; hide once effectively off (done in smoother)
 			pass
 		return
 
