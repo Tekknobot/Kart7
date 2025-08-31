@@ -1175,15 +1175,14 @@ func OnBumped(other: Node, strength_pxps: float, overlap_uv: float) -> void:
 		% [_bname(self), _bname(other), strength_pxps, overlap_uv, lane_offset_px])
 		
 
-# 40% of sprite row height, with a floor (in pixels)
 func _ai_collision_radius_px() -> float:
-	# If this racer exposes a per-entity radius, use it (px)
 	if has_method("ReturnCollisionRadiusUV"):
 		return max(0.0, float(call("ReturnCollisionRadiusUV")) * _pos_scale_px())
-	# tiny fallback only if nothing provided
 	var s := ReturnSpriteGraphic()
-	var h = (s.region_rect.size.y if s != null and "region_rect" in s else 32.0)
-	return max(0.0, h * 0.20)  # <= was max(10.0, h*0.40)
+	var h := 32.0
+	if s != null and "region_rect" in s and s.region_rect.size.y > 0.0:
+		h = s.region_rect.size.y
+	return max(0.0, h * 0.20) # tiny fallback only
 
 # Resolve overlap against nearby racers (AI and player) and add a small impulse
 func _ai_resolve_body_overlap(next_pos: Vector3, dt: float) -> Vector3:

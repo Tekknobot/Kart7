@@ -761,11 +761,15 @@ func _screen_lane_bump(a: WorldElement, b: WorldElement) -> bool:
 		return false
 
 	# 3) Enter/Exit windows with hysteresis
-	var enter_same_row = abs(fwd_gap_px) <= overtake_depth_window_px
-	var enter_lat_hit = abs(lat_gap_px) <= (sum_r_px + screen_lateral_pad_px)
+	# --- radius-aware windows (stricter than before) ---
+	var same_row_thresh_px = min(overtake_depth_window_px, sum_r_px * 0.5)
+	var lat_hit_thresh_px  = max(0.0, sum_r_px * 0.85 + screen_lateral_pad_px)
 
-	var exit_same_row  = abs(fwd_gap_px) > (overtake_depth_window_px + screen_bump_depth_hyst_px)
-	var exit_lat_clear = abs(lat_gap_px) > (sum_r_px + screen_lateral_pad_px + screen_bump_lateral_hyst_px)
+	var enter_same_row = abs(fwd_gap_px) <= same_row_thresh_px
+	var enter_lat_hit  = abs(lat_gap_px) <= lat_hit_thresh_px
+
+	var exit_same_row  = abs(fwd_gap_px) > (same_row_thresh_px + screen_bump_depth_hyst_px)
+	var exit_lat_clear = abs(lat_gap_px) > (lat_hit_thresh_px  + screen_bump_lateral_hyst_px)
 
 	var skey := _pair_key(a.get_instance_id(), b.get_instance_id()) + "_screen"
 
