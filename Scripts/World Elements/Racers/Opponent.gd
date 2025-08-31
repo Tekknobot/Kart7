@@ -1177,11 +1177,13 @@ func OnBumped(other: Node, strength_pxps: float, overlap_uv: float) -> void:
 
 # 40% of sprite row height, with a floor (in pixels)
 func _ai_collision_radius_px() -> float:
-	var spr := ReturnSpriteGraphic()
-	var h := 32.0
-	if spr != null and "region_rect" in spr and spr.region_rect.size.y > 0.0:
-		h = spr.region_rect.size.y
-	return max(10.0, h * 0.40)
+	# If this racer exposes a per-entity radius, use it (px)
+	if has_method("ReturnCollisionRadiusUV"):
+		return max(0.0, float(call("ReturnCollisionRadiusUV")) * _pos_scale_px())
+	# tiny fallback only if nothing provided
+	var s := ReturnSpriteGraphic()
+	var h = (s.region_rect.size.y if s != null and "region_rect" in s else 32.0)
+	return max(0.0, h * 0.20)  # <= was max(10.0, h*0.40)
 
 # Resolve overlap against nearby racers (AI and player) and add a small impulse
 func _ai_resolve_body_overlap(next_pos: Vector3, dt: float) -> Vector3:
@@ -1201,21 +1203,21 @@ func _ai_resolve_body_overlap(next_pos: Vector3, dt: float) -> Vector3:
 		if abs(p3.x) <= 2.0 and abs(p3.z) <= 2.0:
 			other_px *= _pos_scale_px()
 
-		# Estimate other radius similarly (works for player/opponents)
+		# other radius (prefer per-entity; otherwise small fallback)
 		var orad := my_r
 		if n.has_method("ReturnCollisionRadiusUV"):
-			# if someone exposes UV radius, prefer it
 			var ruv := float(n.call("ReturnCollisionRadiusUV"))
-			orad = max(8.0, ruv * _pos_scale_px())
+			orad = max(0.0, ruv * _pos_scale_px())
 		else:
-			# fallback: 40% of their sprite height
+			var s = null
 			if n.has_method("ReturnSpriteGraphic"):
-				var s = n.call("ReturnSpriteGraphic")
-				if s != null and "region_rect" in s and s.region_rect.size.y > 0.0:
-					orad = max(8.0, s.region_rect.size.y * 0.40)
+				s = n.call("ReturnSpriteGraphic")
+			if s != null and "region_rect" in s and s.region_rect.size.y > 0.0:
+				orad = max(0.0, s.region_rect.size.y * 0.20)
 
-		# broad-phase AABB
-		var pad := my_r + orad + 8.0
+		# broad-phase AABB padding (smaller)
+		var pad := my_r + orad + 2.0    # <= was +8.0
+
 		if abs(other_px.x - my_px.x) > pad or abs(other_px.y - my_px.y) > pad:
 			continue
 
