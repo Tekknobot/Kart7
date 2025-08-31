@@ -167,6 +167,7 @@ var _screen_bump_boot_s: float = 0.0
 var _screen_pair_latched := {}      # key -> bool
 var _screen_pair_chain   := {}      # key -> {count:int, last:float}
 
+
 var DEFAULT_POINTS: PackedVector2Array = PackedVector2Array([
 	Vector2(920, 583),	
 	Vector2(950, 607),
@@ -918,12 +919,11 @@ func _resolve_circle_overlap(a: WorldElement, a_uv: Vector2, a_r: float,
 		var pb := b.ReturnMapPosition()
 		b.SetMapPosition(pb + bump_vec3 * get_process_delta_time())
 
-	# >>> INSERT HOOK *HERE* (between impulses and SFX) <<<
+	# >>> ADD THIS: notify both sides so AIs react visually/behaviorally <<<
 	if a.has_method("OnBumped"):
-		a.call("OnBumped", b, mag, overlap_uv)   # other, strength(px/s), overlap(uv)
+		a.call("OnBumped", b, abs(mag), overlap_uv)
 	if b.has_method("OnBumped"):
-		b.call("OnBumped", a, mag, overlap_uv)
-	# <<< END INSERT >>>
+		b.call("OnBumped", a, abs(mag), overlap_uv)
 
 	# --- bump SFX (pair-wise), gated by the same cooldown as impulses ---
 	var sfx_a := a.get_node_or_null(^"Audio")

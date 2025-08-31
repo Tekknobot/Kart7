@@ -1197,6 +1197,9 @@ func _ai_resolve_body_overlap(next_pos: Vector3, dt: float) -> Vector3:
 
 		var p3: Vector3 = n.ReturnMapPosition()
 		var other_px := Vector2(p3.x, p3.z)
+		# If the other racer reports UV (|value| <= 2), convert to pixels
+		if abs(p3.x) <= 2.0 and abs(p3.z) <= 2.0:
+			other_px *= _pos_scale_px()
 
 		# Estimate other radius similarly (works for player/opponents)
 		var orad := my_r

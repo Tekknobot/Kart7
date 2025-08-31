@@ -131,6 +131,25 @@ var _primed_sprite := false
 @export var BUMP_SFX_COOLDOWN_S: float = 0.10    # avoid rapid repeats
 var _bump_sfx_cd := 0.0
 
+@export var DUST_ON_MULT := 3.0     # how dense when ON (try 2.0–5.0)
+@export var DUST_OFF_MULT := 1.0    # base density when OFF
+@export var DUST_SMOOTH_RATE := 10.0 # larger = snappier easing
+
+var _dust_mult_target := 1.0
+var _dust_mult := 1.0
+var _dust_base := -1
+
+# --- Per-entity collision size (used only when SpriteHandler.collision_radius_mode == 2)
+@export var collision_radius_px: float = 8.0  # try 6–12 px until it feels right
+
+func ReturnCollisionRadiusUV() -> float:
+	# Convert the pixel radius to UV using your map’s real width.
+	var map_w := 1024.0
+	var p := get_node_or_null(pseudo3d_ref)
+	if p is Sprite2D and (p as Sprite2D).texture:
+		map_w = float((p as Sprite2D).texture.get_size().x)
+	return clamp(collision_radius_px / map_w, 0.0001, 0.05)
+
 func _compute_temp_cap(base_cap: float) -> float:
 	var cap := base_cap
 
@@ -747,14 +766,6 @@ func _emit_sparks(on: bool) -> void:
 	var p := _try_get_node(SPARKS_PARTICLE_NODE)
 	if p != null and p is GPUParticles2D:
 		p.emitting = on
-
-@export var DUST_ON_MULT := 3.0     # how dense when ON (try 2.0–5.0)
-@export var DUST_OFF_MULT := 1.0    # base density when OFF
-@export var DUST_SMOOTH_RATE := 10.0 # larger = snappier easing
-
-var _dust_mult_target := 1.0
-var _dust_mult := 1.0
-var _dust_base := -1
 
 func _emit_dust(on: bool) -> void:
 	var p := _try_get_node(DRIFT_PARTICLE_NODE)
