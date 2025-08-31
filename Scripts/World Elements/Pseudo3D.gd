@@ -37,6 +37,17 @@ var _last_matrix: Basis
 @export var finish_duration: float = 3.0       # seconds for zoom ease
 @export var broadcast_view_to_opponents := false  # default off
 
+# --- Intro spin (pre-race) ---
+signal intro_spin_finished
+
+@export var intro_spin_enabled := true
+@export var intro_spin_spins    : float = 1.0     # 1 = full 360°
+@export var intro_spin_duration : float = 2.0     # seconds total
+@export var intro_spin_zoom_k   : float = 1.25    # quick zoom during spin
+
+var _intro_mode: bool = false
+var _intro_tween: Tween
+
 var _finish_mode: bool = false
 
 const REARVIEW_ACTION: StringName = "RearView"
@@ -97,11 +108,21 @@ func Setup(screenSize : Vector2, player : Racer) -> void:
 	UpdateShader()
 	_update_opponents_view_bindings()   # prime once
 
+	if intro_spin_enabled:
+		call_deferred("PlayIntroSpin", player)
+		
 func Update(player: Racer) -> void:
 	if _rearview_on():
 		if Engine.get_frames_drawn() % 15 == 0:
 			print("RearView held")
-	
+
+	# NEW: intro mode — steady orbit driven by tween; just keep bindings fresh
+	if _intro_mode:
+		KeepRotationDistance(player)
+		UpdateShader()
+		_update_opponents_view_bindings()
+		return
+			
 	if _finish_mode:
 		# Ignore input; do a steady cinematic orbit around the player
 		_mapRotSpeed = abs(finish_orbit_speed)
@@ -280,3 +301,39 @@ func StartFinishCamera(player: Racer) -> void:
 	KeepRotationDistance(player)
 	UpdateShader()
 	_update_opponents_view_bindings()
+
+func PlayIntroSpin(player: Racer) -> void:
+	if not intro_spin_enabled or player == null:
+		emit_signal("intro_spin_finished")
+		return
+
+	_intro_mode = true
+
+	# freeze any existing rotation and keep centered on player
+	_mapRotSpeed = 0.0
+	KeepRotationDistance(player)
+	UpdateShader()
+	_update_opponents_view_bindings()
+
+	# animate yaw for N spins (TAU = 2π radians)
+	var start_yaw := _mapRotationAngle.y
+	var end_yaw   := start_yaw + TAU * intro_spin_spins
+
+	# tween yaw via SetYaw so matrix/overlay get updated every step
+	_intro_tween = create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+	_intro_tween.tween_method(
+		func(v: float) -> void:
+			SetYaw(v)
+			KeepRotationDistance(player)
+	, start_yaw, end_yaw, intro_spin_duration)
+
+	# parallel “punch-in then out” zoom
+	var size_start := size_k
+	_intro_tween.parallel().tween_property(self, "size_k", intro_spin_zoom_k, intro_spin_duration * 0.45)
+	_intro_tween.parallel().tween_property(self, "size_k", size_start,        intro_spin_duration * 0.55).set_delay(intro_spin_duration * 0.45)
+
+	_intro_tween.finished.connect(func() -> void:
+		_intro_mode = false
+		emit_signal("intro_spin_finished")
+	)

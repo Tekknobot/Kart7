@@ -12,3 +12,10 @@ res://Scenes/Buildings/building_02.tscn
 res://Scenes/Buildings/building_04.tscn
 res://Scripts/Shaders/Tunnel.gdshader
 res://Scripts/World Elements/Racers/Player.gd
+res://default_bus_layout.tres
+res://Scripts/PreRaceCinematic.gd
+res://Scripts/PostRaceController.gd
+res://Scenes/CountdownUI.tscn
+res://Scripts/CountdownUI.gd
+res://Scripts/World Elements/Pseudo3D.gd
+res://Scripts/General/Globals.gd

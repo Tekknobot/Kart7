@@ -42,6 +42,7 @@ var go_color    := Color8(76,  175, 80)   # green
 @export var beep_pitch_set:   float = 1.15
 @export var go_pitch:         float = 1.00
 @export var auto_create_players: bool = true  # if true, makes players if missing
+@export var delay: int = 4  # if true, makes players if missing
 
 var _bus_idx: int = -1
 
@@ -64,6 +65,8 @@ func _ready() -> void:
 
 	visible = true
 	Globals.race_can_drive = false
+	
+	await get_tree().create_timer(delay).timeout
 	start_countdown()
 
 func start_countdown() -> void:
