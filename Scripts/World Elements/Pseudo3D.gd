@@ -47,10 +47,19 @@ signal intro_spin_finished
 
 var _intro_mode: bool = false
 var _intro_tween: Tween
-
 var _finish_mode: bool = false
 
 const REARVIEW_ACTION: StringName = "RearView"
+
+# ---- Player facing during intro spin ----
+@export var player_angle_frame_offset_deg: float = 0.0  # rotate mapping if your "front" isn't frame 0
+@export var player_angle_clockwise: bool = true         # set false if your sheet is CCW
+@export var player_angle_frames_hint: int = 16          # used if we can’t detect from hframes
+
+# Player angle-sheet model (half-turn ping-pong)
+@export var player_frames_half_turn := true      # true = frames cover ~180° then mirror
+@export var player_halfturn_frames  : int = 12   # your sheet’s columns for the half-turn
+
 func _rearview_on() -> bool:
 	return Input.is_action_pressed(REARVIEW_ACTION)
 
@@ -324,8 +333,12 @@ func PlayIntroSpin(player: Racer) -> void:
 
 	_intro_tween.tween_method(
 		func(v: float) -> void:
+			# v is the camera yaw we’re animating to
 			SetYaw(v)
 			KeepRotationDistance(player)
+			_set_player_facing_for_camera_yaw(player, v)
+			UpdateShader()
+			_update_opponents_view_bindings()
 	, start_yaw, end_yaw, intro_spin_duration)
 
 	# parallel “punch-in then out” zoom
@@ -337,3 +350,65 @@ func PlayIntroSpin(player: Racer) -> void:
 		_intro_mode = false
 		emit_signal("intro_spin_finished")
 	)
+
+func _set_player_facing_for_camera_yaw(player: Racer, cam_yaw: float) -> void:
+	if player == null:
+		return
+
+	# Prefer a custom hook on the player if available
+	if player.has_method("SetFacingRadiansFromCameraYaw"):
+		player.call("SetFacingRadiansFromCameraYaw", cam_yaw)
+		return
+	if player.has_method("SetFacingRadians"):
+		var rel := _view_angle_from_camera_yaw(cam_yaw)
+		player.call("SetFacingRadians", rel)
+		return
+
+	# Generic Sprite2D angle sheet
+	var spr = player.ReturnSpriteGraphic()
+	if spr is Sprite2D:
+		var s := spr as Sprite2D
+
+		# Base angle we want to display (0 = looking at front)
+		var rel := _view_angle_from_camera_yaw(cam_yaw)
+
+		# Apply user offset and winding
+		var offset_rad := deg_to_rad(player_angle_frame_offset_deg)
+		var dir := -1.0 if player_angle_clockwise else 1.0
+		var theta := fposmod((rel + offset_rad) * dir, TAU)  # [0, 2π)
+
+		if player_frames_half_turn:
+			# Half-turn sheet (front->right->back), then keep spinning by
+			# playing the same sheet reversed for the second 180° (back->left->front).
+			var N = (s.hframes if s.hframes > 1 else max(1, player_halfturn_frames))  # e.g., 12
+			var phi := fposmod(theta, TAU)  # 0..2π
+
+			var idx_sheet := 0
+			if phi < PI:
+				# 0..π :  0 -> N-1
+				var u := phi / PI                     # [0,1)
+				idx_sheet = int(floor(u * N))
+				s.flip_h = true
+			else:
+				# π..2π : N-1 -> 0
+				var u := (phi - PI) / PI              # [0,1)
+				idx_sheet = int(floor((1.0 - u) * N))
+
+			# clamp (avoid N on exact boundary)
+			if idx_sheet >= N: idx_sheet = N - 1
+			if idx_sheet < 0:  idx_sheet = 0
+
+			s.frame = idx_sheet
+		else:
+			# full-circle unique frames (unchanged)
+			var F = (s.hframes if s.hframes > 1 else max(1, player_angle_frames_hint))
+			var idx = int(round((theta / TAU) * F)) % F
+			s.frame = idx
+
+func _view_angle_from_camera_yaw(cam_yaw: float) -> float:
+	# Define 0 rad = camera looking at player's FRONT.
+	# If the player’s “forward” is along +Z in map space (as your code suggests),
+	# then when camera yaw = 0 we’re looking at player’s front.
+	# As camera yaw increases, we walk around the player, so the *viewed* angle equals cam_yaw.
+	# If your asset is authored differently, adjust with player_angle_frame_offset_deg above.
+	return fposmod(cam_yaw, TAU)
