@@ -1285,7 +1285,7 @@ stream = ExtResource("25_8cuat")
 [node name="Grip" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Voltage")
-lane_offset_px = 8.0
+lane_offset_px = 16.0
 target_speed = 150.0
 accel = 120.0
 max_speed_override = 420.0
@@ -1355,7 +1355,7 @@ offroad_stream = ExtResource("25_kqrg6")
 [node name="Torque" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Voltage")
-lane_offset_px = 8.0
+lane_offset_px = 16.0
 target_speed = 150.0
 accel = 120.0
 max_speed_override = 420.0
@@ -1427,7 +1427,7 @@ offroad_stream = ExtResource("25_kqrg6")
 [node name="Razor" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Voltage")
-lane_offset_px = 8.0
+lane_offset_px = 16.0
 target_speed = 150.0
 accel = 120.0
 max_speed_override = 420.0
@@ -1498,7 +1498,7 @@ offroad_stream = ExtResource("25_kqrg6")
 [node name="Havok" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Voltage")
-lane_offset_px = 8.0
+lane_offset_px = 16.0
 target_speed = 150.0
 accel = 120.0
 max_speed_override = 420.0
@@ -1568,7 +1568,7 @@ offroad_stream = ExtResource("25_kqrg6")
 [node name="Blitz" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Voltage")
-lane_offset_px = 8.0
+lane_offset_px = 16.0
 target_speed = 150.0
 accel = 120.0
 max_speed_override = 420.0
@@ -1639,7 +1639,7 @@ offroad_stream = ExtResource("25_kqrg6")
 [node name="Nitro" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Voltage")
-lane_offset_px = 8.0
+lane_offset_px = 16.0
 target_speed = 150.0
 accel = 120.0
 max_speed_override = 420.0
@@ -1710,7 +1710,7 @@ offroad_stream = ExtResource("25_kqrg6")
 [node name="Rogue" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Voltage")
-lane_offset_px = 8.0
+lane_offset_px = 16.0
 target_speed = 150.0
 accel = 120.0
 max_speed_override = 420.0
@@ -1979,7 +1979,7 @@ size = Vector2i(1024, 1024)
 script = ExtResource("21_pdsj5")
 line_width = 1.0
 color = Color(1, 0, 0, 0)
-points = PackedVector2Array(938, 555, 938, 100, 770, 100, 415, 540, 264, 528, 268, 96, 77, 89, 50, 904, 924, 916)
+points = PackedVector2Array(906, 555, 906, 125, 740, 125, 396, 534, 241, 556, 224, 38, 132, 38, 137, 899, 909, 900)
 show_debug_markers = false
 follow_speed_px_sec = 160.0
 
