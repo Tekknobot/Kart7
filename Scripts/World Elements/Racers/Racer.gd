@@ -76,6 +76,7 @@ var _last_s: float = -1.0   # last distance used (px), to detect direction
 @export var accel_surface_gain: float = 1.0  # 0=no effect, 1=full effect
 
 @export var broadcast_view_to_opponents := false  # default off
+var _offroad_fx_on := false   # track current off-road FX state
 
 func _ensure_nodes() -> void:
 	if _nodes_ready:

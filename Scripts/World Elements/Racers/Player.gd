@@ -511,22 +511,6 @@ func Update(mapForward : Vector3) -> void:
 	if _speedMultiplier < 0.01:
 		_speedMultiplier = 0.01
 
-	# Let item offset rough terrain a bit
-	_speedMultiplier = terrain_mult
-	_apply_item_terrain_comp(curr_rt)
-
-	# Final multiplier (epsilon clamp)
-	_speedMultiplier = terrain_mult * boost_mult
-	if _speedMultiplier < 0.01:
-		_speedMultiplier = 0.01
-
-	# Optional: let item boost offset rough terrain a bit (your helper uses _speedMultiplier)
-	_speedMultiplier = terrain_mult        # set a working value so helper can use max()
-	_apply_item_terrain_comp(curr_rt)
-
-	# Final multiplier for this frame
-	_speedMultiplier = terrain_mult * boost_mult
-
 	# --- Move with the final multiplier applied ---
 	SetMapPosition(nextPos)
 	UpdateMovementSpeed()
@@ -536,6 +520,9 @@ func Update(mapForward : Vector3) -> void:
 	_apply_hop_sprite_offset()
 	_choose_and_apply_frame(get_process_delta_time())
 	_wall_hit_cd = max(0.0, _wall_hit_cd - dt)
+
+	# >>> ADD THIS (runs every frame so dust/FX don’t “stick”) <<<
+	_update_drift_dust_smoothing(dt)
 
 func ReturnPlayerInput() -> Vector2:
 	var steer := Input.get_action_strength("Right") - Input.get_action_strength("Left")
