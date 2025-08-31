@@ -1979,7 +1979,7 @@ size = Vector2i(1024, 1024)
 script = ExtResource("21_pdsj5")
 line_width = 1.0
 color = Color(1, 0, 0, 0)
-points = PackedVector2Array(906, 555, 906, 125, 740, 125, 396, 534, 241, 556, 224, 38, 132, 38, 137, 899, 909, 900)
+points = PackedVector2Array(906, 555, 906, 145, 740, 145, 388, 556, 288, 556, 288, 38, 108, 38, 108, 899, 909, 900)
 show_debug_markers = false
 follow_speed_px_sec = 160.0
 
