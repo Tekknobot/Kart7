@@ -1458,8 +1458,8 @@ func _update_speed_tag() -> void:
 	var h := 34.0
 	if "region_rect" in spr and spr.region_rect.size.y > 0.0:
 		h = spr.region_rect.size.y
-	var sc := (spr as Node2D).scale.y
-	var pos := (spr as Node2D).global_position + Vector2(0, -h * sc - speed_tag_offset_px)
+	var sc := (spr as Node2D).global_scale.y
+	var pos := (spr as Node2D).global_position + Vector2(0, -(h + speed_tag_offset_px) * sc)
 
 	_speed_tag.global_position = pos
 	_speed_tag.z_index = spr.z_index + 1
