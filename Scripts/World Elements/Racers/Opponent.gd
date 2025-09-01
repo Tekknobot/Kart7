@@ -460,6 +460,10 @@ func _process(delta: float) -> void:
 	# --- desired speed base ---
 	var desired_speed: float = target_speed
 
+	# --- apply nitro boost ---
+	if _nitro_timer > 0.0:
+		desired_speed *= AI_NITRO_MULT
+
 	# --- catch-up vs player (do this before corner/terrain clamps) ---
 	var pl := _player()
 	if pl != null:
