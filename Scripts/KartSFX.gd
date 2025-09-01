@@ -30,8 +30,14 @@ extends Node
 
 var _wired := false
 
-@export var sfx_bus_name: String = "SFX_Karts"  # the bus this script will use/create
+@export var sfx_bus_name: String = "SFX"  # the bus this script will use/create
 @export var sfx_bus_volume_db: float = -6.0     # set the bus volume from the inspector
+
+@export var oneshot_min_gap_ms: int = 80
+var _oneshot_last_ms: int = -99999
+
+@export var speed_half_life_s: float = 0.06
+var _spd_smooth: float = 0.0
 
 var _bus_index: int = -1
 var _last_bus_volume_db: float = 9999.0
@@ -44,6 +50,16 @@ var _last_bus_volume_db: float = 9999.0
 
 var _engines_started: bool = false
 var _engine_gain: float = 0.0   # 0..1 fade factor
+
+@export var loop_fade_ms: float = 24.0   # tiny fade for loop start/stop
+var _drift_gain: float = 0.0             # linear 0..1
+var _offroad_gain: float = 0.0
+
+@export var engine_slew_db_per_s: float = 160.0  # max dB change per second
+
+@export var sfx_grace_after_go_s: float = 1
+var _go_seen := false
+var _since_go_s := 0.0
 
 func _ready() -> void:
 	_wired = _check_wiring()
@@ -69,11 +85,15 @@ func _ready() -> void:
 	if idle != null:   idle.volume_db = -80.0
 	if mid != null:    mid.volume_db  = -80.0
 	if high != null:   high.volume_db = -80.0
-	
+
+	# pre-roll loops once; we only fade volumes at runtime
 	if drift != null:
-		drift.stop()
+		drift.volume_db = -80.0
+		drift.play()
 	if offroad != null:
-		offroad.stop()
+		offroad.volume_db = -80.0
+		offroad.play()
+
 	if one_shot != null:
 		one_shot.stop()
 
@@ -87,64 +107,59 @@ func _process(_dt: float) -> void:
 
 	var spd: float = float(player.call("ReturnMovementSpeed"))
 
-	_start_engines_if_needed(spd)
+	# smooth the speed a touch to avoid zipper noise into the limiter
+	var a_spd := 1.0 - pow(0.5, _dt / max(0.0001, speed_half_life_s))
+	_spd_smooth += (spd - _spd_smooth) * a_spd
+
+	_start_engines_if_needed(_spd_smooth)
 	_update_engine_fade(_dt)
-	_apply_engine_mix(spd)
+	_apply_engine_mix(_spd_smooth)   # sets pitch & engine vols (slew-limited)
 
-	var pitch = lerp(0.8, 1.5, clamp(spd / 150.0, 0.0, 1.0))
-	if mid != null:
-		mid.pitch_scale = pitch
-	if high != null:
-		high.pitch_scale = pitch * 1.2
+	var fade_a := 1.0 - pow(0.001, _dt / max(0.001, loop_fade_ms / 1000.0))
 
-	if idle != null:
-		idle.volume_db = lerp(-6.0, -30.0, clamp(spd / 20.0, 0.0, 1.0))
-	if mid != null:
-		mid.volume_db = lerp(-24.0, 0.0, clamp(spd / 120.0, 0.0, 1.0))
-	if high != null:
-		high.volume_db = lerp(-30.0, -3.0, clamp((spd - 90.0) / 100.0, 0.0, 1.0))
-
-	var drifting := false
+	# --- DRIFT loop gain ---
+	var want_drift := false
 	if player.has_method("ReturnIsDrifting"):
-		drifting = player.call("ReturnIsDrifting")
+		want_drift = bool(player.call("ReturnIsDrifting"))
+	var drift_target := 0.0
+	if want_drift:
+		drift_target = 1.0
+	_drift_gain += (drift_target - _drift_gain) * fade_a
 
-	if drift != null:
-		if drifting and not drift.playing:
-			drift.play()
-		elif (not drifting) and drift.playing:
-			drift.stop()
+	if drift:
+		var drift_db = lerp(-60.0, -18.0, clamp(_drift_gain, 0.0, 1.0))
+		drift.volume_db = drift_db
 
-	var rt := -1
+	# --- OFF-ROAD loop gain (compute target -> smooth -> map to dB) ---
+	var rt: int = -1
 	if player.has_method("ReturnOnRoadType"):
 		rt = int(player.call("ReturnOnRoadType"))
 
-	var on_rough := false
-	if rt == Globals.RoadType.GRAVEL or rt == Globals.RoadType.OFF_ROAD:
-		on_rough = true
+	var on_rough := (rt == Globals.RoadType.GRAVEL or rt == Globals.RoadType.OFF_ROAD)
+	var off_target := 0.0
+	if on_rough:
+		off_target = 1.0
+	_offroad_gain += (off_target - _offroad_gain) * fade_a
 
-	if offroad != null and offroad_stream != null:
-		if on_rough:
-			if not offroad.playing:
-				offroad.play()
-			offroad.volume_db = lerp(-18.0, -6.0, clamp(spd / 160.0, 0.0, 1.0))
+	if offroad and offroad_stream:
+		var off_db = lerp(-60.0, -16.0, clamp(_offroad_gain, 0.0, 1.0))
+		offroad.volume_db = off_db
+
+	if "race_can_drive" in Globals and Globals.race_can_drive:
+		if not _go_seen:
+			_go_seen = true
+			_since_go_s = 0.0
 		else:
-			if offroad.playing:
-				offroad.stop()
-
+			_since_go_s += _dt
+			
 func play_boost():
-	if one_shot != null and boost_stream != null:
-		one_shot.stream = boost_stream
-		one_shot.play()
+	_play_oneshot(one_shot, boost_stream, -6.0, 1.0)
 
 func play_spin():
-	if one_shot != null and spin_stream != null:
-		one_shot.stream = spin_stream
-		one_shot.play()
+	_play_oneshot(one_shot, spin_stream, -6.0, 1.0)
 
 func play_collision():
-	if one_shot != null and collision_stream != null:
-		one_shot.stream = collision_stream
-		one_shot.play()
+	_play_oneshot(one_shot, collision_stream, -6.0, 1.0)
 
 func _check_wiring() -> bool:
 	var missing := []
@@ -169,16 +184,9 @@ func _check_wiring() -> bool:
 	return true
 
 func _ensure_bus() -> void:
-	# Find or create the bus
-	var idx := AudioServer.get_bus_index(sfx_bus_name)
-	if idx == -1:
-		AudioServer.add_bus(AudioServer.get_bus_count())
-		idx = AudioServer.get_bus_count() - 1
-		AudioServer.set_bus_name(idx, sfx_bus_name)
-	# Optionally send this bus into Master (safe default)
-	if AudioServer.get_bus_send(idx) != "Master":
-		AudioServer.set_bus_send(idx, "Master")
-	_bus_index = idx
+	_bus_index = AudioServer.get_bus_index(sfx_bus_name)
+	if _bus_index == -1:
+		push_warning("SFX bus '%s' not found; audio will still play on default bus" % sfx_bus_name)
 
 func _assign_players_to_bus() -> void:
 	if idle != null:     idle.bus = sfx_bus_name
@@ -199,16 +207,17 @@ func _apply_bus_volume() -> void:
 		_last_bus_volume_db = sfx_bus_volume_db
 
 func _start_engines_if_needed(spd: float) -> void:
-	# optionally also gate on race_can_drive if you have Globals in this scene
 	var can_drive := true
 	if "Globals" in Engine:
-		can_drive = true  # keep simple; if you want, check Globals.race_can_drive
+		can_drive = true
 	if not _engines_started and can_drive and spd >= engine_start_speed:
+		# bus is pre-created; do not await here
 		if idle != null: idle.play()
 		if mid  != null: mid.play()
 		if high != null: high.play()
+
 		_engines_started = true
-		_engine_gain = 0.0  # begin fade-in
+		_engine_gain = 0.0
 
 func _update_engine_fade(dt: float) -> void:
 	if not _engines_started:
@@ -224,52 +233,83 @@ func _update_engine_fade(dt: float) -> void:
 		_engine_gain = lerp(_engine_gain, 1.0, a)
 
 func _apply_engine_mix(spd: float) -> void:
-	# Pitch still scales with speed
+	# pitch by speed (write once)
 	var pitch = lerp(0.8, 1.5, clamp(spd / 150.0, 0.0, 1.0))
 	if mid != null:
 		mid.pitch_scale = pitch
 	if high != null:
 		high.pitch_scale = pitch * 1.2
 
-	# Base crossfade (speed) -> then multiply by fade-in gain
-	var idle_x = clamp(spd / 20.0, 0.0, 1.0)         # 0..1
+	# crossfades (0..1), then apply fade-in gain and slew the dB
+	var idle_x = clamp(spd / 20.0, 0.0, 1.0)
 	var mid_x  = clamp(spd / 120.0, 0.0, 1.0)
 	var high_x = clamp((spd - 90.0) / 100.0, 0.0, 1.0)
 
-	# Compute target dB first (quieter than before), then lerp with fade-in
 	if idle != null:
-		var target_idle = lerp(idle_target_db, -60.0, idle_x)  # idle gets quieter as speed rises
-		idle.volume_db = lerp(-80.0, target_idle, _engine_gain)
+		var target_idle = lerp(idle_target_db, -60.0, idle_x)
+		var goal_idle   = lerp(-80.0, target_idle, _engine_gain)
+		idle.volume_db  = _slew_db(idle.volume_db, goal_idle, get_process_delta_time(), engine_slew_db_per_s)
+
 	if mid != null:
 		var target_mid = lerp(-60.0, mid_target_db, mid_x)
-		mid.volume_db = lerp(-80.0, target_mid, _engine_gain)
+		var goal_mid   = lerp(-80.0, target_mid, _engine_gain)
+		mid.volume_db  = _slew_db(mid.volume_db, goal_mid, get_process_delta_time(), engine_slew_db_per_s)
+
 	if high != null:
 		var target_high = lerp(-60.0, high_target_db, high_x)
-		high.volume_db = lerp(-80.0, target_high, _engine_gain)
+		var goal_high   = lerp(-80.0, target_high, _engine_gain)
+		high.volume_db  = _slew_db(high.volume_db, goal_high, get_process_delta_time(), engine_slew_db_per_s)
+
+func _sfx_ok() -> bool:
+	return _go_seen and _since_go_s >= sfx_grace_after_go_s
 
 func play_hop() -> void:
-	# Prefer the dedicated hop_shot player if present, else fall back to the generic one-shot helper
 	if hop_shot != null and hop_stream != null:
-		hop_shot.stop()
 		hop_shot.stream = hop_stream
 		hop_shot.volume_db = hop_volume_db
 		hop_shot.pitch_scale = hop_pitch
 		hop_shot.bus = sfx_bus_name
+		hop_shot.seek(0.0)     # restart cleanly
 		hop_shot.play()
 
 func play_bump() -> void:
-	# Prefer the dedicated bump_shot player if present; fall back to one_shot
+	if not _sfx_ok(): 
+		return
 	if bump_shot != null and bump_stream != null:
-		bump_shot.stop()
 		bump_shot.stream = bump_stream
 		bump_shot.volume_db = bump_volume_db
 		bump_shot.pitch_scale = bump_pitch
 		bump_shot.bus = sfx_bus_name
+		bump_shot.seek(0.0)
 		bump_shot.play()
 	elif one_shot != null and bump_stream != null:
-		one_shot.stop()
-		one_shot.stream = bump_stream
-		one_shot.volume_db = bump_volume_db
-		one_shot.pitch_scale = bump_pitch
-		one_shot.bus = sfx_bus_name
-		one_shot.play()
+		_play_oneshot(one_shot, bump_stream, bump_volume_db, bump_pitch)
+
+func _slew_db(cur_db: float, tgt_db: float, dt: float, rate_db_per_s: float) -> float:
+	var max_step := rate_db_per_s * dt
+	var delta := tgt_db - cur_db
+	if delta >  max_step: return cur_db + max_step
+	if delta < -max_step: return cur_db - max_step
+	return tgt_db
+
+# Waits until the named bus exists (and yields a frame to let the graph settle)
+func _await_bus_ready(bus_name: String) -> void:
+	var tries := 0
+	while AudioServer.get_bus_index(bus_name) == -1 and tries < 8:
+		await get_tree().process_frame
+		tries += 1
+	# one extra frame to let effects/graph settle
+	await get_tree().process_frame
+
+func _play_oneshot(n: AudioStreamPlayer2D, s: AudioStream, vol_db: float, pitch: float) -> void:
+	if n == null or s == null:
+		return
+	var now := Time.get_ticks_msec()
+	if now - _oneshot_last_ms < oneshot_min_gap_ms:
+		return
+	_oneshot_last_ms = now
+	n.stream = s
+	n.volume_db = vol_db
+	n.pitch_scale = pitch
+	n.seek(0.0)
+	n.play()

@@ -1,4 +1,4 @@
-[gd_scene load_steps=52 format=3 uid="uid://d2glnv32t8md1"]
+[gd_scene load_steps=53 format=3 uid="uid://d2glnv32t8md1"]
 
 [ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_emb0w"]
 [ext_resource type="Script" uid="uid://cex362lk6utnk" path="res://Scripts/On Screen Elements/BackgroundEffects.gd" id="2_330he"]
@@ -34,6 +34,7 @@
 [ext_resource type="FontFile" uid="uid://buw362wjb8o8d" path="res://Fonts/magofonts/mago2.ttf" id="23_u50mg"]
 [ext_resource type="Script" uid="uid://dtnsya35gcocj" path="res://Scripts/Minimap.gd" id="24_3pmx8"]
 [ext_resource type="AudioStream" uid="uid://ch151vyr1o65" path="res://Audio/collision_thud.wav" id="24_aa8k8"]
+[ext_resource type="AudioStream" uid="uid://cjlujousugdtr" path="res://Audio/jump.wav" id="25_8cuat"]
 [ext_resource type="AudioStream" uid="uid://dr0ab3ogjrbbl" path="res://Audio/offroad_rumble.wav" id="25_kqrg6"]
 [ext_resource type="PackedScene" uid="uid://bm1g128j70kea" path="res://Textures/VFX/StarNight.tscn" id="25_u50mg"]
 [ext_resource type="Script" uid="uid://dcfngv7oaf2c8" path="res://Scripts/RaceHUD.gd" id="26_cbgmd"]
@@ -1131,7 +1132,7 @@ pseudo3d_node = NodePath("Racers/Voltage")
 path_overlay_node = NodePath("../SubViewport/PathOverlay2D")
 sprite_graphic_path = NodePath("Racers/Grip/GFX/AngleSprite")
 collect_under = NodePath("Racers")
-player_base_scale_abs = 2.6
+player_base_scale_abs = 2.5
 opponent_min_scale_abs = 0.01
 depth_gain = 256.0
 player_radius_uv = 0.0
@@ -1161,10 +1162,11 @@ screen_bump_lateral_hyst_px = 1.0
 [node name="Racers" type="Node2D" parent="Sprite Handler"]
 
 [node name="Voltage" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
-position = Vector2(-1.52588e-05, 0)
+position = Vector2(-1.52588e-05, -344)
 script = ExtResource("8_lejxo")
 NITRO_REFILL_S = 15.0
 hud_path = NodePath("../../../RaceHUD")
+REAR_BUMP_COOLDOWN_MULT = 5.0
 HOP_TEMP_CAP_FACTOR = 0.0
 DUST_ON_MULT = 1.0
 collision_radius_px = 1.0
@@ -1270,8 +1272,9 @@ collision_stream = ExtResource("24_aa8k8")
 offroad_stream = ExtResource("25_kqrg6")
 hop_stream = ExtResource("22_k2e45")
 bump_stream = ExtResource("24_aa8k8")
-hop_volume_db = 6.0
-bump_volume_db = 6.0
+hop_volume_db = 24.0
+bump_volume_db = 12.0
+sfx_bus_volume_db = 0.0
 
 [node name="idle_loop" type="AudioStreamPlayer2D" parent="Sprite Handler/Racers/Voltage/Audio"]
 
@@ -1290,6 +1293,7 @@ bump_volume_db = 6.0
 [node name="bump_shot" type="AudioStreamPlayer2D" parent="Sprite Handler/Racers/Voltage/Audio"]
 
 [node name="Grip" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
+position = Vector2(0, -299)
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Voltage")
 lane_offset_px = 8.0
@@ -1375,6 +1379,11 @@ boost_stream = ExtResource("22_k2e45")
 spin_stream = ExtResource("23_kwxat")
 collision_stream = ExtResource("24_aa8k8")
 offroad_stream = ExtResource("25_kqrg6")
+hop_stream = ExtResource("25_8cuat")
+bump_stream = ExtResource("24_aa8k8")
+hop_volume_db = 0.0
+bump_volume_db = 0.0
+sfx_bus_volume_db = 0.0
 
 [node name="idle_loop" type="AudioStreamPlayer2D" parent="Sprite Handler/Racers/Grip/Audio"]
 
@@ -1389,6 +1398,7 @@ offroad_stream = ExtResource("25_kqrg6")
 [node name="offroad_loop" type="AudioStreamPlayer2D" parent="Sprite Handler/Racers/Grip/Audio"]
 
 [node name="Torque" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
+position = Vector2(0, -253)
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Voltage")
 lane_offset_px = 8.0
@@ -1476,6 +1486,11 @@ boost_stream = ExtResource("22_k2e45")
 spin_stream = ExtResource("23_kwxat")
 collision_stream = ExtResource("24_aa8k8")
 offroad_stream = ExtResource("25_kqrg6")
+hop_stream = ExtResource("25_8cuat")
+bump_stream = ExtResource("24_aa8k8")
+hop_volume_db = 0.0
+bump_volume_db = 0.0
+sfx_bus_volume_db = 0.0
 
 [node name="idle_loop" type="AudioStreamPlayer2D" parent="Sprite Handler/Racers/Torque/Audio"]
 
@@ -1490,6 +1505,7 @@ offroad_stream = ExtResource("25_kqrg6")
 [node name="offroad_loop" type="AudioStreamPlayer2D" parent="Sprite Handler/Racers/Torque/Audio"]
 
 [node name="Razor" type="Node2D" parent="Sprite Handler/Racers" node_paths=PackedStringArray("_collisionHandler", "_spriteGFX")]
+position = Vector2(0, -201)
 script = ExtResource("16_hibaj")
 player_ref = NodePath("../Voltage")
 lane_offset_px = -8.0
@@ -1577,6 +1593,11 @@ boost_stream = ExtResource("22_k2e45")
 spin_stream = ExtResource("23_kwxat")
 collision_stream = ExtResource("24_aa8k8")
 offroad_stream = ExtResource("25_kqrg6")
+hop_stream = ExtResource("25_8cuat")
+bump_stream = ExtResource("24_aa8k8")
+hop_volume_db = 0.0
+bump_volume_db = 0.0
+sfx_bus_volume_db = 0.0
 
 [node name="idle_loop" type="AudioStreamPlayer2D" parent="Sprite Handler/Racers/Razor/Audio"]
 
@@ -1678,6 +1699,11 @@ boost_stream = ExtResource("22_k2e45")
 spin_stream = ExtResource("23_kwxat")
 collision_stream = ExtResource("24_aa8k8")
 offroad_stream = ExtResource("25_kqrg6")
+hop_stream = ExtResource("25_8cuat")
+bump_stream = ExtResource("24_aa8k8")
+hop_volume_db = 0.0
+bump_volume_db = 0.0
+sfx_bus_volume_db = 0.0
 
 [node name="idle_loop" type="AudioStreamPlayer2D" parent="Sprite Handler/Racers/Havok/Audio"]
 
@@ -1779,6 +1805,11 @@ boost_stream = ExtResource("22_k2e45")
 spin_stream = ExtResource("23_kwxat")
 collision_stream = ExtResource("24_aa8k8")
 offroad_stream = ExtResource("25_kqrg6")
+hop_stream = ExtResource("25_8cuat")
+bump_stream = ExtResource("24_aa8k8")
+hop_volume_db = 0.0
+bump_volume_db = 0.0
+sfx_bus_volume_db = 0.0
 
 [node name="idle_loop" type="AudioStreamPlayer2D" parent="Sprite Handler/Racers/Blitz/Audio"]
 
@@ -1880,6 +1911,11 @@ boost_stream = ExtResource("22_k2e45")
 spin_stream = ExtResource("23_kwxat")
 collision_stream = ExtResource("24_aa8k8")
 offroad_stream = ExtResource("25_kqrg6")
+hop_stream = ExtResource("25_8cuat")
+bump_stream = ExtResource("24_aa8k8")
+hop_volume_db = 0.0
+bump_volume_db = 0.0
+sfx_bus_volume_db = 0.0
 
 [node name="idle_loop" type="AudioStreamPlayer2D" parent="Sprite Handler/Racers/Nitro/Audio"]
 
@@ -1982,6 +2018,11 @@ boost_stream = ExtResource("22_k2e45")
 spin_stream = ExtResource("23_kwxat")
 collision_stream = ExtResource("24_aa8k8")
 offroad_stream = ExtResource("25_kqrg6")
+hop_stream = ExtResource("25_8cuat")
+bump_stream = ExtResource("24_aa8k8")
+hop_volume_db = 0.0
+bump_volume_db = 0.0
+sfx_bus_volume_db = 0.0
 
 [node name="idle_loop" type="AudioStreamPlayer2D" parent="Sprite Handler/Racers/Rogue/Audio"]
 
@@ -2196,7 +2237,7 @@ size = Vector2i(1024, 1024)
 script = ExtResource("21_pdsj5")
 line_width = 1.0
 color = Color(1, 0, 0, 0)
-points = PackedVector2Array(906, 555, 906, 100, 856, 100, 425, 556, 288, 556, 288, 100, 108, 100, 108, 900, 909, 900)
+points = PackedVector2Array(919, 555, 919, 100, 856, 100, 425, 556, 288, 556, 288, 100, 108, 100, 108, 900, 919, 900)
 show_debug_markers = false
 follow_speed_px_sec = 160.0
 
@@ -2271,6 +2312,8 @@ script = ExtResource("26_cbgmd")
 race_manager_path = NodePath("../RaceManager")
 player_path = NodePath("../Sprite Handler/Racers/Voltage")
 total_laps = 4
+show_kmh = true
+speed_label = ""
 time_lbl = NodePath("TopRight/Vbox/Time")
 lap_lbl = NodePath("TopRight/Vbox/Lap")
 place_lbl = NodePath("BottomRight/Vbox/Place")
@@ -2289,11 +2332,12 @@ lap_size = 16
 place_font = ExtResource("28_ueoa1")
 place_size = 64
 speed_font = ExtResource("23_u50mg")
-speed_size = 16
+speed_size = 32
 last_font = ExtResource("23_gt3je")
 last_size = 16
 best_font = ExtResource("23_gt3je")
 best_size = 16
+place_gain_color = Color(1, 1, 1, 1)
 
 [node name="TopRight" type="MarginContainer" parent="RaceHUD"]
 layout_mode = 0
@@ -2313,17 +2357,18 @@ layout_mode = 2
 [node name="BottomRight" type="MarginContainer" parent="RaceHUD"]
 layout_mode = 0
 offset_left = 363.0
-offset_top = 205.0
+offset_top = 199.0
 offset_right = 467.0
-offset_bottom = 344.0
+offset_bottom = 347.0
 
 [node name="Vbox" type="VBoxContainer" parent="RaceHUD/BottomRight"]
 layout_mode = 2
 
-[node name="Place" type="Label" parent="RaceHUD/BottomRight/Vbox"]
+[node name="Speed" type="Label" parent="RaceHUD/BottomRight/Vbox"]
 layout_mode = 2
 
-[node name="Speed" type="Label" parent="RaceHUD/BottomRight/Vbox"]
+[node name="Place" type="Label" parent="RaceHUD/BottomRight/Vbox"]
+custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 
 [node name="NitroBar" type="ProgressBar" parent="RaceHUD/BottomRight/Vbox"]
@@ -2343,6 +2388,10 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 0, 0, 1)
 
 [node name="CountdownUI" parent="." instance=ExtResource("29_6vcvc")]
+pseudo3d_path = NodePath("../Map")
+go_volume_db = 0.0
+auto_create_players = false
+delay = 1
 
 [node name="PostRaceController" type="Node2D" parent="."]
 script = ExtResource("39_8cuat")

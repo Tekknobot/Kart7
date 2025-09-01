@@ -54,7 +54,7 @@ var _bar: ProgressBar
 @export var best_font: Font
 @export var best_size: int = -1
 
-@export var place_gain_color := Color(0.0, 0.0, 0.0)
+@export var place_gain_color := Color(0.1, 1.0, 0.2)
 @export var place_loss_color := Color(1.0, 0.25, 0.25)
 @export var place_anim_time  := 0.35
 var _last_place: int = 0
@@ -200,7 +200,7 @@ func _refresh() -> void:
 	# --- speed readout ---
 	var spd: float = float(me.get("cur_speed", 0.0))
 	if show_kmh:
-		speed_lbl.text = "%s %d km/h" % [speed_label, int(round(spd))]
+		speed_lbl.text = "%s %d kmh" % [speed_label, int(round(spd))]
 	else:
 		speed_lbl.text = "%s %d" % [speed_label, int(round(spd))]
 

@@ -29,7 +29,7 @@ var _bumpDir : Vector3 = Vector3.ZERO
 var _isPushedBack : bool = false
 var _pushbackTime : float = 0.3
 var _currPushbackTime : float = 0.0
-var _bumpIntensity : float = 0.016
+var _bumpIntensity : float = 0.096
 
 # --- DROP-IN: references required by helpers ---
 @export var path_ref: NodePath
@@ -86,6 +86,7 @@ var _last_s: float = -1.0   # last distance used (px), to detect direction
 
 @export var broadcast_view_to_opponents := false  # default off
 var _offroad_fx_on := false   # track current off-road FX state
+
 
 func _ensure_nodes() -> void:
 	if _nodes_ready:

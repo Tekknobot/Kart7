@@ -8,6 +8,8 @@ signal go()   # emitted when GO happens
 @export var show_seconds_set: float   = 0.9
 @export var show_seconds_go: float    = 0.8
 
+@export var pseudo3d_path: NodePath   # drag your Pseudo3D node here
+
 # Optional beeps (hook if added in the scene)
 @export var beep: AudioStreamPlayer2D
 @export var go_sfx: AudioStreamPlayer2D
@@ -20,6 +22,9 @@ signal go()   # emitted when GO happens
 var ready_color := Color8(255, 235, 59)   # yellow
 var set_color   := Color8(255, 87,  34)   # orange
 var go_color    := Color8(76,  175, 80)   # green
+
+# Top-level, file-scope:
+static var __ui_bus_ready := false
 
 # --- NEW: outline + width controls ------------------------------------------------
 @export_group("Text Appearance")
@@ -35,7 +40,7 @@ var go_color    := Color8(76,  175, 80)   # green
 @export_group("SFX")
 @export var beep_stream: AudioStream         # short blip for READY/SET
 @export var go_stream: AudioStream           # stronger blip for GO
-@export var sfx_bus_name: String = "SFX_UI"
+@export var sfx_bus_name: String = "SFX"
 @export var beep_volume_db: float = -6.0
 @export var go_volume_db: float = -3.0
 @export var beep_pitch_ready: float = 1.00
@@ -46,28 +51,30 @@ var go_color    := Color8(76,  175, 80)   # green
 
 var _bus_idx: int = -1
 
-
 # If > 0, the label will use this width and autowrap smartly (useful if you ever
 # show longer text than READY/SET/GO)
 # ----------------------------------------------------------------------------------
 
-func _ready() -> void:
+func _ready() -> void:		
 	# Fallback wiring if the export wasn't assigned in the Inspector
 	if word_lbl == null and _word_fallback != null:
 		word_lbl = _word_fallback
-
-	# SFX bus + players
-	_ensure_ui_bus()
-	_ensure_sfx_players()
 
 	# Apply outline + width settings once the label is known
 	_apply_label_style()
 
 	visible = true
 	Globals.race_can_drive = false
-	
-	await get_tree().create_timer(delay).timeout
-	start_countdown()
+
+	var pseudo := get_node_or_null(pseudo3d_path)
+	# If there is an intro spin, wait for it to finish, THEN start the countdown (after your delay)
+	if pseudo != null and pseudo.has_signal("intro_spin_finished") and pseudo.get("intro_spin_enabled"):
+		# wait for cinematic 360 to end
+		await pseudo.intro_spin_finished
+		# optional extra delay after spin, if you still want it
+		if delay > 0:
+			await get_tree().create_timer(delay).timeout
+		start_countdown()
 
 func start_countdown() -> void:
 	await _show_word("READY", ready_color, show_seconds_ready)
@@ -100,35 +107,51 @@ func _apply_label_style() -> void:
 	word_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	word_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 
+# Optional: tiny debounce so the same word can't retrigger within its duration
+var _ui_last_play_ms: int = -99999
+@export var ui_min_gap_ms: int = 80
+
 func _show_word(txt: String, col: Color, dur: float, is_go: bool = false) -> void:
 	if word_lbl == null:
 		push_warning("CountdownUI: 'word_lbl' is not set and fallback wasn't found.")
 		return
 
-	# Make sure style matches any Inspector tweaks made at runtime
-	_apply_label_style()
+	# Don’t beep during intro spin (cinematic)
+	var pseudo := get_node_or_null(pseudo3d_path)
+	var intro_active = (pseudo != null and pseudo.get("_intro_mode") == true)
 
+	# ---- SFX (single, guarded trigger — no ternary) ----
+	if not intro_active:
+		var now := Time.get_ticks_msec()
+		if now - _ui_last_play_ms >= ui_min_gap_ms:
+			_ui_last_play_ms = now
+			if is_go:
+				if is_instance_valid(go_sfx) and go_stream != null:
+					go_sfx.stream = go_stream
+					go_sfx.pitch_scale = go_pitch
+					go_sfx.volume_db = go_volume_db
+					go_sfx.play()
+			else:
+				if is_instance_valid(beep) and beep_stream != null:
+					var p := beep_pitch_ready
+					if txt == "SET":
+						p = beep_pitch_set
+					beep.stream = beep_stream
+					beep.pitch_scale = p
+					beep.volume_db = beep_volume_db
+					beep.play()
+
+	# ---- Visuals (unchanged) ----
+	_apply_label_style()
 	word_lbl.text = txt
 	word_lbl.scale = Vector2(0.2, 0.2)
 
-	# optional sounds
-	if is_instance_valid(beep) and not is_go:
-		beep.play()
-	elif is_instance_valid(go_sfx) and is_go:
-		go_sfx.play()
-
-	# punchy scale + slight wobble (guard tween steps)
 	var tw := create_tween()
-
 	var up = tw.tween_property(word_lbl, "scale", Vector2(1.15, 1.15), 0.18)
-	if up != null:
-		up.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-
+	if up != null: up.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	var settle = tw.tween_property(word_lbl, "scale", Vector2(1.0, 1.0), 0.12)
-	if settle != null:
-		settle.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	if settle != null: settle.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
-	# light hue shift over duration (keep outline color fixed; animate fill via LabelSettings)
 	var t := 0.0
 	var base_h: float = col.h
 	while t < dur:
@@ -139,11 +162,9 @@ func _show_word(txt: String, col: Color, dur: float, is_go: bool = false) -> voi
 		if word_lbl.label_settings != null:
 			word_lbl.label_settings.font_color = Color.from_hsv(h, 1.0, 1.0, 1.0)
 		else:
-			# Fallback (older setups): tint whole label (outline will also tint)
 			word_lbl.modulate = Color.from_hsv(h, 1.0, 1.0, 1.0)
 		await get_tree().process_frame
 
-	# On GO: release the racers right away
 	if is_go:
 		Globals.race_can_drive = true
 		emit_signal("go")
@@ -160,15 +181,6 @@ func _fade_out_and_hide(time: float) -> void:
 		fade.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	await tw.finished
 	visible = false
-
-func _ensure_ui_bus() -> void:
-	var idx := AudioServer.get_bus_index(sfx_bus_name)
-	if idx == -1:
-		AudioServer.add_bus(AudioServer.get_bus_count())
-		idx = AudioServer.get_bus_count() - 1
-		AudioServer.set_bus_name(idx, sfx_bus_name)
-		AudioServer.set_bus_send(idx, "Master")
-	_bus_idx = idx
 
 func _ensure_sfx_players() -> void:
 	# If you already dragged players in the Inspector, we just configure them.
@@ -195,3 +207,12 @@ func _ensure_sfx_players() -> void:
 	if go_sfx != null:
 		go_sfx.bus = sfx_bus_name
 		go_sfx.volume_db = go_volume_db
+
+# Waits until the named bus exists (and yields a frame to let the graph settle)
+func _await_bus_ready(bus_name: String) -> void:
+	var tries := 0
+	while AudioServer.get_bus_index(bus_name) == -1 and tries < 1200:
+		await get_tree().process_frame
+		tries += 1
+	# one extra frame to let effects/graph settle
+	await get_tree().process_frame

@@ -141,6 +141,9 @@ var _has_base_sprite_offset: bool = false
 @export var WALL_BUMP_STRENGTH    := 1.0    # impulse fed into SetCollisionBump()
 @export var WALL_HIT_COOLDOWN_S   := 0.10   # min time between bumps
 
+@export var REAR_BUMP_COOLDOWN_MULT := 2.4  # extend cooldown on rear shoves
+var _last_map_forward: Vector3 = Vector3(0, 0, 1)  # cached last mapForward
+
 var _wall_hit_cd := 0.0
 var _primed_sprite := false
 
@@ -475,6 +478,8 @@ func Setup(mapSize : int) -> void:
 	SetMapSize(mapSize)
 
 func Update(mapForward : Vector3) -> void:
+	_last_map_forward = mapForward  # cache player facing for SFX logic
+	
 	if _isPushedBack:
 		ApplyCollisionBump()
 	
@@ -567,16 +572,20 @@ func Update(mapForward : Vector3) -> void:
 
 	# wall checks
 	if _collisionHandler.IsCollidingWithWall(Vector2i(ceil(nextPos.x), ceil(_mapPosition.z))):
-		nextPos.x = _mapPosition.x 
+		nextPos.x = _mapPosition.x
 		SetCollisionBump(Vector3(-sign(ReturnVelocity().x), 0.0, 0.0))
-		if _sfx and _sfx.has_method("play_collision"):
+		if _wall_hit_cd <= 0.0 and _sfx and _sfx.has_method("play_collision"):
 			_sfx.play_collision()
+			_wall_hit_cd = WALL_HIT_COOLDOWN_S
 
+	# Z axis wall hit
 	if _collisionHandler.IsCollidingWithWall(Vector2i(ceil(_mapPosition.x), ceil(nextPos.z))):
 		nextPos.z = _mapPosition.z
 		SetCollisionBump(Vector3(0.0, 0.0, -sign(ReturnVelocity().z)))
-		if _sfx and _sfx.has_method("play_collision"):
+		if _wall_hit_cd <= 0.0 and _sfx and _sfx.has_method("play_collision"):
 			_sfx.play_collision()
+			_wall_hit_cd = WALL_HIT_COOLDOWN_S
+
 
 	# apply drift side-slip after wall clamps
 	nextPos += right_vec * _drift_side_slip * dt
@@ -1084,10 +1093,10 @@ func _recompute_speed_multiplier() -> float:
 	return boost
 
 func SetCollisionBump(bumpDir: Vector3) -> void:
-	# keep base bump behavior
+	# keep impulse & pushback
 	super.SetCollisionBump(bumpDir)
 
-	# play bump SFX from the player only, with a tiny cooldown to avoid spam
+	# SFX: only from PLAYER (this script) with a cooldown
 	if _bump_sfx_cd > 0.0:
 		return
 	if _sfx == null:
@@ -1095,8 +1104,27 @@ func SetCollisionBump(bumpDir: Vector3) -> void:
 	if not _sfx.has_method("play_bump"):
 		return
 
+	# Basic impulse gate you already exported (use magnitude of bumpDir)
+	var impulse := bumpDir.length()
+	if impulse < BUMP_SFX_MIN_IMPULSE:
+		return
+
+	# If the bump is pushing us in our own forward direction, it's a rear shove.
+	# (rear shove → longer cooldown so repeated pushing doesn't spam)
+	var rear_shove = false
+	if _last_map_forward.length() > 0.0001:
+		rear_shove = bumpDir.dot(_last_map_forward) > 0.0
+
 	_sfx.play_bump()
-	_bump_sfx_cd = BUMP_SFX_COOLDOWN_S
+
+	# base cooldown
+	var cd := BUMP_SFX_COOLDOWN_S
+	# stretch cooldown for rear shoves (AI riding your tail)
+	if rear_shove:
+		cd *= REAR_BUMP_COOLDOWN_MULT
+
+	_bump_sfx_cd = cd
+
 
 func _ensure_nitro_material() -> void:
 	var sh := load(nitro_shader_path)
