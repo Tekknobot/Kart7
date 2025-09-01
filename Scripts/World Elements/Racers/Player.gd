@@ -15,7 +15,7 @@ const TURBO_TIME := 0.25
 # === Nitro (replaces hop) ===
 const NITRO_DURATION := 0.32          # same window length as old hop
 const NITRO_MULT := 1.002            # same tiny speed bump as old hop
-const NITRO_MIN_ACTIVATE_FRAC := 0.15  # need ≥35% to engage AND to stay on
+const NITRO_MIN_ACTIVATE_FRAC := 0.01  # need ≥35% to engage AND to stay on
 @export var NITRO_TEMP_CAP_FACTOR := 1.10  # brief headroom while nitro runs
 
 var _nitro_timer := 0.0
