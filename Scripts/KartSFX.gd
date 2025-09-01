@@ -60,6 +60,11 @@ var _offroad_gain: float = 0.0
 @export var sfx_grace_after_go_s: float = 1
 var _go_seen := false
 var _since_go_s := 0.0
+var _drift_on: bool = false
+
+@export var drift_target_db: float = 24.0     # where the drift loop sits when active
+@export var drift_off_db: float = -80.0        # fully muted level
+@export var drift_fade_ms: float = 40.0        # quick fade to avoid clicks
 
 func _ready() -> void:
 	_wired = _check_wiring()
@@ -82,17 +87,14 @@ func _ready() -> void:
 	if offroad != null and offroad_stream != null:
 		offroad.stream = offroad_stream
 
+	if drift_stream is AudioStreamWAV:
+		(drift_stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
+	elif drift_stream is AudioStreamOggVorbis:
+		(drift_stream as AudioStreamOggVorbis).loop = true
+
 	if idle != null:   idle.volume_db = -80.0
 	if mid != null:    mid.volume_db  = -80.0
 	if high != null:   high.volume_db = -80.0
-
-	# pre-roll loops once; we only fade volumes at runtime
-	if drift != null:
-		drift.volume_db = -80.0
-		drift.play()
-	if offroad != null:
-		offroad.volume_db = -80.0
-		offroad.play()
 
 	if one_shot != null:
 		one_shot.stop()
@@ -121,14 +123,26 @@ func _process(_dt: float) -> void:
 	var want_drift := false
 	if player.has_method("ReturnIsDrifting"):
 		want_drift = bool(player.call("ReturnIsDrifting"))
+
 	var drift_target := 0.0
 	if want_drift:
 		drift_target = 1.0
-	_drift_gain += (drift_target - _drift_gain) * fade_a
 
-	if drift:
-		var drift_db = lerp(-60.0, -18.0, clamp(_drift_gain, 0.0, 1.0))
+	_drift_gain = _drift_gain + (drift_target - _drift_gain) * fade_a
+
+	if drift != null:
+		# ensure it’s running when needed
+		if want_drift and not drift.playing:
+			if drift.stream == null and drift_stream != null:
+				drift.stream = drift_stream
+			# (loop flags are already set in _ready())
+			drift.play()
+		# apply level
+		var drift_db = lerp(drift_off_db, drift_target_db, clamp(_drift_gain, 0.0, 1.0))
 		drift.volume_db = drift_db
+		# stop once we’ve fully faded out (prevents start/stop clicks)
+		if (not want_drift) and drift.playing and _drift_gain <= 0.01:
+			drift.stop()
 
 	# --- OFF-ROAD loop gain (compute target -> smooth -> map to dB) ---
 	var rt: int = -1
@@ -186,7 +200,11 @@ func _check_wiring() -> bool:
 func _ensure_bus() -> void:
 	_bus_index = AudioServer.get_bus_index(sfx_bus_name)
 	if _bus_index == -1:
-		push_warning("SFX bus '%s' not found; audio will still play on default bus" % sfx_bus_name)
+		# Create the bus so routing never goes to a ghost bus
+		AudioServer.add_bus(AudioServer.get_bus_count())
+		_bus_index = AudioServer.get_bus_count() - 1
+		AudioServer.set_bus_name(_bus_index, sfx_bus_name)
+		AudioServer.set_bus_send(_bus_index, "Master")  # parent into Master
 
 func _assign_players_to_bus() -> void:
 	if idle != null:     idle.bus = sfx_bus_name
@@ -208,16 +226,15 @@ func _apply_bus_volume() -> void:
 
 func _start_engines_if_needed(spd: float) -> void:
 	var can_drive := true
-	if "Globals" in Engine:
-		can_drive = true
+	# Only allow loop start after GO
+	if Engine.has_singleton("Globals"):
+		can_drive = Globals.race_can_drive
+
 	if not _engines_started and can_drive and spd >= engine_start_speed:
-		# bus is pre-created; do not await here
 		if idle != null: idle.play()
 		if mid  != null: mid.play()
 		if high != null: high.play()
-
 		_engines_started = true
-		_engine_gain = 0.0
 
 func _update_engine_fade(dt: float) -> void:
 	if not _engines_started:
@@ -313,3 +330,36 @@ func _play_oneshot(n: AudioStreamPlayer2D, s: AudioStream, vol_db: float, pitch:
 	n.pitch_scale = pitch
 	n.seek(0.0)
 	n.play()
+
+func _ensure_loop_playing(p: AudioStreamPlayer2D, s: AudioStream) -> void:
+	if p == null:
+		return
+	# If the stream wasn't wired from the Inspector, grab it now.
+	if p.stream == null and s != null:
+		p.stream = s
+	# Force the resource to loop (covers WAV & OGG).
+	if s is AudioStreamWAV:
+		s.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	elif s is AudioStreamOggVorbis:
+		s.loop = true
+	# If the player got stopped for any reason, restart it.
+	if not p.playing:
+		p.play()
+
+func set_drift_active(on: bool) -> void:
+	if drift == null:
+		return
+	# make sure the stream is set & looping
+	if drift.stream == null and drift_stream != null:
+		drift.stream = drift_stream
+	if drift.stream is AudioStreamWAV:
+		(drift.stream as AudioStreamWAV).loop_mode = AudioStreamWAV.LOOP_FORWARD
+	elif drift.stream is AudioStreamOggVorbis:
+		(drift.stream as AudioStreamOggVorbis).loop = true
+	# play/stop on edge
+	if on:
+		if not drift.playing:
+			drift.play()
+	else:
+		if drift.playing:
+			drift.stop()

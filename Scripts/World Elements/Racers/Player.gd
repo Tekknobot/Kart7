@@ -2,7 +2,7 @@
 extends "res://Scripts/World Elements/Racers/Racer.gd"
 
 # === Controls & Drift/Hop Settings ===
-const DRIFT_MIN_SPEED := 120.0
+const DRIFT_MIN_SPEED := 60.0
 const DRIFT_STEER_MULT := 0.86
 const DRIFT_SPEED_MULT := 0.92
 const DRIFT_BUILD_RATE := 28.0
@@ -749,6 +749,9 @@ func _handle_hop_and_drift(input_vec : Vector2) -> void:
 func _start_drift_snes(dir: int) -> void:
 	_is_drifting = true
 
+	if _sfx and _sfx.has_method("set_drift_active"):
+		_sfx.set_drift_active(true)
+		
 	if dir < 0:
 		_drift_dir = -1
 	else:
@@ -931,6 +934,10 @@ func _update_drift_dust_smoothing(dt: float) -> void:
 
 func _cancel_drift_no_award(settle_time: float) -> void:
 	_is_drifting = false
+	
+	if _sfx and _sfx.has_method("set_drift_active"):
+		_sfx.set_drift_active(false)
+		
 	_speedMultiplier = 1.0
 	_emit_dust(false)
 	_emit_sparks(false)
