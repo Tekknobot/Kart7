@@ -4,7 +4,7 @@ extends "res://Scripts/World Elements/Racers/Racer.gd"
 # === Controls & Drift/Hop Settings ===
 const HOP_DURATION := 0.18
 const HOP_HEIGHT := 10.0
-const HOP_SPEED_BOOST := 1.001
+const HOP_SPEED_BOOST := 1.002
 
 const DRIFT_MIN_SPEED := 20.0
 const DRIFT_STEER_MULT := 1.65

@@ -148,8 +148,19 @@ var _was_go: bool = false
 @export var randomize_on_ready: bool = false   # set true if you want self-randomization without the manager
 @export var random_seed: int = 0               # 0 = time+id; otherwise reproducible
 @export var assume_player_target_speed: float = 150.0  # used only if manager doesn't pass a value
-
 @export var bump_debug: bool = true   # flip OFF to silence
+
+@export_group("Speed Tag")
+@export var show_speed_tag: bool = true
+@export var speed_tag_font: FontFile        # assign a TTF/OTF in the inspector
+@export var speed_tag_font_size: int = 16
+@export var speed_tag_color: Color = Color(1,1,1,1)
+@export var speed_tag_outline_color: Color = Color(0,0,0,0.7)
+@export var speed_tag_offset_px: float = 6.0  # gap above the sprite
+@export var speed_tag_units: int = 0          # 0=px/s, 1=km/h, 2=mph
+@export var speed_tag_round: bool = true
+
+var _speed_tag: Label = null
 
 func _bname(n: Node) -> String:
 	return (n.name if n != null and "name" in n else str(n.get_instance_id()))
@@ -357,6 +368,12 @@ func _process(delta: float) -> void:
 		return
 	# === /LOCK ===
 
+	var f := Engine.get_process_frames()
+	if visual_update_stride <= 1 or (f % visual_update_stride) == 0:
+		_update_angle_sprite_fast()
+		_update_depth_sort_fast()
+		_update_speed_tag()   # <—— add this
+
 	_apply_dynamic_difficulty()
 
 	# === smoothed local frame (gives fwd + right) ===
@@ -462,7 +479,6 @@ func _process(delta: float) -> void:
 	if _isPushedBack:
 		ApplyCollisionBump()
 
-	var f := Engine.get_process_frames()
 	if visual_update_stride <= 1 or (f % visual_update_stride) == 0:
 		_update_angle_sprite_fast()
 		_update_depth_sort_fast()
@@ -1254,3 +1270,68 @@ func _ai_resolve_body_overlap(next_pos: Vector3, dt: float) -> Vector3:
 				% [_bname(self), _bname(n), (need - L) / _pos_scale_px(), L, need])
 				
 	return Vector3(my_px.x, next_pos.y, my_px.y)
+
+func _ensure_speed_tag() -> void:
+	if not show_speed_tag:
+		if _speed_tag and is_instance_valid(_speed_tag):
+			_speed_tag.queue_free()
+			_speed_tag = null
+		return
+
+	if _speed_tag == null:
+		_speed_tag = Label.new()
+		_speed_tag.top_level = true                    # independent screen-space pos
+		_speed_tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_speed_tag.z_as_relative = false
+		_speed_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		add_child(_speed_tag)
+
+		# theme overrides
+		if speed_tag_font:
+			_speed_tag.add_theme_font_override("font", speed_tag_font)
+		if speed_tag_font_size > 0:
+			_speed_tag.add_theme_font_size_override("font_size", speed_tag_font_size)
+		_speed_tag.add_theme_color_override("font_color", speed_tag_color)
+		_speed_tag.add_theme_color_override("font_outline_color", speed_tag_outline_color)
+		_speed_tag.add_theme_constant_override("outline_size", 2)
+
+func _update_speed_tag() -> void:
+	_ensure_speed_tag()
+	if _speed_tag == null:
+		return
+
+	var spr := ReturnSpriteGraphic()
+	if spr == null:
+		_speed_tag.visible = false
+		return
+
+	# speed text
+	var v := _movementSpeed
+	var mult := 1.0
+	var unit := ""
+	match speed_tag_units:
+		1:
+			mult = 3.6    # px/s → “km/h” (if your px == meters; tweak if not)
+			unit = ""     # keep it clean: just the number
+		2:
+			mult = 2.23693629   # px/s → mph (same note as above)
+			unit = ""
+	var val := v * mult
+	var txt: String
+	if speed_tag_round:
+		txt = str(int(round(val)))
+	else:
+		txt = String.num(val, 1)
+		
+	_speed_tag.text = txt + unit
+
+	# position above sprite
+	var h := 34.0
+	if "region_rect" in spr and spr.region_rect.size.y > 0.0:
+		h = spr.region_rect.size.y
+	var sc := (spr as Node2D).scale.y
+	var pos := (spr as Node2D).global_position + Vector2(0, -h * sc - speed_tag_offset_px)
+
+	_speed_tag.global_position = pos
+	_speed_tag.z_index = spr.z_index + 1
+	_speed_tag.visible = spr.visible
