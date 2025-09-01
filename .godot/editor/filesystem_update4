@@ -9,3 +9,4 @@ res://Scripts/World Elements/Racers/Player.gd
 res://Scenes/CountdownUI.tscn
 res://Scripts/World Elements/Racers/Racer.gd
 res://Scripts/KartSFX.gd
+res://Scripts/RaceManager.gd

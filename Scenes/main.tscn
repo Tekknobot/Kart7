@@ -2364,11 +2364,11 @@ offset_bottom = 347.0
 [node name="Vbox" type="VBoxContainer" parent="RaceHUD/BottomRight"]
 layout_mode = 2
 
-[node name="Speed" type="Label" parent="RaceHUD/BottomRight/Vbox"]
-layout_mode = 2
-
 [node name="Place" type="Label" parent="RaceHUD/BottomRight/Vbox"]
 custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+
+[node name="Speed" type="Label" parent="RaceHUD/BottomRight/Vbox"]
 layout_mode = 2
 
 [node name="NitroBar" type="ProgressBar" parent="RaceHUD/BottomRight/Vbox"]
