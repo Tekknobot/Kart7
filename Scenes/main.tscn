@@ -2259,7 +2259,7 @@ pixel_dots = false
 dot_square_size = 2
 player_square_size = 2
 
-[node name="RaceHUD" type="Control" parent="." node_paths=PackedStringArray("time_lbl", "lap_lbl", "place_lbl", "speed_lbl", "last_lbl", "best_lbl")]
+[node name="RaceHUD" type="Control" parent="." node_paths=PackedStringArray("time_lbl", "lap_lbl", "place_lbl", "speed_lbl", "last_lbl", "ahead_lbl", "behind_lbl")]
 z_index = 4096
 layout_mode = 3
 anchors_preset = 15
@@ -2275,8 +2275,9 @@ time_lbl = NodePath("TopRight/Vbox/Time")
 lap_lbl = NodePath("TopRight/Vbox/Lap")
 place_lbl = NodePath("BottomRight/Vbox/Place")
 speed_lbl = NodePath("BottomRight/Vbox/Speed")
-last_lbl = NodePath("BottomRight/Vbox/Last")
-best_lbl = NodePath("BottomRight/Vbox/Best")
+last_lbl = NodePath("BottomRight/Vbox/LapTime")
+ahead_lbl = NodePath("BottomRight/Vbox/Ahead")
+behind_lbl = NodePath("BottomRight/Vbox/Behind")
 nitro_bar_path = NodePath("BottomRight/Vbox/NitroBar")
 default_font = ExtResource("23_gt3je")
 default_size = 16
@@ -2312,9 +2313,9 @@ layout_mode = 2
 [node name="BottomRight" type="MarginContainer" parent="RaceHUD"]
 layout_mode = 0
 offset_left = 363.0
-offset_top = 245.0
+offset_top = 205.0
 offset_right = 467.0
-offset_bottom = 360.0
+offset_bottom = 344.0
 
 [node name="Vbox" type="VBoxContainer" parent="RaceHUD/BottomRight"]
 layout_mode = 2
@@ -2330,11 +2331,16 @@ custom_minimum_size = Vector2(0, 4)
 layout_mode = 2
 show_percentage = false
 
-[node name="Last" type="Label" parent="RaceHUD/BottomRight/Vbox"]
+[node name="LapTime" type="Label" parent="RaceHUD/BottomRight/Vbox"]
 layout_mode = 2
 
-[node name="Best" type="Label" parent="RaceHUD/BottomRight/Vbox"]
+[node name="Ahead" type="Label" parent="RaceHUD/BottomRight/Vbox"]
 layout_mode = 2
+theme_override_colors/font_color = Color(0, 1, 0, 1)
+
+[node name="Behind" type="Label" parent="RaceHUD/BottomRight/Vbox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0, 0, 1)
 
 [node name="CountdownUI" parent="." instance=ExtResource("29_6vcvc")]
 

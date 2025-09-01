@@ -15,7 +15,9 @@ class_name RaceHUD
 @export var place_lbl: Label
 @export var speed_lbl: Label
 @export var last_lbl: Label
-@export var best_lbl: Label
+# NEW: separate gap labels
+@export var ahead_lbl: Label
+@export var behind_lbl: Label
 
 var _rm: Node = null
 var _player: Node = null
@@ -52,33 +54,42 @@ var _bar: ProgressBar
 @export var best_font: Font
 @export var best_size: int = -1
 
-@export var place_gain_color := Color(0.2, 1.0, 0.2)
+@export var place_gain_color := Color(0.0, 0.0, 0.0)
 @export var place_loss_color := Color(1.0, 0.25, 0.25)
 @export var place_anim_time  := 0.35
 var _last_place: int = 0
 var _place_arrow: Label
 
+# --- HUD lap clock (fallback if RaceManager doesn't provide one) ---
+var _lap_seen: int = -1
+var _lap_start_clock_ms: int = 0
 
 func _ready() -> void:
 	_update_dt = max(0.01, 1.0 / updates_per_second)
-
 	_rm = get_node_or_null(race_manager_path)
 	_player = get_node_or_null(player_path)
 
-	# Guard: make sure everything is wired
 	if not _check_wiring():
 		set_process(false)
 		return
 
-	_apply_fonts()  # <<< apply your chosen fonts/sizes here
+	_apply_fonts()
 
-	# Defaults (safe now because labels are guaranteed)
+	# Defaults
 	time_lbl.text  = "TIME 0'00\"000"
 	lap_lbl.text   = "LAP 0/%d" % total_laps
 	place_lbl.text = "--"
 	speed_lbl.text = "%s --" % speed_label
-	last_lbl.text  = "LAST --"
-	best_lbl.text  = "BEST --"
+	last_lbl.text  = "LAP TIME --"
+
+	if ahead_lbl:
+		ahead_lbl.text = "AHEAD --"
+		ahead_lbl.modulate = place_gain_color    # green
+
+	if behind_lbl:
+		behind_lbl.text = "BEHIND --"
+		behind_lbl.modulate = place_loss_color   # red
+
 
 	set_process(true)
 	
@@ -97,6 +108,9 @@ func _ready() -> void:
 		_bar.max_value = 1.0
 		_bar.value = 1.0
 		_bar.modulate = color_full
+
+	_lap_seen = -1
+	_lap_start_clock_ms = Time.get_ticks_msec()
 		
 func _process(delta: float) -> void:
 	_timer += delta
@@ -183,17 +197,86 @@ func _refresh() -> void:
 	_last_place = place
 
 
+	# --- speed readout ---
 	var spd: float = float(me.get("cur_speed", 0.0))
 	if show_kmh:
-		# TODO: apply your px/s -> km/h conversion if you have one
 		speed_lbl.text = "%s %d km/h" % [speed_label, int(round(spd))]
 	else:
 		speed_lbl.text = "%s %d" % [speed_label, int(round(spd))]
 
-	var last_ms: int = int(me.get("last_ms", 0))
-	var best_ms: int = int(me.get("best_ms", 0))
-	last_lbl.text = "LAST " + ( _fmt_ms(last_ms) if last_ms > 0 else "--" )
-	best_lbl.text = "BEST " + ( _fmt_ms(best_ms) if best_ms > 0 else "--" )
+	# --- current lap time (prefer manager; fallback to HUD clock) ---
+	var lap_ms := -1
+
+	# Prefer RaceManager helpers if available
+	if _rm.has_method("GetCurrentLapMsFor"):
+		lap_ms = int(_rm.call("GetCurrentLapMsFor", _player))
+	elif _rm.has_method("GetCurrentLapMs"):
+		lap_ms = int(_rm.call("GetCurrentLapMs", _player))
+
+	# If manager doesn't provide, maintain a simple HUD-side clock
+	if lap_ms < 0:
+		# Start/reset the HUD lap clock whenever the lap value changes to a new >0 lap
+		if my_lap != _lap_seen and my_lap > 0:
+			_lap_seen = my_lap
+			_lap_start_clock_ms = Time.get_ticks_msec()
+
+		# Only show a time once we've started a real lap (my_lap > 0)
+		if my_lap > 0:
+			lap_ms = max(0, Time.get_ticks_msec() - _lap_start_clock_ms)
+
+	last_lbl.text = "LAP TIME " + ( _fmt_ms(lap_ms) if lap_ms >= 0 else "--" )
+	last_lbl.modulate = place_gain_color  # green
+
+	# --- gaps: ahead / behind (plain text on separate labels) ---
+	var loop_len_px := 0.0
+	if _rm.has_method("GetLoopLengthPx"):
+		loop_len_px = float(_rm.call("GetLoopLengthPx"))
+
+	var ahead_txt := "AHEAD --"
+	var behind_txt := "BEHIND --"
+
+	var my_index := place - 1  # place is 1-indexed
+
+	# gap to the car AHEAD (positive => you are behind)
+	if my_index > 0:
+		var ahead = board[my_index - 1]
+		var gt := _gap_time_s(me, ahead, loop_len_px)
+		if not is_nan(gt):
+			ahead_txt = "AHEAD +%0.2fs" % gt
+
+	# gap to the car BEHIND (positive => they are behind you)
+	if my_index < board.size() - 1:
+		var behind = board[my_index + 1]
+		var gt2 := _gap_time_s(behind, me, loop_len_px)
+		if not is_nan(gt2):
+			behind_txt = "BEHIND -%0.2fs" % gt2
+
+	if ahead_lbl:
+		ahead_lbl.text = ahead_txt
+		ahead_lbl.modulate = place_gain_color   # green
+
+	if behind_lbl:
+		behind_lbl.text = behind_txt
+		behind_lbl.modulate = place_loss_color  # red
+
+
+
+func _rgb_hex(c: Color) -> String:
+	return "%02x%02x%02x" % [int(c.r * 255.0), int(c.g * 255.0), int(c.b * 255.0)]
+
+# Signed time gap in seconds from racer A to racer B (B - A), by distance / avg speed
+func _gap_time_s(a: Dictionary, b: Dictionary, loop_len_px: float) -> float:
+	if loop_len_px <= 0.0:
+		return NAN
+	var sa := float(a.get("s_px", 0.0)) + float(a.get("lap", 0)) * loop_len_px
+	var sb := float(b.get("s_px", 0.0)) + float(b.get("lap", 0)) * loop_len_px
+	var dpx := sb - sa  # + means b is ahead of a
+
+	var va := float(a.get("cur_speed", 0.0))
+	var vb := float(b.get("cur_speed", 0.0))
+	var v  = max(10.0, (va + vb) * 0.5)  # keep stable at low speeds
+
+	return dpx / v
 
 # ----- helpers -----
 
@@ -204,7 +287,6 @@ func _check_wiring() -> bool:
 	if place_lbl == null: missing.append("place_lbl")
 	if speed_lbl == null: missing.append("speed_lbl")
 	if last_lbl == null:  missing.append("last_lbl")
-	if best_lbl == null:  missing.append("best_lbl")
 	if _rm == null:       missing.append("race_manager_path")
 	if _player == null:   missing.append("player_path")
 
@@ -233,7 +315,7 @@ func _ordinal_big(n: int) -> String:
 
 func _apply_fonts() -> void:
 	# global outline for readability (SMK vibe)
-	var labels := [time_lbl, lap_lbl, place_lbl, speed_lbl, last_lbl, best_lbl]
+	var labels := [time_lbl, lap_lbl, place_lbl, speed_lbl, last_lbl, ahead_lbl, behind_lbl]
 	for l in labels:
 		if l == null: continue
 		if outline_size > 0:
@@ -246,8 +328,9 @@ func _apply_fonts() -> void:
 	_apply_font_to(place_lbl, place_font, place_size)
 	_apply_font_to(speed_lbl, speed_font, speed_size)
 	_apply_font_to(last_lbl,  last_font,  last_size)
-	_apply_font_to(best_lbl,  best_font,  best_size)
-
+	_apply_font_to(ahead_lbl,  best_font,  best_size)
+	_apply_font_to(behind_lbl,  best_font,  best_size)
+	
 func _apply_font_to(label: Label, f: Font, sz: int) -> void:
 	if label == null: return
 	var chosen_font: Font = f if f != null else default_font

@@ -343,7 +343,7 @@ func _set_turn_amount_in_range(right_amount: float, is_left: bool, range_max: in
 	_set_frame(idx)
 
 	# SAFELY set flip (no direct ReturnSpriteGraphic().flip_h)
-	if _is_drifting or _drift_release_timer > 0.0 or _post_settle_time > 0.0:
+	if _is_drifting:
 		_set_flip_h(not is_left)
 	else:
 		_set_flip_h(is_left)
