@@ -14,6 +14,11 @@ var _speedMultiplier : float = 1.0
 var _velocity : Vector3 = Vector3.ZERO
 var _onRoadType : Globals.RoadType = Globals.RoadType.VOID
 
+# --- Normal steering sensitivity (non-drift) ---
+@export var STEER_GAIN: float = 0.75        # < 1.0 = less sensitive, > 1.0 = more
+@export var STEER_DEADZONE: float = 0.07    # ignore tiny stick/keys wiggles
+@export var STEER_CURVE: float = 1.25       # >1 softens around center; 1 = linear
+
 @export_category("Racer Collision Settings")
 @export var _collisionHandler : Node
 var _bumpDir : Vector3 = Vector3.ZERO

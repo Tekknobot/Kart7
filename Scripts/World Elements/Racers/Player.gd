@@ -3,7 +3,7 @@ extends "res://Scripts/World Elements/Racers/Racer.gd"
 
 # === Controls & Drift/Hop Settings ===
 const DRIFT_MIN_SPEED := 120.0
-const DRIFT_STEER_MULT := 1.65
+const DRIFT_STEER_MULT := 16.0
 const DRIFT_SPEED_MULT := 0.92
 const DRIFT_BUILD_RATE := 28.0
 const TURBO_THRESHOLD_SMALL := 35.0
@@ -628,21 +628,38 @@ func _push_nitro_hud() -> void:
 		_hud.call("SetNitro", _nitro_charge, is_active)
 
 func ReturnPlayerInput() -> Vector2:
-	var steer := Input.get_action_strength("Right") - Input.get_action_strength("Left")
+	var raw_right := Input.get_action_strength("Right")
+	var raw_left  := Input.get_action_strength("Left")
+	var steer_raw := raw_right - raw_left
+
 	var forward := Input.get_action_strength("Forward")
-	var brake := Input.get_action_strength("Brake")
+	var brake   := Input.get_action_strength("Brake")
 
 	# brief steer lock after a spin
 	if _post_spin_lock > 0.0:
-		steer = 0.0
+		steer_raw = 0.0
 
+	# Apply deadzone to the raw value
+	if abs(steer_raw) < STEER_DEADZONE:
+		steer_raw = 0.0
+
+	# Response curve: soften around center so small inputs turn less
+	var steer_mag = abs(steer_raw)
+	if steer_mag > 0.0:
+		steer_mag = pow(steer_mag, max(0.01, STEER_CURVE))  # 1.25 softens near center
+	var steer_shaped = steer_mag
+	if steer_raw < 0.0:
+		steer_shaped = -steer_mag
+
+	# Global steering gain for normal steering (non-drift path)
+	var steer = steer_shaped * STEER_GAIN * STEER_SIGN
+
+	# Throttle/brake (unchanged)
 	var throttle := -forward
 	if brake > 0.01:
 		throttle = -brake
 
-	steer *= STEER_SIGN
-
-	# while spinning, ignore steer/throttle so the kart coasts under damped speed
+	# While spinning, ignore steer/throttle so the kart coasts under damped speed
 	if _is_spinning:
 		_inputDir = Vector2(0.0, 0.0)
 		return _inputDir
@@ -934,10 +951,16 @@ func _end_drift_with_award() -> void:
 	else:
 		_drift_release_timer = 0.0
 
-	# Latch Nitro ON when we got an award (until user cancels)
-	if did_award and NITRO_AWARD_LATCH:
-		_nitro_latched = true
-		_nitro_timer = NITRO_DURATION  # kick visuals immediately
+	# === Nitro reward: fill gauge (and optionally auto-engage) ===
+	if did_award:
+		# instantly fill the gauge
+		_nitro_charge = 1.0
+		# kick visuals now (short pulse); latch if that mode is enabled
+		_nitro_timer = NITRO_DURATION
+		if NITRO_AWARD_LATCH:
+			_nitro_latched = true
+		# push new value to HUD
+		_push_nitro_hud()
 
 	_post_settle_time = POST_DRIFT_SETTLE_TIME
 	_lean_left_visual = (_drift_dir < 0)
