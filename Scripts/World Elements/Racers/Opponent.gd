@@ -1412,7 +1412,7 @@ func _ensure_speed_tag() -> void:
 		_speed_tag.top_level = true                    # independent screen-space pos
 		_speed_tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_speed_tag.z_as_relative = false
-		_speed_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_speed_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		add_child(_speed_tag)
 
 		# theme overrides

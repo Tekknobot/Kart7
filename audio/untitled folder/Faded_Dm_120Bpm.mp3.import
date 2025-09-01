@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://yew0dvtgsf7f"
+path="res://.godot/imported/Faded_Dm_120Bpm.mp3-21ab043d4989ee1b712f40f83f8c7aad.mp3str"
+
+[deps]
+
+source_file="res://Audio/untitled folder/Faded_Dm_120Bpm.mp3"
+dest_files=["res://.godot/imported/Faded_Dm_120Bpm.mp3-21ab043d4989ee1b712f40f83f8c7aad.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

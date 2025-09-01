@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://d4jut3ep1fxd"
+path="res://.godot/imported/Pumped_Bm_111Bpm.mp3-e7cba5217527f8bca00477ec5af674a9.mp3str"
+
+[deps]
+
+source_file="res://Audio/untitled folder/Pumped_Bm_111Bpm.mp3"
+dest_files=["res://.godot/imported/Pumped_Bm_111Bpm.mp3-e7cba5217527f8bca00477ec5af674a9.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

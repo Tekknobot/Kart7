@@ -1,7 +1,7 @@
+Node2D
 ProgressBar
 ColorRect
 CanvasLayer
-Node2D
 AudioStreamPlayer2D
 AudioListener2D
 Label
@@ -12,4 +12,3 @@ Control
 HBoxContainer
 PanelContainer
 Node
-Sprite2D

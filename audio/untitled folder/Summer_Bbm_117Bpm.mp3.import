@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://bgjg8xsfhxrj4"
+path="res://.godot/imported/Summer_Bbm_117Bpm.mp3-affbcc1246d403eee781ef8622fc9f22.mp3str"
+
+[deps]
+
+source_file="res://Audio/untitled folder/Summer_Bbm_117Bpm.mp3"
+dest_files=["res://.godot/imported/Summer_Bbm_117Bpm.mp3-affbcc1246d403eee781ef8622fc9f22.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4
