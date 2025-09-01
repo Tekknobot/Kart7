@@ -1372,6 +1372,11 @@ func _tick_launch_profiles(dt: float) -> void:
 			to_remove.append(id)
 			continue
 
+		# ✅ skip non-player so only the player gets the grid launch
+		if el != _player:
+			to_remove.append(id)
+			continue
+			
 		var target  := float(data["target"])
 		var accel   := float(data["accel"])
 		var fwd     := data["dir"] as Vector3

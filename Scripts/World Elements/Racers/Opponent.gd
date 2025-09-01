@@ -369,7 +369,14 @@ func _process(delta: float) -> void:
 	var right: Vector2 = _right_smooth.normalized()
 
 	# --- steering target using smoothed lookahead ---
-	var tgt := _uv_and_tangent_smooth(_s_px + lookahead_px_base * 1.0)
+	# 0 = tight, 1 = straight
+	var t0 := _tangent_at_distance(_s_px)
+	var t1 := _tangent_at_distance(_s_px + 80.0)
+	var straightness = clamp((t0.dot(t1) + 1.0) * 0.5, 0.0, 1.0)  # [-1..1] -> [0..1]
+	var L = clamp(lookahead_px_base + lookahead_curv_boost * straightness,
+				   lookahead_px_min, lookahead_px_max)
+	var tgt := _uv_and_tangent_smooth(_s_px + L)
+
 	var to_t = (tgt["uv"] - p_uv)
 	var to_t_len = to_t.length()
 	if to_t_len > 0.00001:
@@ -383,8 +390,6 @@ func _process(delta: float) -> void:
 	_heading = wrapf(_heading + yaw_step, -PI, PI)
 
 	# --- curvature proxy using smoothed tangents (no snap) ---
-	var t0: Vector2 = fwd_smooth
-	var t1: Vector2 = _uv_and_tangent_smooth(_s_px + lookahead_px * 0.5)["tan"]
 	var dot_raw: float = clamp(t0.dot(t1), -1.0, 1.0)
 	var curv_approx: float = 1.0 - max(dot_raw, -1.0)
 
@@ -1100,7 +1105,7 @@ func _physics_step_like_player(p_uv: Vector2, right: Vector2, target_uv: Vector2
 	var fwd_nudge := 0.0
 	if err_fwd > 0.0:
 		# small assist that diminishes with speed; tune 0.4..0.8
-		fwd_nudge = min(80.0, err_fwd * 0.6)
+		fwd_nudge = min(0.0, err_fwd * 0.15)
 
 	# compose intended velocity (px/s)
 	var v_forward := fwd * (_movementSpeed + fwd_nudge)
