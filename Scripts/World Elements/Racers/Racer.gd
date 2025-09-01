@@ -14,6 +14,10 @@ var _speedMultiplier : float = 1.0
 var _velocity : Vector3 = Vector3.ZERO
 var _onRoadType : Globals.RoadType = Globals.RoadType.VOID
 
+@export var _outputSpeedMult: float = 1.0
+func SetOutputSpeedMultiplier(m: float) -> void:
+	_outputSpeedMult = max(0.0, m)
+
 # --- Normal steering sensitivity (non-drift) ---
 @export var STEER_GAIN: float = 0.75        # < 1.0 = less sensitive, > 1.0 = more
 @export var STEER_DEADZONE: float = 0.07    # ignore tiny stick/keys wiggles
@@ -269,7 +273,8 @@ func UpdateVelocity(mapForward : Vector3) -> void:
 	if _movementSpeed == 0.0:
 		return
 	var forward : Vector3 = mapForward * float(_currentMoveDirection)
-	_velocity = (forward * _movementSpeed) * get_process_delta_time()
+	var eff_speed := _movementSpeed * _outputSpeedMult  # <-- apply boosts here
+	_velocity = (forward * eff_speed) * get_process_delta_time()
 
 func ReturnVelocity() -> Vector3:
 	return _velocity

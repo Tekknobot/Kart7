@@ -3,7 +3,7 @@ extends "res://Scripts/World Elements/Racers/Racer.gd"
 
 # === Controls & Drift/Hop Settings ===
 const DRIFT_MIN_SPEED := 120.0
-const DRIFT_STEER_MULT := 16.0
+const DRIFT_STEER_MULT := 0.86
 const DRIFT_SPEED_MULT := 0.92
 const DRIFT_BUILD_RATE := 28.0
 const TURBO_THRESHOLD_SMALL := 35.0
@@ -15,10 +15,10 @@ const TURBO_TIME := 0.25
 # === Nitro (replaces hop) ===
 const NITRO_DURATION := 0.32          # same window length as old hop
 const NITRO_MULT := 1.002            # same tiny speed bump as old hop
+const NITRO_MIN_ACTIVATE_FRAC := 0.15  # need ≥35% to engage AND to stay on
 @export var NITRO_TEMP_CAP_FACTOR := 1.10  # brief headroom while nitro runs
-var _nitro_timer := 0.0
 
-@export var NITRO_AWARD_LATCH := true   # drift award locks nitro ON
+var _nitro_timer := 0.0
 var _nitro_latched := false             # persists until you toggle it off
 
 # === Nitro gauge (hold-to-drain, release-to-refill) ===
@@ -517,31 +517,33 @@ func Update(mapForward : Vector3) -> void:
 	if _turbo_timer > 0.0:
 		_turbo_timer = max(0.0, _turbo_timer - dt)
 
-	# === Nitro: toggle/hold + gauge drain/refill (moved OUT of Item block) ===
+	# === Nitro: hold/tap → only active with enough gauge; shader only while active ===
 	var nitro_down := Input.is_action_pressed("Nitro")
 	var nitro_tap  := Input.is_action_just_pressed("Nitro")
 
-	# If latched from a drift award, a tap cancels the latch
+	# Tap cancels latch
 	if _nitro_latched and nitro_tap:
 		_nitro_latched = false
 
-	# Want nitro active this frame?
-	var want_active := (_nitro_latched or nitro_down) and not _is_spinning
-
+	var want_request := (_nitro_latched or nitro_down) and not _is_spinning
 	var drain_rate  = 1.0 / max(0.001, NITRO_CAPACITY_S)
 	var refill_rate = 1.0 / max(0.001, NITRO_REFILL_S)
 
-	if want_active and _nitro_charge > 0.0:
+	# Engage only if gauge ≥ threshold; also auto-drop below threshold
+	var can_nitro := want_request and (_nitro_charge >= NITRO_MIN_ACTIVATE_FRAC)
+
+	if can_nitro:
+		# drain and show shader
 		_nitro_charge = max(0.0, _nitro_charge - drain_rate * dt)
-		_nitro_timer  = NITRO_DURATION  # keeps shader punchy
-		if _nitro_charge <= 0.0:
-			# empty → stop latch & let normal refill resume
-			_nitro_latched = false
+		_nitro_timer  = 1.0  # visual ON while active
+		# if we run under threshold, we’ll flip off next frame
 	else:
+		# stop visuals, clear latch unless the button is still held
+		_nitro_timer  = 0.0
+		if not nitro_down:
+			_nitro_latched = false
+		# refill
 		_nitro_charge = min(1.0, _nitro_charge + refill_rate * dt)
-		# let the short shader pulse fade out naturally
-		if _nitro_timer > 0.0:
-			_nitro_timer = max(0.0, _nitro_timer - dt)
 
 	_apply_nitro_fx(mapForward)
 	_push_nitro_hud()
@@ -689,9 +691,9 @@ func _handle_hop_and_drift(input_vec : Vector2) -> void:
 			elif _sfx.has_method("play_hop"):
 				_sfx.play_hop()  # fallback sound if you want
 
-	# Safety: if held, seed the timer so visuals kick instantly; Update() will keep it high
-	if nitro_down:
-		_nitro_timer = NITRO_DURATION
+	# Only kick the shader if we actually have enough gauge to run nitro
+	if nitro_down and _nitro_charge >= NITRO_MIN_ACTIVATE_FRAC:
+		_nitro_timer = 1.0   # simple “on” flag for visuals this frame
 		
 	# decay arm timer
 	if _drift_arm_timer > 0.0:
@@ -706,13 +708,15 @@ func _handle_hop_and_drift(input_vec : Vector2) -> void:
 
 	# While drifting and holding drift
 	if _is_drifting and drift_down:
-		# Outward bias (SMK feel)
-		var bias := float(_drift_dir) * DRIFT_MIN_TURN_BIAS
-		var clamped = clamp(bias, -1.0, 1.0)
+		# Outward bias + steer-shaped contribution (use raw steer, not smoothed)
+		var sign_dir := float(_drift_dir)            # +1 right, -1 left
+		var target_bias := DRIFT_MIN_TURN_BIAS       # baseline outward lean (e.g. 0.55)
+		target_bias += steer_abs * DRIFT_STEER_MULT  # make the knob matter
 
-		# Grip toward target with a little smoothing
+		# Keep it in range and point outward, then ease in with grip
+		var clamped = clamp(sign_dir * target_bias, -1.0, 1.0)
 		var grip_t = clamp(dt * (DRIFT_GRIP * 10.0), 0.0, 1.0)
-		_inputDir.x = lerp(_inputDir.x, clamped * DRIFT_STEER_MULT, grip_t)
+		_inputDir.x = lerp(_inputDir.x, clamped, grip_t)
 
 		# Build drift charge faster with more steer pressure
 		var add = (0.75 + 0.25 * steer_abs) * DRIFT_BUILD_RATE * dt
@@ -951,17 +955,6 @@ func _end_drift_with_award() -> void:
 	else:
 		_drift_release_timer = 0.0
 
-	# === Nitro reward: fill gauge (and optionally auto-engage) ===
-	if did_award:
-		# instantly fill the gauge
-		_nitro_charge = 1.0
-		# kick visuals now (short pulse); latch if that mode is enabled
-		_nitro_timer = NITRO_DURATION
-		if NITRO_AWARD_LATCH:
-			_nitro_latched = true
-		# push new value to HUD
-		_push_nitro_hud()
-
 	_post_settle_time = POST_DRIFT_SETTLE_TIME
 	_lean_left_visual = (_drift_dir < 0)
 	_drift_charge = 0.0
@@ -1130,8 +1123,9 @@ func _apply_nitro_fx(mapForward: Vector3) -> void:
 
 	# live 0..1 “how strong is nitro right now”
 	var live := 0.0
-	if NITRO_DURATION > 0.0:
-		live = clamp(_nitro_timer / NITRO_DURATION, 0.0, 1.0)
+	# treat _nitro_timer as a boolean ON flag from Update()
+	if _nitro_timer > 0.0:
+		live = 1.0
 
 	if live > 0.0:
 		# ensure material and attach if needed
