@@ -31,6 +31,30 @@ var _hit_sfx_cd: float = 0.0
 @export var clockwise: bool = true
 @export var frame0_is_front: bool = true
 
+# --- Nitro (opponent) ---
+@export var AI_NITRO_MIN_FRAC := 0.35        # need ≥35% to engage & stay on
+@export var AI_NITRO_CAPACITY_S := 3.0       # seconds of continuous nitro
+@export var AI_NITRO_REFILL_S   := 2.4       # seconds from 0→1
+@export var AI_NITRO_MULT       := 1.002     # same tiny bump as player
+@export var AI_NITRO_COOLDOWN_S := 1.0       # delay after nitro drops below threshold
+@export var AI_NITRO_LOOKAHEAD_PX := 360.0   # how far we examine the path
+@export var AI_NITRO_MIN_STRAIGHT_PX := 260.0# minimum “straight runway” needed
+@export var AI_NITRO_DOT := 0.985            # cos(10°); higher = stricter straight
+
+var _nitro_charge: float = 1.0    # 0..1 gauge
+var _nitro_latched: bool = false  # AI’s “hold nitro” switch
+var _nitro_timer: float = 0.0     # >0 = visuals ON this frame
+var _nitro_cd: float = 0.0        # cooldown before re-arming
+
+# nitro shader (same as Player)
+@export var nitro_shader_path: String = "res://Scripts/Shaders/OpponentNitroPulse.gdshader"
+@export var nitro_glow_color: Color = Color(0.55, 0.9, 1.0, 1.0)
+@export var nitro_outline_px: float = 2.0
+@export var nitro_chroma_max_px: float = 3.0
+@export var nitro_intensity_max: float = 1.0
+var _nitro_mat: ShaderMaterial = null
+var _nitro_prev_material: Material = null
+
 # --- perf toggles ---
 @export var debug_log_ai_sprite: bool = false
 @export var visual_update_stride: int = 2 # update sprite/depth every N frames
@@ -50,6 +74,9 @@ var _angle_sprite: Node = null
 var _seg_tan: PackedVector2Array = PackedVector2Array()  # per-vertex unit tangents
 
 var _spawn_locked: bool = false
+
+# Store base uniforms for restoration
+var _prev_uniforms: Dictionary = {}
 
 # --- DIFFICULTY SCALING ---
 @export var race_manager_ref: NodePath
@@ -221,6 +248,14 @@ func ApplySpawnFromPathIndex(idx: int, lane_px: float = 0.0) -> void:
 
 	_s_px = _arc_at_index(start_index) + max(0.0, start_offset_px)
 	_s_px = fposmod(_s_px, _total_len_px)
+
+	# --- OUTPUT boost multiplier (does NOT change max-cap) ---
+	var out_mult := 1.0
+	if _nitro_timer > 0.0:
+		out_mult = max(out_mult, AI_NITRO_MULT)
+
+	# (optionally include drafting, release boosts, items, etc. here too)
+	SetOutputSpeedMultiplier(out_mult)
 
 	_heading = _tangent_angle_at_distance(_s_px)
 
@@ -1178,9 +1213,87 @@ func _physics_step_like_player(p_uv: Vector2, right: Vector2, target_uv: Vector2
 	HandleRoadType(nextPixelPos, curr_rt)
 
 	SetMapPosition(nextPos)
+
+	_ai_tick_nitro(get_process_delta_time())
+	_apply_nitro_fx(Vector3(cos(_heading), 0.0, sin(_heading)))
+
 	# UpdateMovementSpeed()   # keep this disabled for AI
 	var mapForward := Vector3(fwd.x, 0.0, fwd.y)
 	UpdateVelocity(mapForward)
+
+func _ensure_nitro_material() -> void:
+	if _nitro_mat != null:
+		return
+	var sh := load(nitro_shader_path)
+	if sh == null:
+		return
+	_nitro_mat = ShaderMaterial.new()
+	_nitro_mat.shader = sh
+	# set shared nitro defaults
+	_nitro_mat.set_shader_parameter("glow_color", nitro_glow_color)
+	_nitro_mat.set_shader_parameter("outline_px", nitro_outline_px)
+	_nitro_mat.set_shader_parameter("chroma_px", 0.0)
+	_nitro_mat.set_shader_parameter("intensity", 0.0)
+	_nitro_mat.set_shader_parameter("dir2", Vector2(1,0))
+	# IMPORTANT: copy over base shader parameters
+	var spr := ReturnSpriteGraphic()
+	if spr != null and spr.material is ShaderMaterial:
+		var base := spr.material as ShaderMaterial
+		for p in base.shader.get_shader_uniform_list():
+			_nitro_mat.set_shader_parameter(p.name, base.get_shader_parameter(p.name))
+	spr.material = _nitro_mat
+
+func _apply_nitro_fx(mapForward: Vector3) -> void:
+	var spr := ReturnSpriteGraphic()
+	if spr == null:
+		return
+
+	var live := 1.0 if _nitro_timer > 0.0 else 0.0
+
+	if live >= 0.0:
+		_ensure_nitro_material()
+		if _nitro_mat == null:
+			return
+
+		# First time swap: cache ALL uniforms from the original shader
+		if spr.material != _nitro_mat:
+			if _nitro_prev_material == null and spr.material is ShaderMaterial:
+				_nitro_prev_material = spr.material.duplicate()  # duplicate ensures instance copy
+				_prev_uniforms.clear()
+				for u in (_nitro_prev_material.shader.get_shader_uniform_list()):
+					var pname = u.name
+					if _nitro_prev_material.shader.has_param(pname):
+						_prev_uniforms[pname] = _nitro_prev_material.get_shader_parameter(pname)
+			spr.material = _nitro_mat
+
+		# Ease in nitro pulse
+		var eased := pow(live, 0.5)
+		var inten = clamp(eased * nitro_intensity_max, 0.0, 1.0)
+		var chroma = nitro_chroma_max_px * inten
+
+		var dir2 := Vector2(mapForward.x, mapForward.z)
+		if dir2.length() > 0.00001:
+			dir2 = dir2.normalized()
+		else:
+			dir2 = Vector2(1, 0)
+
+		_nitro_mat.set_shader_parameter("intensity", inten)
+		_nitro_mat.set_shader_parameter("chroma_px", chroma)
+		_nitro_mat.set_shader_parameter("dir2", dir2)
+
+	else:
+		# Restore original shader with its saved uniforms
+		if spr.material == _nitro_mat and _nitro_prev_material != null:
+			spr.material = _nitro_prev_material
+
+			# reapply saved uniforms (ensures car keeps its unique color)
+			if _prev_uniforms.size() > 0 and spr.material is ShaderMaterial:
+				for pname in _prev_uniforms.keys():
+					if spr.material.shader.has_param(pname):
+						spr.material.set_shader_parameter(pname, _prev_uniforms[pname])
+
+		_nitro_prev_material = null
+		_prev_uniforms.clear()
 
 func OnBumped(other: Node, strength_pxps: float, overlap_uv: float) -> void:
 	# lane shove (no ternary)
@@ -1347,3 +1460,66 @@ func _update_speed_tag() -> void:
 	_speed_tag.global_position = pos
 	_speed_tag.z_index = spr.z_index + 1
 	_speed_tag.visible = spr.visible
+
+func AI_CanNitro() -> bool:
+	return _nitro_charge >= AI_NITRO_MIN_FRAC
+
+func AI_SetNitroLatch(on: bool) -> void:
+	_nitro_latched = on
+
+func AI_IsNitroActive() -> bool:
+	return _nitro_timer > 0.0
+
+func _ai_straight_ahead_len(s_px: float) -> float:
+	var total := 0.0
+	var step := 24.0
+	var last := _tangent_at_distance(s_px)
+	while total < AI_NITRO_LOOKAHEAD_PX:
+		var t := _tangent_at_distance(s_px + total)
+		if last.dot(t) < AI_NITRO_DOT:   # bent too much → stop
+			break
+		total += step
+		last = t
+	return total
+
+func _ai_tick_nitro(dt: float) -> void:
+	# cooldown tick
+	_nitro_cd = max(0.0, _nitro_cd - dt)
+
+	# simple surface check: prefer ROAD (don’t waste nitro off-road)
+	var pos_px_i := _pos_px_from_mappos(ReturnMapPosition())
+	var rt_cur = _collisionHandler.ReturnCurrentRoadType(pos_px_i)
+	var on_good_surface = (rt_cur == Globals.RoadType.ROAD)
+
+	# --- NEW: require FULL gauge before considering nitro ---
+	var full_ready := (_nitro_charge >= 0.999)
+
+	# Decide whether to latch nitro ON this frame
+	if _nitro_timer <= 0.0 and _nitro_cd <= 0.0 and on_good_surface and full_ready:
+		var straight_px := _ai_straight_ahead_len(_s_px)
+		# scale runway requirement a bit with speed (faster -> need more)
+		var need = AI_NITRO_MIN_STRAIGHT_PX + clamp(_movementSpeed * 0.6, 0.0, 240.0)
+		if straight_px >= need:
+			_nitro_latched = true
+
+	# Drain / refill and set visuals
+	var drain = 1.0 / max(0.001, AI_NITRO_CAPACITY_S)
+	var refill = 1.0 / max(0.001, AI_NITRO_REFILL_S)
+
+	if _nitro_latched and _nitro_charge > 0.0:
+		_nitro_charge = max(0.0, _nitro_charge - drain * dt)
+		_nitro_timer = 1.0   # ON for shader this frame
+		# auto-drop when we run out
+		if _nitro_charge <= 0.0:
+			_nitro_latched = false
+			_nitro_cd = AI_NITRO_COOLDOWN_S
+	else:
+		_nitro_timer = 0.0
+		_nitro_latched = false
+		_nitro_charge = min(1.0, _nitro_charge + refill * dt)
+
+	# --- OUTPUT boost multiplier (per frame) ---
+	var out_mult := 1.0
+	if _nitro_timer > 0.0:
+		out_mult = max(out_mult, AI_NITRO_MULT)
+	SetOutputSpeedMultiplier(out_mult)

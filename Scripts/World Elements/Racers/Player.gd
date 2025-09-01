@@ -931,6 +931,7 @@ func _cancel_drift_no_award(settle_time: float) -> void:
 	_drift_charge = 0.0
 
 func _end_drift_with_award() -> void:
+	# End drift, but do not force sprite changes
 	_is_drifting = false
 	_emit_dust(false)
 	_emit_sparks(false)
@@ -939,8 +940,8 @@ func _end_drift_with_award() -> void:
 
 	# Award: smoothed boost + temporary cap headroom
 	if _drift_charge >= TURBO_THRESHOLD_BIG:
-		_turbo_timer = TURBO_TIME             # keeps headroom (via _compute_temp_cap)
-		_release_boost = TURBO_BIG_MULT - 1.0 # e.g. 0.32 → 1.32x then decays
+		_turbo_timer = TURBO_TIME             # keeps headroom
+		_release_boost = TURBO_BIG_MULT - 1.0 # temporary boost
 		_drift_release_timer = DRIFT_RELEASE_BURST_TIME
 		did_award = true
 		if _sfx and _sfx.has_method("play_boost"):
@@ -955,12 +956,8 @@ func _end_drift_with_award() -> void:
 	else:
 		_drift_release_timer = 0.0
 
-	_post_settle_time = POST_DRIFT_SETTLE_TIME
-	_lean_left_visual = (_drift_dir < 0)
+	# Reset drift charge regardless
 	_drift_charge = 0.0
-
-	# Reset any temporary manual multiplier writes
-	_speedMultiplier = 1.0
 
 func ReturnIsHopping() -> bool:
 	return false

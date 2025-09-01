@@ -4,7 +4,7 @@ uniform float intensity : hint_range(0.0, 1.0) = 0.0;   // live: 0..1
 uniform vec4  glow_color : source_color = vec4(0.55, 0.9, 1.0, 1.0);
 uniform float chroma_px  : hint_range(0.0, 6.0) = 0.0;  // pixels of chromatic shift
 uniform float outline_px : hint_range(0.0, 6.0) = 2.0;  // pixels for additive rim
-uniform float wave_speed = 2.2;                         // scan/wave speed
+uniform float wave_speed = 8.2;                         // scan/wave speed
 uniform vec2  dir2       = vec2(1.0, 0.0);              // forward in screen-UV space
 
 void fragment() {

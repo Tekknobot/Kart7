@@ -23,3 +23,5 @@ res://Scripts/World Elements/Racers/Racer.gd
 res://Scripts/World Elements/Racers/Opponent.gd
 res://Scripts/Shaders/NitroPulse.gdshader
 res://Scripts/RaceHUD.gd
+res://Scripts/RaceManager.gd
+res://Scripts/Shaders/OpponentNitroPulse.gdshader
