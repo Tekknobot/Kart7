@@ -334,21 +334,33 @@ func _ready() -> void:
 			s = int(Time.get_unix_time_from_system()) ^ get_instance_id()
 		ApplyRandomProfile(s, assume_player_target_speed)
 
+func _pos_px_from_mappos(p3: Vector3) -> Vector2i:
+	var x := p3.x
+	var z := p3.z
+	# If values look like UV, convert to pixels
+	if abs(x) <= 2.0 and abs(z) <= 2.0:
+		var S := _pos_scale_px()
+		x *= S
+		z *= S
+	return Vector2i(int(round(x)), int(round(z)))
+
+func _road_speed_mult(rt: int) -> float:
+	match rt:
+		Globals.RoadType.ROAD:     return mult_road
+		Globals.RoadType.GRAVEL:   return mult_gravel
+		Globals.RoadType.OFF_ROAD: return mult_offroad
+		Globals.RoadType.SINK:     return mult_sink
+		_:                         return 1.0
+
 func _process(delta: float) -> void:
 	if _uv_points.is_empty():
 		return
 	_try_cache_nodes()
 
-	# --- terrain sample at current position (for speed cap, like player) ---
 	var my3: Vector3 = ReturnMapPosition()
-	var rt_cur = _collisionHandler.ReturnCurrentRoadType(Vector2i(ceil(my3.x), ceil(my3.z)))
-	var terr_mult := 1.0
-	match rt_cur:
-		Globals.RoadType.ROAD:     terr_mult = mult_road
-		Globals.RoadType.GRAVEL:   terr_mult = mult_gravel
-		Globals.RoadType.OFF_ROAD: terr_mult = mult_offroad
-		Globals.RoadType.SINK:     terr_mult = mult_sink
-		_:                         terr_mult = 1.0
+	var pos_px_i := _pos_px_from_mappos(my3)
+	var rt_cur = _collisionHandler.ReturnCurrentRoadType(pos_px_i)
+	var terr_mult := _road_speed_mult(rt_cur)
 
 	# === GO edge-detect (start merge the first frame after GO) ===
 	var go_now := Globals.race_can_drive

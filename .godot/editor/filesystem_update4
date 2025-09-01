@@ -21,3 +21,5 @@ res://Scripts/World Elements/Pseudo3D.gd
 res://Scripts/General/Globals.gd
 res://Scripts/World Elements/Racers/Racer.gd
 res://Scripts/World Elements/Racers/Opponent.gd
+res://Scripts/Shaders/NitroPulse.gdshader
+res://Scripts/RaceHUD.gd

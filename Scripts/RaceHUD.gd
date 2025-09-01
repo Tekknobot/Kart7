@@ -22,6 +22,15 @@ var _player: Node = null
 var _timer := 0.0
 var _update_dt := 0.05
 
+@export var nitro_bar_path: NodePath
+@export var color_active:  Color = Color(0.40, 0.90, 1.00, 1.0)  # cyan glow-ish
+@export var color_low:     Color = Color(1.00, 0.70, 0.25, 1.0)  # orange
+@export var color_empty:   Color = Color(1.00, 0.25, 0.25, 1.0)  # red
+@export var color_fill:    Color = Color(0.45, 0.70, 1.00, 1.0)  # blue-ish while refilling
+@export var color_full:    Color = Color(0.35, 1.00, 0.55, 1.0)  # green when topped off
+
+var _bar: ProgressBar
+
 # --- Add these exports near the top ---
 @export_group("Fonts · Defaults")
 @export var default_font: Font
@@ -48,6 +57,7 @@ var _update_dt := 0.05
 @export var place_anim_time  := 0.35
 var _last_place: int = 0
 var _place_arrow: Label
+
 
 func _ready() -> void:
 	_update_dt = max(0.01, 1.0 / updates_per_second)
@@ -80,7 +90,14 @@ func _ready() -> void:
 	add_child(_place_arrow)
 	_place_arrow.global_position = place_lbl.global_position + Vector2(place_lbl.size.x + 8, 0)
 	
-
+	add_to_group("race_hud")  # optional: lets Player find us automatically
+	_bar = get_node_or_null(nitro_bar_path) as ProgressBar
+	if _bar:
+		_bar.min_value = 0.0
+		_bar.max_value = 1.0
+		_bar.value = 1.0
+		_bar.modulate = color_full
+		
 func _process(delta: float) -> void:
 	_timer += delta
 	if _timer >= _update_dt:
@@ -239,3 +256,20 @@ func _apply_font_to(label: Label, f: Font, sz: int) -> void:
 	var size_to_use := sz if sz > 0 else default_size
 	if size_to_use > 0:
 		label.add_theme_font_size_override("font_size", size_to_use)
+
+# level: 0..1, active: true while nitro is engaged (held/latched)
+func SetNitro(level: float, active: bool) -> void:
+	if _bar == null:
+		return
+	level = clamp(level, 0.0, 1.0)
+	_bar.value = level
+
+	# Simple color logic
+	if level <= 0.01:
+		_bar.modulate = color_empty
+	elif level <= 0.22:
+		_bar.modulate = (color_active if active else color_low)
+	elif level >= 0.999:
+		_bar.modulate = color_full
+	else:
+		_bar.modulate = (color_active if active else color_fill)

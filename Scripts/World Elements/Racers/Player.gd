@@ -2,19 +2,37 @@
 extends "res://Scripts/World Elements/Racers/Racer.gd"
 
 # === Controls & Drift/Hop Settings ===
-const HOP_DURATION := 0.18
-const HOP_HEIGHT := 10.0
-const HOP_SPEED_BOOST := 1.002
-
-const DRIFT_MIN_SPEED := 20.0
+const DRIFT_MIN_SPEED := 120.0
 const DRIFT_STEER_MULT := 1.65
 const DRIFT_SPEED_MULT := 0.92
 const DRIFT_BUILD_RATE := 28.0
 const TURBO_THRESHOLD_SMALL := 35.0
 const TURBO_THRESHOLD_BIG := 80.0
-const TURBO_SMALL_MULT := 1.16
-const TURBO_BIG_MULT := 1.32
+const TURBO_SMALL_MULT := 1.005
+const TURBO_BIG_MULT := 1.02
 const TURBO_TIME := 0.25
+
+# === Nitro (replaces hop) ===
+const NITRO_DURATION := 0.32          # same window length as old hop
+const NITRO_MULT := 1.002            # same tiny speed bump as old hop
+@export var NITRO_TEMP_CAP_FACTOR := 1.10  # brief headroom while nitro runs
+var _nitro_timer := 0.0
+
+@export var NITRO_AWARD_LATCH := true   # drift award locks nitro ON
+var _nitro_latched := false             # persists until you toggle it off
+
+# === Nitro gauge (hold-to-drain, release-to-refill) ===
+@export var NITRO_CAPACITY_S := 3.0      # seconds of continuous nitro from full
+@export var NITRO_REFILL_S   := 2.4      # seconds to refill from empty to full
+var _nitro_charge: float = 1.0           # 0..1 gauge
+
+# HUD hookup (set this to your RaceHUD node in the inspector)
+@export var hud_path: NodePath
+var _hud: Node = null
+
+@export var TERRAIN_DECAY_HALF_LIFE := 0.016   # slows down over ~0.18s when terrain gets worse
+@export var TERRAIN_RECOVER_HALF_LIFE := 0.008 # recovers a bit faster when terrain improves
+var _terrain_mult_s := 1.0                    # smoothed terrain multiplier
 
 var _turbo_pulse := 1.0
 var _hop_timer := 0.0
@@ -67,6 +85,9 @@ const POST_DRIFT_SETTLE_TIME_BREAK := 0.12
 # --- Brief cap headroom when drift starts (avoids hard clamp) ---
 @export var DRIFT_TEMP_CAP_FACTOR := 1.08
 const DRIFT_CAP_ENTRY_TIME := 0.40  # seconds of extra headroom after drift starts
+
+@export var RELEASE_BOOST_HALF_LIFE := 0.18   # seconds to halve the release boost
+var _release_boost := 0.0                     # extra multiplier above 1.0 that decays
 
 var _drift_cap_timer := 0.0
 
@@ -142,6 +163,15 @@ var _dust_base := -1
 # --- Per-entity collision size (used only when SpriteHandler.collision_radius_mode == 2)
 @export var collision_radius_px: float = 8.0  # try 6–12 px until it feels right
 
+@export var nitro_shader_path: String = "res://Scripts/Shaders/NitroPulse.gdshader"
+@export var nitro_glow_color: Color = Color(0.55, 0.9, 1.0, 1.0)
+@export var nitro_outline_px: float = 2.0
+@export var nitro_chroma_max_px: float = 3.0     # how far RGB splits at peak
+@export var nitro_intensity_max: float = 1.0     # cap the shader “strength”
+
+var _nitro_mat: ShaderMaterial = null
+var _nitro_prev_material: Material = null
+
 func ReturnCollisionRadiusUV() -> float:
 	# Convert the pixel radius to UV using your map’s real width.
 	var map_w := 1024.0
@@ -153,27 +183,31 @@ func ReturnCollisionRadiusUV() -> float:
 func _compute_temp_cap(base_cap: float) -> float:
 	var cap := base_cap
 
-	# raise cap only for the duration of the boost; we don't touch the saved base cap
+	# item headroom
 	if _item_boost_timer > 0.0:
 		var c := base_cap * ITEM_TEMP_CAP_FACTOR
 		if cap < c:
 			cap = c
+
+	# turbo headroom
 	if _turbo_timer > 0.0:
 		var c := base_cap * TURBO_TEMP_CAP_FACTOR
 		if cap < c:
 			cap = c
-	if _hop_timer > 0.0:
-		var c := base_cap * HOP_TEMP_CAP_FACTOR
+
+	# nitro (replaces hop) headroom
+	if _nitro_timer > 0.0:
+		var c := base_cap * NITRO_TEMP_CAP_FACTOR
 		if cap < c:
 			cap = c
 
-	# brief headroom when drift just started to avoid sudden clamp
+	# brief headroom after drift starts
 	if _drift_cap_timer > 0.0:
 		var c := base_cap * DRIFT_TEMP_CAP_FACTOR
 		if cap < c:
 			cap = c
 
-	# spin should never be fast — temporarily *lower* cap if spinning
+	# spin limits speed
 	if _is_spinning:
 		var c := base_cap * SPIN_SPEED_MULT
 		if cap > c:
@@ -257,10 +291,14 @@ func _ready() -> void:
 		push_error("Player.gd: sprite_graphic_path is not set or node missing: %s" % str(get("sprite_graphic_path")))
 		return
 
-	_prime_sprite_grid_once()   # <- ensure single frame, grid mode, no region
+	_prime_sprite_grid_once()
 	_base_sprite_offset_y = spr.offset.y
-	
 	add_to_group("racers")
+
+	# HUD link
+	_hud = get_node_or_null(hud_path)
+	if _hud == null:
+		_hud = get_tree().get_first_node_in_group("race_hud")  # optional group fallback
 
 func _process(_dt: float) -> void:
 	# publish camera/player position for pseudo-3D projection
@@ -439,9 +477,14 @@ func Setup(mapSize : int) -> void:
 func Update(mapForward : Vector3) -> void:
 	if _isPushedBack:
 		ApplyCollisionBump()
-
+	
 	var dt := get_process_delta_time()
 	_bump_sfx_cd = max(0.0, _bump_sfx_cd - dt)
+
+	# Smoothly decay the post-drift release boost
+	if _release_boost > 0.0:
+		var a := 1.0 - pow(0.5, dt / max(0.0001, RELEASE_BOOST_HALF_LIFE))
+		_release_boost = max(0.0, _release_boost - _release_boost * a)
 
 	if _drift_cap_timer > 0.0:
 		_drift_cap_timer = max(0.0, _drift_cap_timer - dt)
@@ -449,16 +492,14 @@ func Update(mapForward : Vector3) -> void:
 	if _post_spin_lock > 0.0:
 		_post_spin_lock = max(0.0, _post_spin_lock - dt)
 
+	# inputs
 	var input_vec := ReturnPlayerInput()
 
-	# build spin meter only while drifting
+	# spinout flow
 	_spinout_update_meter(dt, input_vec)
 	_spinout_tick(dt)
 
-	# --- Item boost trigger ---
-	if _item_cooldown_timer > 0.0:
-		_item_cooldown_timer = max(0.0, _item_cooldown_timer - dt)
-
+	# --- Item boost trigger (only item stuff lives here) ---
 	if Input.is_action_just_pressed("Item"):
 		if (not _is_spinning) and _item_cooldown_timer <= 0.0:
 			_item_boost_timer = ITEM_BOOST_TIME
@@ -466,17 +507,46 @@ func Update(mapForward : Vector3) -> void:
 			_emit_sparks(true)
 			_set_sparks_color(Color(0.6, 1.0, 0.4)) # greenish boost flash
 
-	# if spinning, block the hop/drift system entirely
+	# block drift/nitro while spinning
 	if not _is_spinning:
-		_handle_hop_and_drift(input_vec)
+		_handle_hop_and_drift(input_vec)  # drift + nitro (no hop)
 
-	# --- Timers decay (do NOT write _speedMultiplier here) ---
+	# Timers decay (non-nitro)
 	if _item_boost_timer > 0.0:
 		_item_boost_timer = max(0.0, _item_boost_timer - dt)
 	if _turbo_timer > 0.0:
 		_turbo_timer = max(0.0, _turbo_timer - dt)
 
-	# --- DRIFT side-slip feed (visual/feel), no change when spinning ---
+	# === Nitro: toggle/hold + gauge drain/refill (moved OUT of Item block) ===
+	var nitro_down := Input.is_action_pressed("Nitro")
+	var nitro_tap  := Input.is_action_just_pressed("Nitro")
+
+	# If latched from a drift award, a tap cancels the latch
+	if _nitro_latched and nitro_tap:
+		_nitro_latched = false
+
+	# Want nitro active this frame?
+	var want_active := (_nitro_latched or nitro_down) and not _is_spinning
+
+	var drain_rate  = 1.0 / max(0.001, NITRO_CAPACITY_S)
+	var refill_rate = 1.0 / max(0.001, NITRO_REFILL_S)
+
+	if want_active and _nitro_charge > 0.0:
+		_nitro_charge = max(0.0, _nitro_charge - drain_rate * dt)
+		_nitro_timer  = NITRO_DURATION  # keeps shader punchy
+		if _nitro_charge <= 0.0:
+			# empty → stop latch & let normal refill resume
+			_nitro_latched = false
+	else:
+		_nitro_charge = min(1.0, _nitro_charge + refill_rate * dt)
+		# let the short shader pulse fade out naturally
+		if _nitro_timer > 0.0:
+			_nitro_timer = max(0.0, _nitro_timer - dt)
+
+	_apply_nitro_fx(mapForward)
+	_push_nitro_hud()
+
+	# DRIFT side-slip feed (visual/feel), no change when spinning
 	var right_vec := Vector3(-mapForward.z, 0.0, mapForward.x).normalized()
 	if _is_drifting and not _is_spinning:
 		var speed := ReturnVelocity().length()
@@ -489,11 +559,11 @@ func Update(mapForward : Vector3) -> void:
 	else:
 		_drift_side_slip = lerp(_drift_side_slip, 0.0, clamp(dt * DRIFT_SLIP_DAMP, 0.0, 1.0))
 
-	# --- Predict next position for terrain sample & pre-move wall checks ---
+	# predict next pos
 	var nextPos : Vector3 = _mapPosition + ReturnVelocity()
 	var nextPixelPos : Vector2i = Vector2i(ceil(nextPos.x), ceil(nextPos.z))
 
-	# Simple axis wall resolution (keep what you had)
+	# wall checks
 	if _collisionHandler.IsCollidingWithWall(Vector2i(ceil(nextPos.x), ceil(_mapPosition.z))):
 		nextPos.x = _mapPosition.x 
 		SetCollisionBump(Vector3(-sign(ReturnVelocity().x), 0.0, 0.0))
@@ -506,47 +576,56 @@ func Update(mapForward : Vector3) -> void:
 		if _sfx and _sfx.has_method("play_collision"):
 			_sfx.play_collision()
 
-	# Apply drift side-slip after wall clamps
+	# apply drift side-slip after wall clamps
 	nextPos += right_vec * _drift_side_slip * dt
 
-	# --- TERRAIN FIRST: sets base multiplier from the ground under the kart ---
+	# TERRAIN (smoothed)
 	var curr_rt = _collisionHandler.ReturnCurrentRoadType(Vector2i(ceil(nextPos.x), ceil(nextPos.z)))
 	HandleRoadType(Vector2i(ceil(nextPos.x), ceil(nextPos.z)), curr_rt)
 
-	# --- BOOST SECOND: compute boost as a value; do not write the field here ---
-	var terrain_mult := _speedMultiplier
-	if terrain_mult <= 0.0:
-		terrain_mult = 1.0
+	var terrain_raw := _speedMultiplier
+	if terrain_raw <= 0.0:
+		terrain_raw = 1.0
 
+	var hl: float
+	if terrain_raw < _terrain_mult_s:
+		hl = TERRAIN_DECAY_HALF_LIFE
+	else:
+		hl = TERRAIN_RECOVER_HALF_LIFE
+
+	var a := 1.0 - pow(0.5, dt / max(0.0001, hl))
+	_terrain_mult_s = _terrain_mult_s + (terrain_raw - _terrain_mult_s) * a
+
+	# BOOST (separate from terrain)
 	var boost_mult := _recompute_speed_multiplier()
-	if boost_mult <= 0.0:
-		boost_mult = 1.0
 
-	# Let item boost offset rough terrain a bit (uses _speedMultiplier internally)
-	_speedMultiplier = terrain_mult
+	# combine
+	_speedMultiplier = _terrain_mult_s
 	_apply_item_terrain_comp(curr_rt)
-
-	# Apply one-frame turbo pulse (from drift release) AFTER terrain/item adjustments
-	boost_mult = boost_mult * _turbo_pulse
-	_turbo_pulse = 1.0  # consume pulse; only one frame
-
-	# Final multiplier (epsilon clamp)
-	_speedMultiplier = terrain_mult * boost_mult
+	_speedMultiplier = _terrain_mult_s * boost_mult
 	if _speedMultiplier < 0.01:
 		_speedMultiplier = 0.01
 
-	# --- Move with the final multiplier applied ---
+	# Move
 	SetMapPosition(nextPos)
 	UpdateMovementSpeed()
 	UpdateVelocity(mapForward)
 
-	# --- Visuals / sprite ---
-	_apply_hop_sprite_offset()
+	# Visuals / sprite
 	_choose_and_apply_frame(get_process_delta_time())
 	_wall_hit_cd = max(0.0, _wall_hit_cd - dt)
 
-	# >>> ADD THIS (runs every frame so dust/FX don’t “stick”) <<<
+	# dust/FX smoothing
 	_update_drift_dust_smoothing(dt)
+
+func _push_nitro_hud() -> void:
+	if _hud == null:
+		return
+	# active if timer > 0 (shader on) OR latched/held with charge remaining
+	var is_active := (_nitro_timer > 0.0) or (_nitro_latched and _nitro_charge > 0.0)
+	if _hud.has_method("SetNitro"):
+		# expects (level_0_1, active_bool) — see RaceHUD.gd below
+		_hud.call("SetNitro", _nitro_charge, is_active)
 
 func ReturnPlayerInput() -> Vector2:
 	var steer := Input.get_action_strength("Right") - Input.get_action_strength("Left")
@@ -575,23 +654,29 @@ func _handle_hop_and_drift(input_vec : Vector2) -> void:
 	var dt := get_process_delta_time()
 
 	# Inputs / gates
-	var hop_pressed := Input.is_action_just_pressed("Hop")
+	var nitro_down := Input.is_action_pressed("Nitro")            # HOLD to keep nitro alive
+	var nitro_just := Input.is_action_just_pressed("Nitro")       # only for arming drift / SFX once
 	var drift_down := Input.is_action_pressed("Drift")
 	var moving_fast := _movementSpeed >= DRIFT_MIN_SPEED
 	var steer_abs = abs(input_vec.x)
 	var steer_sign = sign(input_vec.x)
 
-	# Hop: opens a short "arm" window where drift can begin
-	if hop_pressed and not _is_drifting:
-		_hop_timer = HOP_DURATION
-		_hop_boost_timer = HOP_DURATION
+	_sfx.play_hop()
+	
+	# Nitro: HOLD keeps effect alive (timer is maintained in Update); first press arms drift
+	if nitro_just and not _is_drifting:
 		_drift_arm_timer = DRIFT_ARM_WINDOW
-		if _sfx != null and _sfx.has_method("play_hop"):
-			_sfx.play_hop()
-			
-	# decay timers
-	if _hop_boost_timer > 0.0:
-		_hop_boost_timer = max(0.0, _hop_boost_timer - dt)
+		if _sfx != null:
+			if _sfx.has_method("play_boost"):
+				_sfx.play_boost()
+			elif _sfx.has_method("play_hop"):
+				_sfx.play_hop()  # fallback sound if you want
+
+	# Safety: if held, seed the timer so visuals kick instantly; Update() will keep it high
+	if nitro_down:
+		_nitro_timer = NITRO_DURATION
+		
+	# decay arm timer
 	if _drift_arm_timer > 0.0:
 		_drift_arm_timer = max(0.0, _drift_arm_timer - dt)
 
@@ -602,33 +687,21 @@ func _handle_hop_and_drift(input_vec : Vector2) -> void:
 			dir = -1
 		_start_drift_snes(dir)
 
-	# While drifting: keep momentum, bias steering outward, build charge
+	# While drifting and holding drift
 	if _is_drifting and drift_down:
-		# Speed-neutral: do NOT touch _speedMultiplier here
-
-		# Outward bias (SMK feel): push input toward fixed target per drift side
+		# Outward bias (SMK feel)
 		var bias := float(_drift_dir) * DRIFT_MIN_TURN_BIAS
-		var clamped := bias
-		if clamped < -1.0:
-			clamped = -1.0
-		if clamped > 1.0:
-			clamped = 1.0
+		var clamped = clamp(bias, -1.0, 1.0)
 
 		# Grip toward target with a little smoothing
-		var grip_t := dt * (DRIFT_GRIP * 10.0)
-		if grip_t < 0.0:
-			grip_t = 0.0
-		if grip_t > 1.0:
-			grip_t = 1.0
+		var grip_t = clamp(dt * (DRIFT_GRIP * 10.0), 0.0, 1.0)
 		_inputDir.x = lerp(_inputDir.x, clamped * DRIFT_STEER_MULT, grip_t)
 
 		# Build drift charge faster with more steer pressure
 		var add = (0.75 + 0.25 * steer_abs) * DRIFT_BUILD_RATE * dt
-		_drift_charge += add
-		if _drift_charge < 0.0:
-			_drift_charge = 0.0
+		_drift_charge = max(0.0, _drift_charge + add)
 
-		# Cancel rules: reverse steer or let go too long — SMK quick-cancel feel
+		# Quick-cancel rules
 		if steer_sign != 0 and steer_sign == -_drift_dir and steer_abs >= DRIFT_REVERSE_BREAK:
 			_cancel_drift_no_award(POST_DRIFT_SETTLE_TIME_BREAK)
 		elif steer_abs < DRIFT_BREAK_DEADZONE:
@@ -638,7 +711,7 @@ func _handle_hop_and_drift(input_vec : Vector2) -> void:
 		else:
 			_drift_break_timer = 0.0
 
-	# Release: award mini-boost/turbo
+	# Release drift
 	if _is_drifting and not drift_down:
 		_end_drift_with_award()
 
@@ -671,30 +744,35 @@ func _start_drift_snes(dir: int) -> void:
 	_emit_sparks(false)
 
 func _register_default_actions() -> void:
-	# Ensure actions exist once (now includes RearView)
-	for action in ["Forward", "Left", "Right", "Brake", "Hop", "Drift", "Item", "RearView"]:
+	# Ensure actions exist once (now includes RearView + Nitro)
+	for action in ["Forward", "Left", "Right", "Brake", "Hop", "Drift", "Item", "RearView", "Nitro"]:
 		if not InputMap.has_action(action):
 			InputMap.add_action(action)
 
 	# Gamepad
 	var jb := InputEventJoypadButton.new()
+
+	# Forward: A
 	jb.button_index = JOY_BUTTON_A
 	InputMap.action_add_event("Forward", jb.duplicate())
-	jb.button_index = JOY_BUTTON_X
-	InputMap.action_add_event("Brake", jb.duplicate())
+
+	# Hop / Drift / Nitro: Right Shoulder (RB)
 	jb.button_index = JOY_BUTTON_RIGHT_SHOULDER
 	InputMap.action_add_event("Hop", jb.duplicate())
 	jb.button_index = JOY_BUTTON_RIGHT_SHOULDER
 	InputMap.action_add_event("Drift", jb.duplicate())
+	jb.button_index = JOY_BUTTON_RIGHT_SHOULDER
+	InputMap.action_add_event("Nitro", jb.duplicate())
 
+	# RearView: Left Shoulder (LB)
+	jb.button_index = JOY_BUTTON_LEFT_SHOULDER
+	InputMap.action_add_event("RearView", jb.duplicate())
+
+	# Left / Right: D-Pad
 	jb.button_index = JOY_BUTTON_DPAD_LEFT
 	InputMap.action_add_event("Left", jb.duplicate())
 	jb.button_index = JOY_BUTTON_DPAD_RIGHT
 	InputMap.action_add_event("Right", jb.duplicate())
-
-	# RearView (gamepad): Right Stick click (RS)
-	jb.button_index = JOY_BUTTON_RIGHT_STICK
-	InputMap.action_add_event("RearView", jb.duplicate())
 
 	# Keyboard
 	var ev: InputEventKey
@@ -713,9 +791,6 @@ func _register_default_actions() -> void:
 	ev = InputEventKey.new(); ev.keycode = KEY_D;       InputMap.action_add_event("Right", ev)
 	ev = InputEventKey.new(); ev.keycode = KEY_RIGHT;   InputMap.action_add_event("Right", ev)
 
-	# Hop: Space
-	ev = InputEventKey.new(); ev.keycode = KEY_SPACE;   InputMap.action_add_event("Hop", ev)
-
 	# Drift: Shift (both)
 	ev = InputEventKey.new(); ev.keycode = KEY_SHIFT;   InputMap.action_add_event("Drift", ev)
 
@@ -724,33 +799,15 @@ func _register_default_actions() -> void:
 	jb.button_index = JOY_BUTTON_B
 	InputMap.action_add_event("Item", jb.duplicate())
 
+	# Nitro: Space (uses the old Hop key)
+	ev = InputEventKey.new(); ev.keycode = KEY_SPACE;   InputMap.action_add_event("Nitro", ev)
+
 	# RearView (keyboard): TAB (hold to look back)
 	ev = InputEventKey.new(); ev.keycode = KEY_TAB;     InputMap.action_add_event("RearView", ev)
 
 func _apply_hop_sprite_offset() -> void:
-	var spr := ReturnSpriteGraphic()
-	if spr == null:
-		return  # sprite not ready yet; try next frame
-
-	# lazily capture the base offset once
-	if not _has_base_sprite_offset:
-		_base_sprite_offset_y = spr.offset.y
-		_has_base_sprite_offset = true
-
-	var dt: float = get_process_delta_time()
-
-	if _hop_timer > 0.0:
-		_hop_timer = max(0.0, _hop_timer - dt)
-		var t: float = clamp(1.0 - (_hop_timer / HOP_DURATION), 0.0, 1.0)
-		var y: float = sin(PI * t) * HOP_HEIGHT
-
-		var off: Vector2 = spr.offset
-		off.y = _base_sprite_offset_y - y
-		spr.offset = off
-	else:
-		var off: Vector2 = spr.offset
-		off.y = _base_sprite_offset_y
-		spr.offset = off
+	# intentionally empty — nitro has no visual bob
+	return
 
 func _try_get_node(path: String) -> Node:
 	if has_node(path):
@@ -857,21 +914,30 @@ func _end_drift_with_award() -> void:
 	_emit_dust(false)
 	_emit_sparks(false)
 
-	# Award: one-frame pulse + temporary cap headroom via _turbo_timer
+	var did_award := false
+
+	# Award: smoothed boost + temporary cap headroom
 	if _drift_charge >= TURBO_THRESHOLD_BIG:
-		_turbo_timer = TURBO_TIME
-		_turbo_pulse = TURBO_BIG_MULT
+		_turbo_timer = TURBO_TIME             # keeps headroom (via _compute_temp_cap)
+		_release_boost = TURBO_BIG_MULT - 1.0 # e.g. 0.32 → 1.32x then decays
 		_drift_release_timer = DRIFT_RELEASE_BURST_TIME
+		did_award = true
 		if _sfx and _sfx.has_method("play_boost"):
 			_sfx.play_boost()
 	elif _drift_charge >= TURBO_THRESHOLD_SMALL:
 		_turbo_timer = TURBO_TIME
-		_turbo_pulse = TURBO_SMALL_MULT
+		_release_boost = TURBO_SMALL_MULT - 1.0
 		_drift_release_timer = DRIFT_RELEASE_BURST_TIME * 0.75
+		did_award = true
 		if _sfx and _sfx.has_method("play_boost"):
 			_sfx.play_boost()
 	else:
 		_drift_release_timer = 0.0
+
+	# Latch Nitro ON when we got an award (until user cancels)
+	if did_award and NITRO_AWARD_LATCH:
+		_nitro_latched = true
+		_nitro_timer = NITRO_DURATION  # kick visuals immediately
 
 	_post_settle_time = POST_DRIFT_SETTLE_TIME
 	_lean_left_visual = (_drift_dir < 0)
@@ -881,7 +947,7 @@ func _end_drift_with_award() -> void:
 	_speedMultiplier = 1.0
 
 func ReturnIsHopping() -> bool:
-	return _hop_timer > 0.0
+	return false
 
 func ReturnIsDrifting() -> bool:
 	return _is_drifting
@@ -981,23 +1047,26 @@ func _finalize_move_with_item_comp(nextPos: Vector3, mapForward: Vector3) -> voi
 func _recompute_speed_multiplier() -> float:
 	var boost := 1.0
 
-	# Hop pop (subtle)
-	if _hop_timer > 0.0:
-		if HOP_SPEED_BOOST > boost:
-			boost = HOP_SPEED_BOOST
+	# Nitro micro-boost (replaces hop)
+	if _nitro_timer > 0.0:
+		if NITRO_MULT > boost:
+			boost = NITRO_MULT
 
-	# Item mushroom (sustained while timer runs)
+	# Item mushroom
 	if _item_boost_timer > 0.0:
 		if ITEM_BOOST_MULT > boost:
 			boost = ITEM_BOOST_MULT
-
-	# Drifting is speed-neutral; turbo multiplier is handled as a one-frame pulse,
-	# and cap headroom is handled in _compute_temp_cap via _turbo_timer.
 
 	# Spin is a hard cap
 	if _is_spinning:
 		if SPIN_SPEED_MULT < boost:
 			boost = SPIN_SPEED_MULT
+
+	# Smoothed drift-release bonus
+	if _release_boost > 0.0:
+		var b := 1.0 + _release_boost
+		if b > boost:
+			boost = b
 
 	return boost
 
@@ -1015,3 +1084,69 @@ func SetCollisionBump(bumpDir: Vector3) -> void:
 
 	_sfx.play_bump()
 	_bump_sfx_cd = BUMP_SFX_COOLDOWN_S
+
+func _ensure_nitro_material() -> void:
+	var sh := load(nitro_shader_path)
+	if sh == null:
+		push_warning("Nitro shader not found: " + nitro_shader_path)
+		return
+	if _nitro_mat == null:
+		_nitro_mat = ShaderMaterial.new()
+		_nitro_mat.shader = sh
+		# static defaults; live values updated per-frame
+		_nitro_mat.set_shader_parameter("glow_color", nitro_glow_color)
+		_nitro_mat.set_shader_parameter("outline_px", nitro_outline_px)
+		_nitro_mat.set_shader_parameter("chroma_px", 0.0)
+		_nitro_mat.set_shader_parameter("intensity", 0.0)
+		_nitro_mat.set_shader_parameter("dir2", Vector2(1, 0))
+
+func _apply_nitro_fx(mapForward: Vector3) -> void:
+	var spr := ReturnSpriteGraphic()
+	if spr == null:
+		return
+
+	# live 0..1 “how strong is nitro right now”
+	var live := 0.0
+	if NITRO_DURATION > 0.0:
+		live = clamp(_nitro_timer / NITRO_DURATION, 0.0, 1.0)
+
+	if live > 0.0:
+		# ensure material and attach if needed
+		_ensure_nitro_material()
+		if _nitro_mat == null:
+			return
+
+		if spr.material != _nitro_mat:
+			# remember what was there (so we can restore exactly)
+			if _nitro_prev_material == null:
+				_nitro_prev_material = spr.material
+			spr.material = _nitro_mat
+
+		# ease: quicker rise, gentle fall
+		var eased := pow(live, 0.5)  # 0..1 (sqrt for “punchy” start)
+		var inten = clamp(eased * nitro_intensity_max, 0.0, 1.0)
+		var chroma = nitro_chroma_max_px * inten
+
+		# forward in screen-UV space: use your mapForward (XZ → screen x,y sign)
+		# mapForward is already normalized in your Update() caller
+		var dir2 := Vector2(mapForward.x, mapForward.z)
+		if dir2.length() > 0.00001:
+			dir2 = dir2.normalized()
+		else:
+			dir2 = Vector2(1, 0)
+
+		# feed uniforms
+		_nitro_mat.set_shader_parameter("intensity", inten)
+		_nitro_mat.set_shader_parameter("chroma_px", chroma)
+		_nitro_mat.set_shader_parameter("dir2", dir2)
+	else:
+		# nitro ended: cleanly restore the original material exactly once
+		if spr.material == _nitro_mat:
+			if _nitro_prev_material != null:
+				spr.material = _nitro_prev_material
+			else:
+				spr.material = null
+		_nitro_prev_material = null
+
+func CancelNitro() -> void:
+	_nitro_latched = false
