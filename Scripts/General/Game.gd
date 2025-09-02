@@ -26,8 +26,9 @@ func _apply_character_selection() -> void:
 		choice = str(Globals.selected_racer)
 
 	var new_player: Node = _player
+	
+	_apply_selected_yoshi_shader_to_player()
 
-	# Swap scripts so chosen racer is the Player; others are Opponents.
 	for c in racers_root.get_children():
 		if not (c is Node2D):
 			continue
@@ -41,6 +42,30 @@ func _apply_character_selection() -> void:
 
 	if new_player:
 		_player = new_player
+
+		# Apply the selected color from Globals to the actual player sprite
+		if _player.has_method("RefreshPaletteFromGlobals"):
+			_player.RefreshPaletteFromGlobals()
+		else:
+			if _player.has_method("_ensure_yoshi_material"):
+				_player._ensure_yoshi_material()
+			if _player.has_method("_apply_player_palette_from_globals"):
+				_player._apply_player_palette_from_globals()
+
+		var spr = null
+		if _player.has_method("ReturnSpriteGraphic"):
+			spr = _player.ReturnSpriteGraphic()
+
+		if spr != null:
+			if spr.material is ShaderMaterial:
+				var sm := spr.material as ShaderMaterial
+				var shader_path := ""
+				if sm.shader != null:
+					shader_path = sm.shader.resource_path
+				print("Palette applied → racer=", Globals.selected_racer, " color=", Globals.selected_color, " shader=", shader_path)
+			else:
+				print("Palette via modulate → racer=", Globals.selected_racer, " color=", Globals.selected_color, " modulate=", spr.modulate)
+
 		# Update any node that has an exported `player_path` to point at the new player
 		_retarget_player_paths(get_tree().current_scene, _player)
 
@@ -48,7 +73,44 @@ func _apply_character_selection() -> void:
 		var hud := get_node_or_null(^"RaceHUD")
 		if hud:
 			hud.set("player_path", hud.get_path_to(_player))
-			hud.set("_player", _player) # RaceHUD caches this in _ready(); set it directly here.
+			hud.set("_player", _player)
+
+func _apply_selected_yoshi_shader_to_player() -> void:
+	if _player == null:
+		return
+
+	var spr = null
+	if _player.has_method("ReturnSpriteGraphic"):
+		spr = _player.ReturnSpriteGraphic()
+	if spr == null:
+		return
+
+	var sh_path := "res://Scripts/Shaders/YoshiSwap.gdshader"
+	if not ResourceLoader.exists(sh_path):
+		return
+
+	var sh := load(sh_path)
+	if sh == null:
+		return
+
+	var sm := ShaderMaterial.new()
+	sm.shader = sh
+	sm.resource_local_to_scene = true
+	spr.material = sm
+
+	var name_now := "Voltage"
+	if "selected_racer" in Globals:
+		name_now = String(Globals.selected_racer)
+
+	var col := Color.WHITE
+	if Globals.has_method("get_racer_color"):
+		col = Globals.get_racer_color(name_now)
+
+	# set your shader uniforms (matches your shader code)
+	sm.set_shader_parameter("target_color", col)
+	sm.set_shader_parameter("src_hue", 0.333333)
+	sm.set_shader_parameter("hue_tol", 0.08)
+	sm.set_shader_parameter("edge_soft", 0.20)
 
 func _has_prop(obj: Object, prop: StringName) -> bool:
 	for p in obj.get_property_list():

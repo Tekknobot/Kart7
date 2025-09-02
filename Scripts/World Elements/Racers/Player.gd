@@ -1214,29 +1214,83 @@ func CancelNitro() -> void:
 
 func _ensure_yoshi_material() -> void:
 	var spr := ReturnSpriteGraphic()
-	if spr == null: return
-	if !ResourceLoader.exists(yoshi_shader_path): _yoshi_mat = null; return
-	var sh := load(yoshi_shader_path) as Shader
-	if sh == null: return
+	if spr == null:
+		return
 
-	if _yoshi_mat == null:
-		_yoshi_mat = ShaderMaterial.new()
-		_yoshi_mat.shader = sh
-	# Don't stomp Nitro's temporary material
-	if spr.material != _nitro_mat and spr.material != _yoshi_mat:
-		spr.material = _yoshi_mat
+	# If Nitro is currently active, don't fight it here.
+	if spr.material == _nitro_mat:
+		return
+
+	# Try to use whatever is already on the sprite if it's a ShaderMaterial.
+	var sm: ShaderMaterial = null
+	if spr.material != null and spr.material is ShaderMaterial:
+		sm = spr.material as ShaderMaterial
+		# Make it unique to this scene so multiple racers don't share uniforms.
+		if !sm.resource_local_to_scene:
+			var dupe := sm.duplicate(true) as ShaderMaterial
+			dupe.resource_local_to_scene = true
+			spr.material = dupe
+			sm = dupe
+
+	# If there's no ShaderMaterial, create one with your Yoshi shader.
+	if sm == null:
+		if !ResourceLoader.exists(yoshi_shader_path):
+			return
+		var sh := load(yoshi_shader_path) as Shader
+		if sh == null:
+			return
+		sm = ShaderMaterial.new()
+		sm.shader = sh
+		sm.resource_local_to_scene = true
+		spr.material = sm
+
+	# Track the base material for sanity (not strictly required anymore).
+	_yoshi_mat = sm
 
 func _apply_player_palette_from_globals() -> void:
 	var spr := ReturnSpriteGraphic()
-	if spr == null: return
-	var col := Color.WHITE
-	if "selected_color" in Globals:
-		col = Globals.selected_color
+	if spr == null:
+		return
 
-	if _yoshi_mat != null:
-		_yoshi_mat.set_shader_parameter("target_color", col)
-		_yoshi_mat.set_shader_parameter("src_hue",     yoshi_source_hue)
-		_yoshi_mat.set_shader_parameter("hue_tol",     yoshi_tolerance)
-		_yoshi_mat.set_shader_parameter("edge_soft",   yoshi_edge_soft)
+	# Skip while Nitro's temp material is active; it'll restore our base later.
+	if spr.material == _nitro_mat:
+		return
+
+	# Get chosen name & color from Globals (no ternaries)
+	var name_now := "Voltage"
+	if "selected_racer" in Globals:
+		name_now = String(Globals.selected_racer)
+
+	var col := Color.WHITE
+	if Globals.has_method("get_racer_color"):
+		col = Globals.get_racer_color(name_now)
+
+	# Ensure our hue-swap material is actually on the sprite, then set uniforms
+	_ensure_yoshi_material()
+
+	var sm := spr.material
+	if sm != null and sm is ShaderMaterial and (sm as ShaderMaterial).shader != null:
+		var shmat := sm as ShaderMaterial
+		shmat.set_shader_parameter("target_color", col)
+		shmat.set_shader_parameter("src_hue",     yoshi_source_hue)
+		shmat.set_shader_parameter("hue_tol",     yoshi_tolerance)
+		shmat.set_shader_parameter("edge_soft",   yoshi_edge_soft)
 	else:
+		# Fallback tint if no shader
 		spr.modulate = col
+
+	# Debug (no ternaries)
+	if sm != null and sm is ShaderMaterial:
+		print("Player palette applied → ", name_now, " → ", col, " (shader)")
+	else:
+		print("Player palette applied → ", name_now, " → ", col, " (modulate=", spr.modulate, ")")
+
+
+func RefreshPaletteFromGlobals() -> void:
+	_ensure_yoshi_material()
+	_apply_player_palette_from_globals()
+
+func IsUsingNitroMaterial() -> bool:
+	var spr := ReturnSpriteGraphic()
+	if spr == null: return false
+	return spr.material == _nitro_mat
