@@ -1,0 +1,97 @@
+[gd_scene load_steps=18 format=3 uid="uid://c00id63cfavm2"]
+
+[ext_resource type="Script" uid="uid://bm73s7ojds8ud" path="res://Scripts/RacerButton.gd" id="1_i1aki"]
+[ext_resource type="Texture2D" uid="uid://dk78v6j7pkaou" path="res://Textures/Racers/PNG/Yoshi/Yoshi_Back_1.png" id="1_sglre"]
+[ext_resource type="Texture2D" uid="uid://bfog1copxys7y" path="res://Textures/Racers/PNG/Yoshi/Yoshi_Back_2.png" id="2_i1aki"]
+[ext_resource type="Texture2D" uid="uid://stlhr6gjgd1w" path="res://Textures/Racers/PNG/Yoshi/Yoshi_Back_3.png" id="3_o6hd4"]
+[ext_resource type="Texture2D" uid="uid://dtwcdaxhgmaqj" path="res://Textures/Racers/PNG/Yoshi/Yoshi_Back_4.png" id="4_u330m"]
+[ext_resource type="Texture2D" uid="uid://b553njduortb2" path="res://Textures/Racers/PNG/Yoshi/Yoshi_Back_5.png" id="5_r7mbh"]
+[ext_resource type="Texture2D" uid="uid://sjleicuqadjx" path="res://Textures/Racers/PNG/Yoshi/Yoshi_Back_6.png" id="6_iagx7"]
+[ext_resource type="Texture2D" uid="uid://b7kwrnoyi2b5j" path="res://Textures/Racers/PNG/Yoshi/Yoshi_Back_7.png" id="7_u6qbl"]
+[ext_resource type="Texture2D" uid="uid://1h3u4mwk4xfj" path="res://Textures/Racers/PNG/Yoshi/Yoshi_Back_8.png" id="8_p6xwy"]
+[ext_resource type="Texture2D" uid="uid://cxcgyala0xkg3" path="res://Textures/Racers/PNG/Yoshi/Yoshi_Back_9.png" id="9_3vfdl"]
+[ext_resource type="Texture2D" uid="uid://blsreg5uhotds" path="res://Textures/Racers/PNG/Yoshi/Yoshi_Back_10.png" id="10_uyn7w"]
+[ext_resource type="Texture2D" uid="uid://0xdw4c7c7fmb" path="res://Textures/Racers/PNG/Yoshi/Yoshi_Back_11.png" id="11_fmnf1"]
+[ext_resource type="Texture2D" uid="uid://b0q3wi23oovlf" path="res://Textures/Racers/PNG/Yoshi/Yoshi_Back_12.png" id="12_3c8tq"]
+[ext_resource type="FontFile" uid="uid://buw362wjb8o8d" path="res://Fonts/magofonts/mago2.ttf" id="13_uiqbj"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_i1aki"]
+bg_color = Color(0.6, 0.6, 0.6, 0)
+
+[sub_resource type="Theme" id="Theme_i1aki"]
+default_font = ExtResource("13_uiqbj")
+default_font_size = 16
+Button/styles/normal = SubResource("StyleBoxFlat_i1aki")
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_wct0q"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("1_sglre")
+}, {
+"duration": 1.0,
+"texture": ExtResource("2_i1aki")
+}, {
+"duration": 1.0,
+"texture": ExtResource("3_o6hd4")
+}, {
+"duration": 1.0,
+"texture": ExtResource("4_u330m")
+}, {
+"duration": 1.0,
+"texture": ExtResource("5_r7mbh")
+}, {
+"duration": 1.0,
+"texture": ExtResource("6_iagx7")
+}, {
+"duration": 1.0,
+"texture": ExtResource("7_u6qbl")
+}, {
+"duration": 1.0,
+"texture": ExtResource("8_p6xwy")
+}, {
+"duration": 1.0,
+"texture": ExtResource("9_3vfdl")
+}, {
+"duration": 1.0,
+"texture": ExtResource("10_uyn7w")
+}, {
+"duration": 1.0,
+"texture": ExtResource("11_fmnf1")
+}, {
+"duration": 1.0,
+"texture": ExtResource("12_3c8tq")
+}],
+"loop": true,
+"name": &"Rotate",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": ExtResource("8_p6xwy")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}]
+
+[node name="RacerButton" type="Button"]
+custom_minimum_size = Vector2(72, 72)
+offset_right = 64.0
+offset_bottom = 64.0
+theme = SubResource("Theme_i1aki")
+script = ExtResource("1_i1aki")
+
+[node name="Sprite" type="AnimatedSprite2D" parent="."]
+position = Vector2(35, 29)
+sprite_frames = SubResource("SpriteFrames_wct0q")
+autoplay = "default"
+
+[node name="Name" type="Label" parent="."]
+layout_mode = 2
+offset_top = 45.0
+offset_right = 72.0
+offset_bottom = 58.0
+theme_override_fonts/font = ExtResource("13_uiqbj")
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 1

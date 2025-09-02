@@ -1,0 +1,88 @@
+[gd_scene load_steps=5 format=3 uid="uid://bf3ednlls52qo"]
+
+[ext_resource type="Script" uid="uid://cwycjhep4wnxm" path="res://Scripts/CharacterSelect.gd" id="1_fxt7g"]
+[ext_resource type="FontFile" uid="uid://bav3dn0ajclr6" path="res://Fonts/vermin_vibes_1989.ttf" id="2_i0prf"]
+[ext_resource type="FontFile" uid="uid://csnhk3q4gx0" path="res://Fonts/magofonts/mago1.ttf" id="3_8da4y"]
+[ext_resource type="PackedScene" uid="uid://c00id63cfavm2" path="res://Scenes/RacerButton.tscn" id="3_i0prf"]
+
+[node name="CharacterSelect" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_fxt7g")
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="Center"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="GameTitle" type="Label" parent="Center/VBox"]
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.611765, 0, 0, 1)
+theme_override_fonts/font = ExtResource("2_i0prf")
+theme_override_font_sizes/font_size = 64
+text = "Formula Z"
+horizontal_alignment = 1
+
+[node name="Title" type="Label" parent="Center/VBox"]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_i0prf")
+theme_override_font_sizes/font_size = 32
+text = "Select Racer"
+horizontal_alignment = 1
+
+[node name="Grid" type="GridContainer" parent="Center/VBox"]
+layout_mode = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 2
+columns = 4
+
+[node name="RacerButton" parent="Center/VBox/Grid" instance=ExtResource("3_i0prf")]
+layout_mode = 2
+racer_name = &"Voltage"
+
+[node name="RacerButton2" parent="Center/VBox/Grid" instance=ExtResource("3_i0prf")]
+layout_mode = 2
+racer_name = &"Grip"
+
+[node name="RacerButton3" parent="Center/VBox/Grid" instance=ExtResource("3_i0prf")]
+layout_mode = 2
+racer_name = &"Torque"
+
+[node name="RacerButton4" parent="Center/VBox/Grid" instance=ExtResource("3_i0prf")]
+layout_mode = 2
+racer_name = &"Razor"
+
+[node name="RacerButton5" parent="Center/VBox/Grid" instance=ExtResource("3_i0prf")]
+layout_mode = 2
+racer_name = &"Havok"
+
+[node name="RacerButton6" parent="Center/VBox/Grid" instance=ExtResource("3_i0prf")]
+layout_mode = 2
+racer_name = &"Blitz"
+
+[node name="RacerButton7" parent="Center/VBox/Grid" instance=ExtResource("3_i0prf")]
+layout_mode = 2
+racer_name = &"Nitro"
+
+[node name="RacerButton8" parent="Center/VBox/Grid" instance=ExtResource("3_i0prf")]
+layout_mode = 2
+racer_name = &"Rogue"
+
+[node name="Back" type="Button" parent="Center/VBox"]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("3_8da4y")
+theme_override_font_sizes/font_size = 16
+text = "Back"

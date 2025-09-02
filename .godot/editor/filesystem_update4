@@ -14,3 +14,12 @@ res://default_bus_layout.tres
 res://Scripts/MusicManager.gd
 res://Scripts/World Elements/Racers/Opponent.gd
 res://Scripts/World Elements/Pseudo3D.gd
+res://Scripts/General/Globals.gd
+res://Scripts/TitleScreen.gd
+res://Scripts/CharacterSelect.gd
+res://Scripts/General/Game.gd
+res://Scenes/title.tscn
+res://Scenes/RacerButton.tscn
+res://Scenes/RacerButton.gd
+res://Scenes/CharacterSelect.tscn
+res://Scripts/RacerButton.gd
