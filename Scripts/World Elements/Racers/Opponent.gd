@@ -186,8 +186,27 @@ var _was_go: bool = false
 @export var speed_tag_offset_px: float = 6.0  # gap above the sprite
 @export var speed_tag_units: int = 0          # 0=px/s, 1=km/h, 2=mph
 @export var speed_tag_round: bool = true
-
 var _speed_tag: Label = null
+
+# --- Drift (AI) ---
+@export var DRIFT_MIN_SPEED: float = 60.0
+@export var DRIFT_CURV_START: float = 0.12
+@export var DRIFT_CURV_STOP: float  = 0.06
+@export var DRIFT_SPEED_MULT: float = 0.93
+@export var DRIFT_SLIP_MAX: float   = 40.0
+@export var DRIFT_SLIP_ACCEL: float = 90.0
+@export var DRIFT_RELEASE_S: float  = 0.20
+@export var DRIFT_CURV_ALPHA: float = 0.20   # smoothing factor for curvature [0..1]
+@export var DRIFT_SIGN_SAMPLE_PX: float = 48.0   # half-window for signed curvature
+
+var _is_drifting: bool = false
+var _drift_linger: float = 0.0
+var _drift_slip: float = 0.0
+var _drift_sign: float = 0.0      # +1 left turn, -1 right turn
+
+var _last_fwd: Vector2 = Vector2.RIGHT
+var _curv_ema: float = 0.0
+
 
 func _bname(n: Node) -> String:
 	return (n.name if n != null and "name" in n else str(n.get_instance_id()))
@@ -314,6 +333,8 @@ var DEFAULT_POINTS: PackedVector2Array = PackedVector2Array([
 
 # ---------------- lifecycle ----------------
 func _ready() -> void:
+	_last_fwd = Vector2.RIGHT.rotated(rotation)
+	
 	if _sfx_ai != null:
 		# Make sure the SFX script knows who to poll (speed, drift, road type)
 		if "player" in _sfx_ai:
@@ -326,6 +347,9 @@ func _ready() -> void:
 		
 	_try_cache_nodes()
 	_cache_path()
+
+	call_deferred("_ensure_wheel_anchors")
+	call_deferred("_ensure_skid_painter_for_me")
 
 	if ReturnSpriteGraphic() == null and has_node(^"GFX/AngleSprite"):
 		sprite_graphic_path = ^"GFX/AngleSprite"
@@ -463,6 +487,9 @@ func _process(delta: float) -> void:
 	# --- desired speed base ---
 	var desired_speed: float = target_speed
 
+	if _is_drifting:
+		desired_speed *= DRIFT_SPEED_MULT
+		
 	# --- apply nitro boost ---
 	if _nitro_timer > 0.0:
 		desired_speed *= AI_NITRO_MULT
@@ -543,6 +570,43 @@ func _process(delta: float) -> void:
 
 	if _hit_sfx_cd > 0.0:
 		_hit_sfx_cd = max(0.0, _hit_sfx_cd - delta)
+		
+	# === Drift sensing (central, smoothed, signed) ===
+	var ta: Vector2 = (_uv_and_tangent_smooth(_s_px - DRIFT_SIGN_SAMPLE_PX)["tan"] as Vector2)
+	var tb: Vector2 = (_uv_and_tangent_smooth(_s_px + DRIFT_SIGN_SAMPLE_PX)["tan"] as Vector2)
+
+	# signed turn: >0 = left, <0 = right
+	var drift_turn_sin: float = ta.x * tb.y - ta.y * tb.x
+	var drift_turn_sign: float = signf(drift_turn_sin)
+
+	# curvature magnitude in [0..~1], smoothed for stability
+	var drift_curv_raw: float = 1.0 - clampf(ta.dot(tb), -1.0, 1.0)
+	_curv_ema = lerpf(_curv_ema, drift_curv_raw, DRIFT_CURV_ALPHA)
+	var drift_curv: float = _curv_ema
+
+	# hysteresis gates
+	var want_drift: bool = (
+		drift_curv >= DRIFT_CURV_START
+		and _movementSpeed >= DRIFT_MIN_SPEED
+		and drift_turn_sign != 0.0
+	)
+
+	if want_drift:
+		_is_drifting = true
+		_drift_linger = DRIFT_RELEASE_S
+		_drift_sign = drift_turn_sign
+		var target_slip: float = DRIFT_SLIP_MAX * clampf(drift_curv, 0.0, 1.0)
+		_drift_slip = move_toward(_drift_slip, target_slip, DRIFT_SLIP_ACCEL * delta)
+	else:
+		_drift_linger = maxf(0.0, _drift_linger - delta)
+		if drift_curv <= DRIFT_CURV_STOP and _drift_linger <= 0.0:
+			_is_drifting = false
+		_drift_slip = move_toward(_drift_slip, 0.0, DRIFT_SLIP_ACCEL * delta)
+
+	# option A: wall-clock throttle (every ~250 ms)
+	if want_drift and int(Time.get_ticks_msec() / 250) % 2 == 0:
+		prints(name, "drift_curv=", String.num(drift_curv, 3), "speed=", int(_movementSpeed))
+
 	
 func _apply_dynamic_difficulty() -> void:
 	# Determine lap driving the difficulty
@@ -1182,6 +1246,10 @@ func _physics_step_like_player(p_uv: Vector2, right: Vector2, target_uv: Vector2
 	var v_side    := rgt * _lane_side_vel
 	var v_total   := v_forward + v_side
 
+	# Extra outward slide while drifting
+	if _is_drifting:
+		v_total += rgt * (_drift_slip * _drift_sign)
+		
 	# predict, axis-resolve like Player
 	var nextPos := _mapPosition + Vector3(v_total.x, 0.0, v_total.y) * dt
 
@@ -1230,6 +1298,7 @@ func _physics_step_like_player(p_uv: Vector2, right: Vector2, target_uv: Vector2
 	# UpdateMovementSpeed()   # keep this disabled for AI
 	var mapForward := Vector3(fwd.x, 0.0, fwd.y)
 	UpdateVelocity(mapForward)
+
 
 func _ensure_nitro_material() -> void:
 	if _nitro_mat != null:
@@ -1543,3 +1612,60 @@ func _has_collision_api() -> bool:
 	return _collisionHandler != null \
 		and _collisionHandler.has_method("IsCollidingWithWall") \
 		and _collisionHandler.has_method("ReturnCurrentRoadType")
+
+func ReturnIsDrifting() -> bool:
+	return _is_drifting
+
+func _ensure_wheel_anchors() -> void:
+	var rte := get_node_or_null(^"Road Type Effects")
+	if rte == null:
+		rte = Node2D.new()
+		rte.name = "Road Type Effects"
+		add_child(rte)
+	if rte.get_node_or_null("LeftWheel") == null:
+		var lw := Node2D.new()
+		lw.name = "LeftWheel"
+		lw.position = Vector2(-26, 20)  # tweak later to match sprite
+		rte.add_child(lw)
+	if rte.get_node_or_null("RightWheel") == null:
+		var rw := Node2D.new()
+		rw.name = "RightWheel"
+		rw.position = Vector2(26, 20)
+		rte.add_child(rw)
+
+func _ensure_skid_painter_for_me() -> void:
+	# Find the overlay SubViewport (adjust name if yours differs)
+	var root := get_tree().root
+	var svp := root.find_child("SubViewport", true, false)
+	if svp == null:
+		push_warning("Skids: SubViewport not found; cannot attach painter.")
+		return
+
+	var node_name := "Skids_%s" % name
+	if svp.has_node(node_name):
+		return
+
+	# Create painter
+	var painter := Node2D.new()
+	painter.name = node_name
+	painter.set_script(load("res://Scripts/SkidMarkPainter2D.gd"))
+	svp.add_child(painter)
+
+	# Wire dependencies
+	var p3d := _p3d_node()
+	if p3d == null:
+		push_warning("Skids: pseudo3d_ref not set; painter may not draw.")
+	else:
+		painter.set("pseudo3d_path", painter.get_path_to(p3d))
+	painter.set("player_path", painter.get_path_to(self))
+
+	# Sensible defaults (match your overlay look)
+	painter.set("width_px", 0.6)
+	painter.set("min_segment_px", 1.0)
+	painter.set("draw_while_drifting", true)
+	painter.set("draw_while_offroad", true)
+
+	# Quick visibility sanity
+	var lw := get_node_or_null(^"Road Type Effects/LeftWheel")
+	var rw := get_node_or_null(^"Road Type Effects/RightWheel")
+	prints("[Skids] Attached painter for", name, "LW?", lw != null, "RW?", rw != null)

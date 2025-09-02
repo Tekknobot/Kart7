@@ -308,7 +308,8 @@ func _finalize_ai_grid_spawn() -> void:
 		_map.call("SetOpponentsFromGroup", "racers", _player)
 		
 	_update_hud_name_color()	
-
+	call_deferred("_attach_skids_to_opponents") 
+	
 # Place every Opponent child at Opponent.DEFAULT_POINTS[i] (pixels).
 func _place_opponents_from_defaults_post() -> void:
 	var racers_root := get_node_or_null(racers_root_path)
@@ -587,3 +588,35 @@ func _update_hud_name_color() -> void:
 	if lbl != null:
 		lbl.text = String(Globals.selected_racer).to_upper()
 		lbl.add_theme_color_override("font_color", Globals.selected_color)
+
+func _attach_skids_to_opponents() -> void:
+	var svp := get_node_or_null(^"SubViewport")
+	var map := get_node_or_null(^"Map")
+	var racers_root := get_node_or_null(^"Sprite Handler/Racers")
+	if svp == null or map == null or racers_root == null:
+		return
+
+	# Clear any old painters
+	for n in svp.get_children():
+		if n.name.begins_with("Skids_"):
+			n.queue_free()
+
+	await get_tree().process_frame # ensure opponents exist in the tree
+
+	for r in racers_root.get_children():
+		if r == _player:
+			continue
+		var painter := Node2D.new()
+		painter.name = "Skids_%s" % r.name
+		painter.set_script(load("res://Scripts/SkidMarkPainter2D.gd"))
+		svp.add_child(painter)
+
+		# Wire relative paths now that it's in-tree
+		painter.pseudo3d_path = painter.get_path_to(map)
+		painter.player_path   = painter.get_path_to(r)
+
+		# Tweak look (matches your PathOverlay2D tuning)
+		painter.width_px = 0.6
+		painter.min_segment_px = 1.0
+		painter.draw_while_drifting = true
+		painter.draw_while_offroad  = true
