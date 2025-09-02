@@ -10,51 +10,54 @@ extends Control
 const DEFAULT_RACERS := [
 	"Voltage","Grip","Torque","Razor","Havok","Blitz","Nitro","Rogue"
 ]
+# Use hex ints so this can be const (convert to Color when used)
+const RACER_COLOR_HEX := {
+	"Voltage": 0xFFD54DFF,
+	"Grip":    0x66BB6AFF,
+	"Torque":  0xFF8A65FF,
+	"Razor":   0xEF5350FF,
+	"Havok":   0xAB47BCFF,
+	"Blitz":   0x42A5F5FF,
+	"Nitro":   0x76FF03FF,
+	"Rogue":   0x26C6DAFF
+}
 
-func _ready() -> void:	
+func _ready() -> void:
 	if grid == null:
 		push_error("CharacterSelect: Grid not found at Center/VBox/Grid.")
 		return
 
-	# --- Style ONLY the title label ---
+	# Style only the title
 	if select_title:
-		_style_label(
-			select_title,
-			28,
-			Color.hex(0xFFFFFFFF),  # white text
-			2,
-			Color(0,0,0,0.90),      # dark outline
-			Vector2(2,2),           # shadow offset
-			Color(0,0,0,0.55)       # shadow color
-		)
+		_style_label(select_title, 28, Color.hex(0xFFFFFFFF), 2, Color(0,0,0,0.90), Vector2(2,2), Color(0,0,0,0.55))
 		_pulse(select_title, 1.03, 0.8)
 
 	var names: Array = DEFAULT_RACERS
 	if _has_prop(Globals, "racer_names"):
 		names = Array(Globals.racer_names)
 
-	# Assign names (if an instance didn't set racer_name) and connect pressed
+	# Assign names, apply tint to each button, and connect with bound name
 	var i := 0
 	for child in grid.get_children():
 		if child is RacerButton:
 			var nm := String(child.racer_name)
 			if nm == "" and names.size() > 0:
 				nm = names[i % names.size()]
-				child.racer_name = StringName(nm)  # RacerButton updates its own label
-			child.pressed.connect(func(n := nm): _choose(n))
+				child.set_racer_name(StringName(nm))  # updates label + color
+			else:
+				child.refresh_from_globals()          # ensure tint matches Globals
+			child.pressed.connect(Callable(self, "_on_racer_pressed").bind(nm))
 			i += 1
+
 
 	if back_btn:
 		back_btn.pressed.connect(_back)
 
 	_focus_first_racer()
 
-func _choose(name: String) -> void:
+func _on_racer_pressed(name: String) -> void:
 	if Globals.has_method("set_selected_racer"):
-		Globals.set_selected_racer(name)
-	elif _has_prop(Globals, "selected_racer"):
-		Globals.selected_racer = name
-
+		Globals.set_selected_racer(name)  # also sets Globals.selected_color
 	var err := get_tree().change_scene_to_file(main_scene_path)
 	if err != OK:
 		push_error("Could not load main scene at: %s" % main_scene_path)
@@ -76,8 +79,7 @@ func _has_prop(obj: Object, prop: StringName) -> bool:
 			return true
 	return false
 
-# --------- helpers (positional args; 4.4.1-safe) ---------
-
+# ---- helpers (4.4.1-safe) ----
 func _style_label(l: Label, font_size: int, font_col: Color, outline_size: int, outline_col: Color, shadow_off: Vector2, shadow_col: Color) -> void:
 	var ls := LabelSettings.new()
 	ls.font_size = font_size

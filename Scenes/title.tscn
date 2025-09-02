@@ -47,6 +47,7 @@ text = "Formula Z"
 [node name="Subtitle" type="Label" parent="Center/VBox"]
 layout_mode = 2
 theme_override_fonts/font = ExtResource("3_2qdx2")
+theme_override_font_sizes/font_size = 32
 text = "Mode 7 Racer"
 
 [node name="Start" type="Button" parent="Center/VBox"]

@@ -21,6 +21,36 @@ func set_camera_map_position(p: Vector2) -> void:
 func get_camera_map_position() -> Vector2:
 	return _camera_map_pos
 
-func set_selected_racer(name: String) -> void:
-	if name in racer_names:
-		selected_racer = name
+# --- Racer color map (hex ints -> Color.hex) ---
+const RACER_COLOR_HEX := {
+	"Voltage": 0xFFD54DFF, # gold
+	"Grip":    0x66BB6AFF, # green
+	"Torque":  0xFF8A65FF, # orange
+	"Razor":   0xEF5350FF, # red
+	"Havok":   0xAB47BCFF, # purple
+	"Blitz":   0x42A5F5FF, # blue
+	"Nitro":   0x76FF03FF, # neon lime
+	"Rogue":   0x26C6DAFF  # cyan
+}
+
+var selected_color: Color = Color.WHITE
+
+func get_racer_color(name: String) -> Color:
+	if RACER_COLOR_HEX.has(name):
+		return Color.hex(int(RACER_COLOR_HEX[name]))
+	return Color.WHITE
+
+
+const RACER_COLOR_NAME := {
+	"Voltage": "Gold",
+	"Grip":    "Green",
+	"Torque":  "Orange",
+	"Razor":   "Red",
+	"Havok":   "Purple",
+	"Blitz":   "Blue",
+	"Nitro":   "Lime",
+	"Rogue":   "Cyan"
+}
+
+func get_racer_color_name(name: String) -> String:
+	return RACER_COLOR_NAME.get(name, "White")

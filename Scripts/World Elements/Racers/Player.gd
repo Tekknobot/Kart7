@@ -175,6 +175,13 @@ var _dust_base := -1
 var _nitro_mat: ShaderMaterial = null
 var _nitro_prev_material: Material = null
 
+# --- Character color (Yoshi-style hue swap) ---
+@export_file("*.gdshader") var yoshi_shader_path: String = "res://Scripts/Shaders/YoshiSwap.gdshader"
+@export var yoshi_source_hue: float = 0.333333
+@export var yoshi_tolerance: float = 0.08
+@export var yoshi_edge_soft: float = 0.20
+var _yoshi_mat: ShaderMaterial = null
+
 func ReturnCollisionRadiusUV() -> float:
 	# Convert the pixel radius to UV using your map’s real width.
 	var map_w := 1024.0
@@ -297,6 +304,10 @@ func _ready() -> void:
 	_prime_sprite_grid_once()
 	_base_sprite_offset_y = spr.offset.y
 	add_to_group("racers")
+
+	# --- Apply selected racer color from Globals ---
+	_ensure_yoshi_material()
+	_apply_player_palette_from_globals()
 
 	# HUD link
 	_hud = get_node_or_null(hud_path)
@@ -1200,3 +1211,32 @@ func _apply_nitro_fx(mapForward: Vector3) -> void:
 
 func CancelNitro() -> void:
 	_nitro_latched = false
+
+func _ensure_yoshi_material() -> void:
+	var spr := ReturnSpriteGraphic()
+	if spr == null: return
+	if !ResourceLoader.exists(yoshi_shader_path): _yoshi_mat = null; return
+	var sh := load(yoshi_shader_path) as Shader
+	if sh == null: return
+
+	if _yoshi_mat == null:
+		_yoshi_mat = ShaderMaterial.new()
+		_yoshi_mat.shader = sh
+	# Don't stomp Nitro's temporary material
+	if spr.material != _nitro_mat and spr.material != _yoshi_mat:
+		spr.material = _yoshi_mat
+
+func _apply_player_palette_from_globals() -> void:
+	var spr := ReturnSpriteGraphic()
+	if spr == null: return
+	var col := Color.WHITE
+	if "selected_color" in Globals:
+		col = Globals.selected_color
+
+	if _yoshi_mat != null:
+		_yoshi_mat.set_shader_parameter("target_color", col)
+		_yoshi_mat.set_shader_parameter("src_hue",     yoshi_source_hue)
+		_yoshi_mat.set_shader_parameter("hue_tol",     yoshi_tolerance)
+		_yoshi_mat.set_shader_parameter("edge_soft",   yoshi_edge_soft)
+	else:
+		spr.modulate = col
