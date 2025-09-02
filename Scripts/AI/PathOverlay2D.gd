@@ -76,6 +76,38 @@ var _follow_dirty := true                    # rebuild segments when points/tran
 var _dot_last_px := Vector2.INF               # cached last drawn pixel position
 var _dot_accum := 0.0                         # throttle accumulator
 
+# --- Skid marks (overlay painting) -------------------------------------------
+@export_category("Skid Marks")
+@export var skids_enabled := true
+@export var skid_draw_while_drifting := true
+@export var skid_draw_while_offroad := true
+@export var skid_width_px: float = 3.0
+@export var skid_min_segment_px: float = 2.0
+@export var skid_fade_seconds: float = 0.0   # 0 = permanent
+@export var skid_color_drift: Color = Color(0, 0, 0, 0.55)
+@export var skid_color_offroad: Color = Color(0, 0, 0, 0.40)
+
+# Bindings (set from your world after spawning)
+@export var player_path: NodePath           # Racer prefab instance (root)
+@export var pseudo3d_path: NodePath         # the Sprite2D running Pseudo3D.gd
+
+# Internals
+var _player_ref: Node = null
+var _map_ref: Sprite2D = null
+var _wheel_nodes: Array[Node2D] = [null, null, null, null]  # FL, FR, RL, RR
+
+# one active stroke per wheel
+var _skid_curr_pts: Array[PackedVector2Array] = [
+	PackedVector2Array(), PackedVector2Array(), PackedVector2Array(), PackedVector2Array()
+]
+var _skid_curr_col: Array[Color] = [Color(), Color(), Color(), Color()]
+var _skid_is_active: Array[bool] = [false, false, false, false]
+
+# completed strokes (per wheel): [{pts:PackedVector2Array, col:Color, age:float}, ...]
+var _skid_strokes: Array = [[], [], [], []]
+
+@export var draw_path := false          # leave false = only skids
+
 # =========================
 # Lifecycle
 # =========================
@@ -97,6 +129,11 @@ func _ready() -> void:
 			if debug: prints("[Overlay] SubViewport size was 0x0; set to", svp.size)
 		_screen_size = Vector2(svp.size)
 		if debug: prints("[Overlay] Using SubViewport size:", _screen_size)
+
+	# --- Skids wiring ---
+	_player_ref = get_node_or_null(player_path)
+	_map_ref = get_node_or_null(pseudo3d_path) as Sprite2D
+	_try_autowire_wheels()
 
 	queue_redraw()
 
@@ -162,16 +199,13 @@ func set_world_and_screen(m: Basis, screen_size: Vector2) -> void:
 # Drawing
 # =========================
 func _draw() -> void:
-	var n := points.size()
-	if n < 2:
-		if debug:
-			draw_line(Vector2(0,0), Vector2(64,0), Color(0,1,0,0.9), 6, true)
-			draw_line(Vector2(0,0), Vector2(0,64), Color(0,1,0,0.9), 6, true)
-		return
+	# (optional) allow re-enabling path in the editor
+	if draw_path and points.size() >= 2:
+		_draw_uv_space(points)
 
-	# Always draw in UV/texture space (pixels), since shader samples with projectedUV
-	_draw_uv_space(points)
-
+	# always draw skid marks (completed + active)
+	_draw_skids()
+	
 func _draw_uv_space(pts: PackedVector2Array) -> void:
 	# Optionally apply rotation/flip/scale around texture center in PIXEL space:
 	var ready = _apply_px_transforms(pts)
@@ -453,3 +487,231 @@ func _process(dt: float) -> void:
 
 	if changed:
 		queue_redraw()
+		
+	# --- Skids update ---
+	_update_skids(dt)
+
+# ---------- Skids: runtime update & drawing ----------------------------------
+
+func _update_skids(dt: float) -> void:
+	if not skids_enabled:
+		return
+
+	# late-bind if needed (prefab may spawn after _ready)
+	if _player_ref == null:
+		_player_ref = get_node_or_null(player_path)
+	if _map_ref == null:
+		_map_ref = get_node_or_null(pseudo3d_path) as Sprite2D
+	if not _has_all_wheels():
+		_try_autowire_wheels()
+
+	if _player_ref == null or _map_ref == null or not _has_all_wheels():
+		return
+
+	# should we paint this frame?
+	var rt := _get_rt()
+	var drifting := _get_drifting()
+	var should_draw := false
+	if skid_draw_while_drifting and drifting:
+		should_draw = true
+	elif skid_draw_while_offroad and _is_offroadish(rt):
+		should_draw = true
+	if rt == Globals.RoadType.SINK or rt == Globals.RoadType.WALL:
+		should_draw = false
+
+	# Age & GC old strokes
+	if skid_fade_seconds > 0.0:
+		for wi in range(4):
+			var kept := []
+			for d in _skid_strokes[wi]:
+				d["age"] = float(d.get("age", 0.0)) + dt
+				if d["age"] < skid_fade_seconds:
+					kept.append(d)
+			_skid_strokes[wi] = kept
+
+	# For each wheel, sample → UV → overlay px → append/end stroke
+	var ov_px_size := pos_scale_px   # overlay coordinate system is 0..pos_scale_px
+	for wi in range(4):
+		var w := _wheel_nodes[wi]
+		if w == null:
+			_end_stroke(wi)
+			continue
+
+		# screen px (global) -> map UV (0..1) -> overlay px
+		var screen_px: Vector2 = w.global_position
+		var muv := _screen_px_to_map_uv(screen_px)
+		if not muv.is_finite():
+			_end_stroke(wi)
+			continue
+
+		# clamp to [0..1]
+		if muv.x < 0.0 or muv.x > 1.0 or muv.y < 0.0 or muv.y > 1.0:
+			_end_stroke(wi)
+			continue
+
+		var ov_px := Vector2(muv.x * ov_px_size, muv.y * ov_px_size)
+
+		if should_draw:
+			_append_skid_point(wi, ov_px, drifting)
+		else:
+			_end_stroke(wi)
+
+	# redraw only when we changed something (cheap heuristic: always ok)
+	queue_redraw()
+
+
+func _append_skid_point(wi: int, px: Vector2, drifting: bool) -> void:
+	# start stroke if needed
+	if not _skid_is_active[wi]:
+		_skid_is_active[wi] = true
+		if drifting:
+			_skid_curr_col[wi] = skid_color_drift
+		else:
+			_skid_curr_col[wi] = skid_color_offroad
+		_skid_curr_pts[wi] = PackedVector2Array()
+
+	var pts := _skid_curr_pts[wi]
+	if pts.size() == 0 or pts[pts.size() - 1].distance_to(px) >= skid_min_segment_px:
+		pts.append(px)
+		_skid_curr_pts[wi] = pts
+
+
+func _end_stroke(wi: int) -> void:
+	if not _skid_is_active[wi]:
+		return
+	var pts := _skid_curr_pts[wi]
+	if pts.size() >= 2:
+		_skid_strokes[wi].append({
+			"pts": pts,
+			"col": _skid_curr_col[wi],
+			"age": 0.0
+		})
+	# reset
+	_skid_curr_pts[wi] = PackedVector2Array()
+	_skid_is_active[wi] = false
+
+
+func _draw_skids() -> void:
+	# draw completed strokes
+	for wi in range(4):
+		for d in _skid_strokes[wi]:
+			var col: Color = d["col"]
+			if skid_fade_seconds > 0.0:
+				var k = clamp(1.0 - float(d["age"]) / skid_fade_seconds, 0.0, 1.0)
+				col.a *= k
+			_draw_polyline_px(d["pts"], col, skid_width_px)
+	# draw active strokes
+	for wi in range(4):
+		if _skid_is_active[wi] and _skid_curr_pts[wi].size() >= 2:
+			_draw_polyline_px(_skid_curr_pts[wi], _skid_curr_col[wi], skid_width_px)
+
+
+func _draw_polyline_px(pts: PackedVector2Array, col: Color, width: float) -> void:
+	for i in range(pts.size() - 1):
+		draw_line(pts[i], pts[i + 1], col, width, true)
+
+
+# ---------- Wheel discovery under the player's RoadEffects child ---------------
+
+func _has_all_wheels() -> bool:
+	for w in _wheel_nodes:
+		if w == null:
+			return false
+	return true
+
+func _try_autowire_wheels() -> void:
+	if _player_ref == null:
+		return
+	var re := _find_road_effects_node(_player_ref)
+	if re == null:
+		return
+
+	# Preferred names
+	if _wheel_nodes[0] == null: _wheel_nodes[0] = _find_first_of(re, ["FrontLeftWheel","FrontLeft","WheelFL","FL"])  as Node2D
+	if _wheel_nodes[1] == null: _wheel_nodes[1] = _find_first_of(re, ["FrontRightWheel","FrontRight","WheelFR","FR"]) as Node2D
+	if _wheel_nodes[2] == null: _wheel_nodes[2] = _find_first_of(re, ["RearLeftWheel","RearLeft","WheelRL","RL"])     as Node2D
+	if _wheel_nodes[3] == null: _wheel_nodes[3] = _find_first_of(re, ["RearRightWheel","RearRight","WheelRR","RR"])   as Node2D
+
+	# Fallback: Left/Right duplicated to front & rear
+	if _wheel_nodes[0] == null or _wheel_nodes[2] == null:
+		var lw := _find_first_of(re, ["LeftWheel","WheelLeft","LeftWheelSpecial"]) as Node2D
+		if lw != null:
+			if _wheel_nodes[0] == null: _wheel_nodes[0] = lw
+			if _wheel_nodes[2] == null: _wheel_nodes[2] = lw
+	if _wheel_nodes[1] == null or _wheel_nodes[3] == null:
+		var rw := _find_first_of(re, ["RightWheel","WheelRight","RightWheelSpecial"]) as Node2D
+		if rw != null:
+			if _wheel_nodes[1] == null: _wheel_nodes[1] = rw
+			if _wheel_nodes[3] == null: _wheel_nodes[3] = rw
+
+
+func _find_road_effects_node(root: Node) -> Node:
+	var n := root.get_node_or_null("RoadEffects")
+	if n != null: return n
+	n = root.get_node_or_null("Road Type Effects")
+	if n != null: return n
+	var hit := root.find_child("RoadEffects", true, false)
+	if hit != null: return hit
+	return root.find_child("Road Type Effects", true, false)
+
+
+func _find_first_of(parent: Node, names: Array[String]) -> Node:
+	for nm in names:
+		var n := parent.get_node_or_null(nm)
+		if n != null:
+			return n
+		var deep := parent.find_child(nm, true, false)
+		if deep != null:
+			return deep
+	return null
+
+
+# ---------- Player state helpers ----------------------------------------------
+
+func _get_rt() -> int:
+	if _player_ref != null and _player_ref.has_method("ReturnOnRoadType"):
+		return int(_player_ref.call("ReturnOnRoadType"))
+	return -1
+
+func _get_drifting() -> bool:
+	if _player_ref != null and _player_ref.has_method("ReturnIsDrifting"):
+		return bool(_player_ref.call("ReturnIsDrifting"))
+	return false
+
+func _is_offroadish(rt: int) -> bool:
+	return rt == Globals.RoadType.OFF_ROAD or rt == Globals.RoadType.GRAVEL
+
+
+# ---------- Project wheel screen → map UV using your world matrix --------------
+
+func _screen_px_to_map_uv(screen_px: Vector2) -> Vector2:
+	# Convert the wheel's screen/global pixel into the Pseudo3D sprite's local UV,
+	# then apply the SAME projective transform the shader uses: projectedUV = (M * (uv-0.5,1)).xy / z
+	if _map_ref == null or _map_ref.texture == null:
+		return Vector2(INF, INF)
+
+	var local_px := _map_ref.to_local(screen_px)
+	var tex_sz := _map_ref.texture.get_size()
+	if tex_sz.x <= 0.0 or tex_sz.y <= 0.0:
+		return Vector2(INF, INF)
+
+	var uv := (local_px / tex_sz) + Vector2(0.5, 0.5)
+	var uv_centered := uv - Vector2(0.5, 0.5)
+
+	# _world_matrix is the "mapMatrix" you already pass into the shader
+	var h: Vector3 = _world_matrix * Vector3(uv_centered.x, uv_centered.y, 1.0)
+	if abs(h.z) < 1e-6:
+		return Vector2(INF, INF)
+
+	return Vector2(h.x / h.z, h.y / h.z)
+
+
+# ---------- Utilities ----------------------------------------------------------
+
+func ClearSkids() -> void:
+	for wi in range(4):
+		_skid_curr_pts[wi] = PackedVector2Array()
+		_skid_is_active[wi] = false
+		_skid_strokes[wi] = []
+	queue_redraw()
+		

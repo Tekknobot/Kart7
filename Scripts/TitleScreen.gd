@@ -15,7 +15,7 @@ func _ready() -> void:
 	start_btn.grab_focus()
 
 	# ---- Title + subtitle styling (use positional args) ----
-	_style_label(game_title, 64, Color.hex(0xFFD54DFF), 3, Color.hex(0x291600FF), Vector2(3,3), Color(0,0,0,0.65))
+	_style_label(game_title, 32, Color.hex(0xFFD54DFF), 3, Color.hex(0x291600FF), Vector2(3,3), Color(0,0,0,0.65))
 	_style_label(subtitle,   32, Color.hex(0xFFFFFFFF), 1, Color(0,0,0,0.85), Vector2(2,2), Color(0,0,0,0.5))
 
 	# Gentle breathing pulse on the big title

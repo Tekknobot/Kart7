@@ -61,8 +61,8 @@ const DRIFT_WOBBLE_AMPL := 0.40
 const DRIFT_BASE_BIAS := 0.7
 const DRIFT_RELEASE_BURST_TIME := 0.24
 
-const DRIFT_PARTICLE_NODE := "DriftDust"
-const SPARKS_PARTICLE_NODE := "DriftSparks"
+@export var drift_particle_path: NodePath = ^"Road Type Effects/Right Wheel Special"
+@export var sparks_particle_path: NodePath = ^"Road Type Effects/Left Wheel Special" # or a GPUParticles2D if you have one
 
 var _drift_wobble_phase := 0.0
 var _drift_release_timer := 0.0
@@ -651,9 +651,6 @@ func Update(mapForward : Vector3) -> void:
 	_choose_and_apply_frame(get_process_delta_time())
 	_wall_hit_cd = max(0.0, _wall_hit_cd - dt)
 
-	# dust/FX smoothing
-	_update_drift_dust_smoothing(dt)
-
 func _push_nitro_hud() -> void:
 	if _hud == null:
 		return
@@ -872,19 +869,31 @@ func _try_get_node(path: String) -> Node:
 	if has_node(path):
 		return get_node(path)
 	return null
+	
+func _get_drift_node() -> Node:
+	var n := get_node_or_null(drift_particle_path)
+	if n == null: n = find_child("DriftDust", true, false)
+	return n
+
+func _get_sparks_node() -> Node:
+	var n := get_node_or_null(sparks_particle_path)
+	if n == null: n = find_child("DriftSparks", true, false)
+	return n
 
 func _set_sparks_color(col: Color) -> void:
-	var p := _try_get_node(SPARKS_PARTICLE_NODE)
+	var p := _get_sparks_node()
 	if p != null and p is GPUParticles2D:
 		p.process_material.color = col
 
 func _emit_sparks(on: bool) -> void:
-	var p := _try_get_node(SPARKS_PARTICLE_NODE)
+	var p := _get_sparks_node()
 	if p != null and p is GPUParticles2D:
 		p.emitting = on
+	elif p is CanvasItem:
+		(p as CanvasItem).visible = on
 
 func _emit_dust(on: bool) -> void:
-	var p := _try_get_node(DRIFT_PARTICLE_NODE)
+	var p := _get_drift_node()
 	if p == null:
 		return
 
@@ -933,30 +942,6 @@ func _emit_dust(on: bool) -> void:
 
 	if p is Sprite2D:
 		(p as Sprite2D).visible = on
-
-func _update_drift_dust_smoothing(dt: float) -> void:
-	var p := _try_get_node(DRIFT_PARTICLE_NODE)
-	if p == null:
-		return
-
-	# Exponential smoothing toward target
-	var a = clamp(dt * DUST_SMOOTH_RATE, 0.0, 1.0)
-	_dust_mult = lerp(_dust_mult, _dust_mult_target, a)
-
-	if p is GPUParticles2D:
-		var gp := p as GPUParticles2D
-		if _dust_base < 0:
-			_dust_base = max(1, gp.amount)
-		var desired = max(1, int(round(_dust_base * _dust_mult)))
-		if gp.amount != desired:
-			gp.amount = desired
-		return
-
-	if p is AnimatedSprite2D:
-		var aspr := p as AnimatedSprite2D
-		aspr.speed_scale = max(0.01, _dust_mult)  # fade rate
-		# hide when effectively off
-		aspr.visible = _dust_mult > 0.05
 
 func _cancel_drift_no_award(settle_time: float) -> void:
 	_is_drifting = false

@@ -58,6 +58,7 @@ lookahead_curv_boost = 32.0
 desired_yaw_half_life_s = 0.18
 merge_time_s = 1.2
 randomize_on_ready = true
+assume_player_target_speed = 130.0
 speed_tag_font = ExtResource("2_cyera")
 speed_tag_offset_px = 8.0
 lane_chase_speed_px = 150.0

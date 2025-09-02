@@ -1,30 +1,18 @@
 res://Scenes/main.tscn
 res://Scripts/Shaders/ModeSeven.gdshader
+res://Scripts/Shaders/WindPixel2D.gdshader
+res://Scripts/Shaders/FinishFlag.gdshader
 res://Scripts/Shaders/GasDistort.gdshader
 res://Scripts/Shaders/YoshiSwap.gdshader
 res://Scripts/Shaders/Tunnel.gdshader
 res://Scripts/Shaders/NitroPulse.gdshader
 res://Scripts/Shaders/OpponentNitroPulse.gdshader
-res://Scripts/World Elements/Racers/Player.gd
-res://Scenes/CountdownUI.tscn
-res://Scripts/World Elements/Racers/Racer.gd
-res://Scripts/KartSFX.gd
-res://Scripts/RaceManager.gd
-res://default_bus_layout.tres
-res://Scripts/MusicManager.gd
-res://Scripts/World Elements/Racers/Opponent.gd
 res://Scripts/World Elements/Pseudo3D.gd
-res://Scripts/General/Globals.gd
-res://Scripts/TitleScreen.gd
-res://Scripts/CharacterSelect.gd
-res://Scripts/General/Game.gd
 res://Scenes/title.tscn
-res://Scenes/RacerButton.tscn
-res://Scenes/RacerButton.gd
 res://Scenes/CharacterSelect.tscn
-res://Scripts/RacerButton.gd
-res://Scripts/RaceHUD.gd
+res://Scenes/RacerButton.tscn
 res://Scenes/player.tscn
 res://Scenes/opponent.tscn
-res://Scripts/Minimap.gd
-res://Scripts/LeaderBoard.gd
+res://Scripts/SkidMarkPainter2D.gd
+res://Scripts/General/Game.gd
+res://Scripts/AI/PathOverlay2D.gd

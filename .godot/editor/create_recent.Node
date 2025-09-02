@@ -1,14 +1,14 @@
+Node2D
+GPUParticles2D
+AnimatedSprite2D
 VBoxContainer
 Label
-AnimatedSprite2D
 Button
 GridContainer
 CenterContainer
 Node
 ColorRect
-Node2D
 ProgressBar
 CanvasLayer
 AudioStreamPlayer2D
 AudioListener2D
-MarginContainer

@@ -29,7 +29,7 @@ func _ready() -> void:
 
 	# Style only the title
 	if select_title:
-		_style_label(select_title, 28, Color.hex(0xFFFFFFFF), 2, Color(0,0,0,0.90), Vector2(2,2), Color(0,0,0,0.55))
+		_style_label(select_title, 16, Color.hex(0xFFFFFFFF), 2, Color(0,0,0,0.90), Vector2(2,2), Color(0,0,0,0.55))
 		_pulse(select_title, 1.03, 0.8)
 
 	var names: Array = DEFAULT_RACERS

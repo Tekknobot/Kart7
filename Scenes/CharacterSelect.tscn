@@ -37,18 +37,17 @@ theme_override_constants/separation = 12
 alignment = 1
 
 [node name="GameTitle" type="Label" parent="Center/VBox"]
-visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(0.611765, 0, 0, 1)
 theme_override_fonts/font = ExtResource("2_i0prf")
-theme_override_font_sizes/font_size = 64
-text = "Formula Z"
+theme_override_font_sizes/font_size = 32
+text = "GRAND PRIX"
 horizontal_alignment = 1
 
 [node name="Title" type="Label" parent="Center/VBox"]
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_i0prf")
-theme_override_font_sizes/font_size = 32
+theme_override_font_sizes/font_size = 16
 text = "Select Racer"
 horizontal_alignment = 1
 

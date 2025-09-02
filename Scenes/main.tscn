@@ -128,7 +128,7 @@ _roadTypeColors = Array[Color]([Color(0, 0, 0, 1), Color(1, 1, 1, 1), Color(0.8,
 [node name="Sprite Handler" type="Node2D" parent="." node_paths=PackedStringArray("_hazards", "_opponents")]
 script = ExtResource("7_wmybs")
 _hazards = [NodePath("Hazards/Bridge/Green Pipe"), NodePath("Hazards/Bridge/Green Pipe2"), NodePath("Hazards/Bridge/Green Pipe3"), NodePath("Hazards/Bridge/Green Pipe4"), NodePath("Hazards/Shortcut/Green Pipe"), NodePath("Hazards/Shortcut/Green Pipe2"), NodePath("Hazards/Shortcut/Green Pipe3"), NodePath("Hazards/Shortcut/Green Pipe4"), NodePath("Hazards/Lake/Green Pipe"), NodePath("Hazards/Lake/Green Pipe2"), NodePath("Hazards/Lake/Green Pipe3"), NodePath("Hazards/Lake/Green Pipe4"), NodePath("Hazards/Last Turn/Green Pipe"), NodePath("Hazards/Last Turn/Green Pipe2"), NodePath("Hazards/Last Turn/Green Pipe3"), NodePath("Hazards/Last Turn/Green Pipe4")]
-_opponents = [NodePath(""), NodePath(""), NodePath(""), NodePath(""), NodePath(""), NodePath(""), NodePath("")]
+_opponents = [null, null, null, null, null, null, null]
 path_overlay_node = NodePath("../SubViewport/PathOverlay2D")
 sprite_graphic_path = NodePath("")
 collect_under = NodePath("Racers")
@@ -348,11 +348,10 @@ _totalDetailStates = 11
 _spriteGFX = NodePath(".")
 _mapPosition = Vector3(64, 0, 816)
 
-[node name="Animation Handler" type="Node" parent="Sprite Handler" node_paths=PackedStringArray("_effectsPlayer", "_specialWheelEffect")]
+[node name="Animation Handler" type="Node" parent="Sprite Handler" node_paths=PackedStringArray("_specialWheelEffect")]
 script = ExtResource("13_6hxns")
-_effectsPlayer = NodePath("")
 _roadRoughness = 0
-_specialWheelEffect = [NodePath(""), NodePath("")]
+_specialWheelEffect = [null, null]
 
 [node name="SubViewport" type="SubViewport" parent="."]
 transparent_bg = true
@@ -360,11 +359,14 @@ size = Vector2i(1024, 1024)
 
 [node name="PathOverlay2D" type="Node2D" parent="SubViewport"]
 script = ExtResource("21_pdsj5")
-line_width = 1.0
-color = Color(1, 0, 0, 0)
+line_width = 0.5
+color = Color(0, 0, 0, 0.901961)
 points = PackedVector2Array(919, 555, 919, 100, 856, 100, 425, 556, 288, 556, 288, 100, 108, 100, 108, 900, 919, 900)
 show_debug_markers = false
 follow_speed_px_sec = 160.0
+skid_width_px = 1.0
+skid_min_segment_px = 1.0
+skid_color_offroad = Color(0.470588, 0, 0, 0.4)
 
 [node name="RaceManager" type="Node2D" parent="."]
 script = ExtResource("21_ee4r6")

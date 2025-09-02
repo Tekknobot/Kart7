@@ -449,3 +449,64 @@ func _intro_spin_step(v: float) -> void:
 func _on_intro_spin_finished() -> void:
 	_intro_mode = false
 	emit_signal("intro_spin_finished")
+
+# Convert a map-space UV (x=z in your ReturnMapPosition) to a screen-space point
+func map_uv_to_screen_px(map_uv: Vector2) -> Vector2:
+	var M := _effective_map_matrix()
+	var Minv := M.inverse()
+	var h: Vector3 = Minv * Vector3(map_uv.x, map_uv.y, 1.0)
+	if abs(h.z) < 1e-6:
+		return Vector2(-1e9, -1e9) # off/invalid
+	
+	# back to Sprite UV (centered like in the shader: UV-0.5)
+	var uv_centered := Vector2(h.x / h.z, h.y / h.z)
+	var uv := uv_centered + Vector2(0.5, 0.5)
+
+	# convert Sprite UV to local px, then to global
+	var local_px := (uv - Vector2(0.5, 0.5)) * texture.get_size()
+	return to_global(local_px)
+
+# Rebuild the same matrix your shader uses, including rearview flip
+func _effective_map_matrix() -> Basis:
+	var yaw := _mapRotationAngle.y
+	if _rearview_on():
+		yaw = WrapAngle(yaw + PI)
+
+	var yawMatrix := Basis(
+		Vector3(cos(yaw), -sin(yaw), 0.0),
+		Vector3(sin(yaw),  cos(yaw), 0.0),
+		Vector3(0.0,       0.0,      1.0)
+	)
+
+	var pitchMatrix := Basis(
+		Vector3(1.0, 0.0, 0.0),
+		Vector3(0.0, cos(_mapRotationAngle.x), -sin(_mapRotationAngle.x)),
+		Vector3(0.0, sin(_mapRotationAngle.x),  cos(_mapRotationAngle.x))
+	)
+
+	var rotationMatrix := yawMatrix * pitchMatrix
+
+	var e := _safe_exp(_mapPosition.y)
+	var translationMatrix := Basis(
+		Vector3(1.0, 0.0, 0.0),
+		Vector3(0.0, 1.0, 0.0),
+		Vector3(_mapPosition.x * e, _mapPosition.z * e, e)
+	)
+
+	return translationMatrix * rotationMatrix
+
+# Convert a screen/global pixel to map UV (0..1), same space the shader uses.
+func screen_px_to_map_uv(screen_px: Vector2) -> Vector2:
+	var local_px := to_local(screen_px)
+	var tex_size := texture.get_size()
+	if tex_size.x == 0.0 or tex_size.y == 0.0:
+		return Vector2(-1e9, -1e9)
+	# Sprite UV (0..1), accounting for centered sprite
+	var uv := (local_px / tex_size) + Vector2(0.5, 0.5)
+
+	# Shader does: uv_centered = UV - 0.5; projected = (mapMatrix * vec3(uv_centered,1)).xy / z
+	var uv_centered := uv - Vector2(0.5, 0.5)
+	var h: Vector3 = _finalMatrix * Vector3(uv_centered.x, uv_centered.y, 1.0)
+	if abs(h.z) < 1e-6:
+		return Vector2(-1e9, -1e9)
+	return Vector2(h.x / h.z, h.y / h.z)

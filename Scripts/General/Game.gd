@@ -251,18 +251,22 @@ func _setup_after_roster() -> void:
 	# Boot map + systems
 	_map.Setup(Globals.screenSize, _player)
 
-	# Bind PathOverlay2D to the Map (Pseudo3D) now that Map is set up
-	var overlay_node := get_node(^"SubViewport/PathOverlay2D")          # sibling of Map
-	var overlay_vp   := get_node(^"SubViewport") as SubViewport         # the SubViewport instance
-	var rel_from_map := _map.get_path_to(overlay_node)                  # "../SubViewport/PathOverlay2D"
-
+	# Bind PathOverlay2D to the Map (Pseudo3D)
+	var overlay_node := get_node(^"SubViewport/PathOverlay2D")
+	var overlay_vp   := get_node(^"SubViewport") as SubViewport
+	var rel_from_map := _map.get_path_to(overlay_node)
 	if _map != null and _map.has_method("SetPathOverlayNodePath"):
 		_map.call("SetPathOverlayNodePath", rel_from_map, overlay_vp)
 
-	# Tell Map which nodes are opponents (everyone in "racers" except the player)
+	# >>> BIND THE SKID PAINTER / OVERLAY PATHS HERE <<<
+	var painter := overlay_node  # PathOverlay2D node (has player_path & pseudo3d_path exports)
+	if painter:
+		painter.set("player_path", painter.get_path_to(_player))
+		painter.set("pseudo3d_path", painter.get_path_to(_map))
+
+	# Tell Map which nodes are opponents, etc.
 	if _map != null and _map.has_method("SetOpponentsFromGroup"):
 		_map.call("SetOpponentsFromGroup", "racers", _player)
-
 
 	if _collision != null and _collision.has_method("Setup"):
 		_collision.call("Setup")
