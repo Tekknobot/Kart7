@@ -1,20 +1,25 @@
 shader_type canvas_item;
 
-uniform sampler2D trackTexture : filter_nearest;
-uniform sampler2D grassTexture : filter_nearest;
-uniform sampler2D pathOverlay;              // <-- bound SubViewport (1024x1024)
+uniform sampler2D trackTexture : filter_nearest, repeat_disable;
+uniform sampler2D grassTexture : filter_nearest, repeat_enable;
+uniform sampler2D pathOverlay  : hint_default_black, filter_nearest, repeat_disable; // bound SubViewport (1024x1024)
 uniform mat3 mapMatrix;
+
+uniform float overlay_strength = 1.0; // 0..1, scales skid visibility
 
 void fragment()
 {
     vec3 uv = mapMatrix * vec3(UV - vec2(0.5), 1.0);
-    if (uv.z < 0.0) discard;
+    if (uv.z < 0.0) {
+        discard;
+    }
 
     vec2 projectedUV = uv.xy / uv.z;
 
     vec4 texColor;
     float tileScale = float(textureSize(trackTexture, 0).x) / float(textureSize(grassTexture, 0).x);
 
+    // Track/grass selection
     if (projectedUV.x < 0.0 || projectedUV.x > 1.0 || projectedUV.y < 0.0 || projectedUV.y > 1.0) {
         vec2 grassUV = fract(projectedUV * tileScale);
         texColor = texture(grassTexture, grassUV);
@@ -22,13 +27,21 @@ void fragment()
         texColor = texture(trackTexture, projectedUV);
     }
 
-    if (texColor.a == 0.0) discard;
+    if (texColor.a == 0.0) {
+        discard;
+    }
 
-    // Sample the overlay in the SAME space as the track
-    vec4 overlay = texture(pathOverlay, projectedUV);
+    // --- Overlay (skid marks) in the SAME projected space as the track ----
+    vec4 overlay = vec4(0.0);
+    if (projectedUV.x >= 0.0 && projectedUV.x <= 1.0 && projectedUV.y >= 0.0 && projectedUV.y <= 1.0) {
+        overlay = texture(pathOverlay, projectedUV);
+    }
 
-    // Blend on top (only if overlay alpha > 0)
-    texColor = mix(texColor, overlay, overlay.a);
+    // Paint overlay color on top (your Node2D draws black/colored lines into the SubViewport)
+    float a = overlay.a * overlay_strength;
+    if (a > 0.0) {
+        texColor.rgb = mix(texColor.rgb, overlay.rgb, a);
+    }
 
     COLOR = texColor;
 }

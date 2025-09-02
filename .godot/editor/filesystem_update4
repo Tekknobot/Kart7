@@ -17,3 +17,5 @@ res://Scripts/World Elements/Racers/Opponent.gd
 res://Scripts/AI/PathOverlay2D.gd
 res://Scripts/World Elements/Pseudo3D.gd
 res://Scripts/General/Game.gd
+res://Scripts/Minimap.gd
+res://Scripts/SkidsOnTrackFromMinimap.gd

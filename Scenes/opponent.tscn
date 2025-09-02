@@ -27,8 +27,8 @@ catchup_gain_speed = 90.0
 min_ratio_vs_player = 0.85
 AI_NITRO_MIN_FRAC = 0.1
 AI_NITRO_REFILL_S = 15.0
-AI_NITRO_LOOKAHEAD_PX = 400.0
-AI_NITRO_MIN_STRAIGHT_PX = 350.0
+AI_NITRO_LOOKAHEAD_PX = 500.0
+AI_NITRO_MIN_STRAIGHT_PX = 200.0
 nitro_outline_px = 1.0
 nitro_chroma_max_px = 1.0
 race_manager_ref = NodePath("../../../RaceManager")
@@ -93,22 +93,18 @@ texture = ExtResource("3_t8iht")
 
 [node name="RightWheel" type="Node2D" parent="Road Type Effects"]
 texture_filter = 1
-position = Vector2(32, 36)
 scale = Vector2(3, 3)
 
 [node name="RightWheelSpecial" type="Node2D" parent="Road Type Effects"]
 texture_filter = 1
-position = Vector2(75, 56)
 scale = Vector2(3, 3)
 
 [node name="LeftWheel" type="Node2D" parent="Road Type Effects"]
 texture_filter = 1
-position = Vector2(-32, 36)
 scale = Vector2(3, 3)
 
 [node name="LeftWheelSpecial" type="Node2D" parent="Road Type Effects"]
 texture_filter = 1
-position = Vector2(-75, 56)
 scale = Vector2(3, 3)
 
 [node name="Audio" type="Node2D" parent="."]

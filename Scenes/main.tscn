@@ -1,4 +1,4 @@
-[gd_scene load_steps=39 format=3 uid="uid://d2glnv32t8md1"]
+[gd_scene load_steps=40 format=3 uid="uid://d2glnv32t8md1"]
 
 [ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_emb0w"]
 [ext_resource type="Script" uid="uid://cex362lk6utnk" path="res://Scripts/On Screen Elements/BackgroundEffects.gd" id="2_330he"]
@@ -27,6 +27,7 @@
 [ext_resource type="Script" uid="uid://dcfngv7oaf2c8" path="res://Scripts/RaceHUD.gd" id="26_cbgmd"]
 [ext_resource type="FontFile" uid="uid://dgugahs6bc7so" path="res://Fonts/magofonts/mago3.ttf" id="28_ueoa1"]
 [ext_resource type="PackedScene" uid="uid://7sye74odmhah" path="res://Scenes/CountdownUI.tscn" id="29_6vcvc"]
+[ext_resource type="Script" uid="uid://c7rugtwfllds7" path="res://Scripts/SkidsOnTrackFromMinimap.gd" id="37_jwpg7"]
 [ext_resource type="Script" uid="uid://dcb4blo4uiyti" path="res://Scripts/PostRaceController.gd" id="39_8cuat"]
 [ext_resource type="PackedScene" uid="uid://bgkivo666nl2a" path="res://Scenes/PromptPanel.tscn" id="40_o1aky"]
 [ext_resource type="Script" uid="uid://d2n3bufpojtei" path="res://Scripts/MusicManager.gd" id="43_kwxat"]
@@ -42,6 +43,7 @@ shader = ExtResource("3_okd74")
 shader_parameter/trackTexture = ExtResource("9_o1aky")
 shader_parameter/grassTexture = ExtResource("4_7c8ey")
 shader_parameter/mapMatrix = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
+shader_parameter/overlay_strength = 1.0
 
 [sub_resource type="Theme" id="Theme_gt3je"]
 default_font = ExtResource("23_gt3je")
@@ -533,3 +535,10 @@ delay_seconds = 3.0
 [node name="MusicManager" type="Node2D" parent="."]
 script = ExtResource("43_kwxat")
 music_tracks = Array[AudioStream]([ExtResource("44_v2nl5"), ExtResource("45_dmskm"), ExtResource("46_xdkp6"), ExtResource("47_54nrm"), ExtResource("48_55jeb"), ExtResource("49_gsvbx")])
+
+[node name="SkidsOnTrackFromMinimap" type="Node2D" parent="."]
+script = ExtResource("37_jwpg7")
+minimap_node = NodePath("../Minimap")
+path_overlay_node = NodePath("../SubViewport/PathOverlay2D")
+racers_group = "opponent"
+draw_when_offroad = true

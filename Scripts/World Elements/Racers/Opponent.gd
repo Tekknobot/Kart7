@@ -341,6 +341,8 @@ func _ready() -> void:
 			_sfx_ai.player = self
 	
 	add_to_group("racers")
+	add_to_group("opponent")
+	
 	_hum_rng.randomize()
 	_hum_phase = _hum_rng.randf_range(0.0, TAU)
 	_hum_noise = _hum_rng.randf_range(0.0, TAU)

@@ -108,6 +108,14 @@ var _skid_strokes: Array = [[], [], [], []]
 
 @export var draw_path := false          # leave false = only skids
 
+@export var mm_stroke_width_px: float = 1.0
+@export var mm_fade_seconds: float = 2.5
+@export var mm_color_drift: Color = Color(0, 0, 0, 0.70)
+@export var mm_color_offroad: Color = Color(0, 0, 0, 0.50)
+
+var _mm_curr := {}        # key "id:ch" -> {pts:PackedVector2Array, col:Color}
+var _mm_done: Array = []  # array of {pts:PackedVector2Array, col:Color, age:float}
+
 # =========================
 # Lifecycle
 # =========================
@@ -198,13 +206,37 @@ func set_world_and_screen(m: Basis, screen_size: Vector2) -> void:
 # =========================
 # Drawing
 # =========================
+func _draw_mm_skids() -> void:
+	# completed external strokes
+	for d in _mm_done:
+		var col: Color = d["col"]
+		if mm_fade_seconds > 0.0:
+			var k := 1.0 - (float(d["age"]) / mm_fade_seconds)
+			if k < 0.0:
+				k = 0.0
+			if k > 1.0:
+				k = 1.0
+			col.a = col.a * k
+		_draw_polyline_px(d["pts"], col, mm_stroke_width_px)
+
+	# active external strokes
+	for key in _mm_curr.keys():
+		var rec = _mm_curr[key]
+		var pts: PackedVector2Array = rec["pts"]
+		if pts.size() >= 2:
+			_draw_polyline_px(pts, rec["col"], mm_stroke_width_px)
+
 func _draw() -> void:
-	# (optional) allow re-enabling path in the editor
+	# (optional) path preview
 	if draw_path and points.size() >= 2:
 		_draw_uv_space(points)
 
-	# always draw skid marks (completed + active)
+	# wheel-based skids (player wheels)
 	_draw_skids()
+
+	# minimap-driven skids (from mm_append_uv)
+	_draw_mm_skids()
+
 	
 func _draw_uv_space(pts: PackedVector2Array) -> void:
 	# Optionally apply rotation/flip/scale around texture center in PIXEL space:
@@ -490,6 +522,16 @@ func _process(dt: float) -> void:
 		
 	# --- Skids update ---
 	_update_skids(dt)
+	
+	if mm_fade_seconds > 0.0:
+		var kept: Array = []
+		for d in _mm_done:
+			var age := float(d.get("age", 0.0)) + get_process_delta_time()
+			d["age"] = age
+			if age < mm_fade_seconds:
+				kept.append(d)
+		_mm_done = kept
+	
 
 # ---------- Skids: runtime update & drawing ----------------------------------
 
@@ -555,9 +597,6 @@ func _update_skids(dt: float) -> void:
 			_append_skid_point(wi, ov_px, drifting)
 		else:
 			_end_stroke(wi)
-
-	# redraw only when we changed something (cheap heuristic: always ok)
-	queue_redraw()
 
 
 func _append_skid_point(wi: int, px: Vector2, drifting: bool) -> void:
@@ -705,9 +744,7 @@ func _screen_px_to_map_uv(screen_px: Vector2) -> Vector2:
 
 	return Vector2(h.x / h.z, h.y / h.z)
 
-
 # ---------- Utilities ----------------------------------------------------------
-
 func ClearSkids() -> void:
 	for wi in range(4):
 		_skid_curr_pts[wi] = PackedVector2Array()
@@ -715,3 +752,108 @@ func ClearSkids() -> void:
 		_skid_strokes[wi] = []
 	queue_redraw()
 		
+func _uv_to_px(uv: Vector2) -> Vector2:
+	var s := float(max(1, int(pos_scale_px)))
+	var x := uv.x * s
+	var y := uv.y * s
+	return Vector2(x, y)
+
+func _mm_key(id: int, ch: int) -> String:
+	return str(id) + ":" + str(ch)
+
+func mm_append_uv(id: int, ch: int, uv: Vector2, drifting: bool) -> void:
+	var key := _mm_key(id, ch)
+	var px := _uv_to_px(uv)
+
+	var rec = null
+	if _mm_curr.has(key):
+		rec = _mm_curr[key]
+	else:
+		rec = {"pts": PackedVector2Array(), "col": mm_color_offroad}
+		_mm_curr[key] = rec
+
+	if drifting:
+		rec["col"] = mm_color_drift
+	else:
+		rec["col"] = mm_color_offroad
+
+	var pts: PackedVector2Array = rec["pts"]
+	var add_point := true
+	if pts.size() > 0:
+		var last := pts[pts.size() - 1]
+		if last.distance_to(px) < float(max(1, int(skid_min_segment_px))):
+			add_point = false
+	if add_point:
+		pts.append(px)
+
+	queue_redraw()
+
+func mm_end(id: int, ch: int) -> void:
+	var key := _mm_key(id, ch)
+	if not _mm_curr.has(key):
+		return
+	var rec = _mm_curr[key]
+	var pts: PackedVector2Array = rec["pts"]
+	if pts.size() >= 2:
+		_mm_done.append({"pts": pts, "col": rec["col"], "age": 0.0})
+	_mm_curr.erase(key)
+	queue_redraw()
+
+func mm_clear_all() -> void:
+	_mm_curr.clear()
+	_mm_done.clear()
+	queue_redraw()
+
+# --- Expose the overlay texture ----------------------------------------------
+func get_texture() -> Texture2D:
+	var vp := get_viewport()
+	if vp == null:
+		return null
+	return vp.get_texture()
+
+
+# --- Wire the overlay texture into your ground shader -------------------------
+# Call once after both nodes exist:
+#   $PathOverlay2D.wire_overlay_to_ground($GroundSprite, "skid_overlay")
+func wire_overlay_to_ground(ground_sprite: Node, shader_param_name: String = "pathOverlay") -> void:
+	if ground_sprite == null:
+		push_warning("[Overlay] wire_overlay_to_ground: ground_sprite is null")
+		return
+
+	var tex := get_texture()
+	if tex == null:
+		push_warning("[Overlay] wire_overlay_to_ground: overlay viewport has no texture")
+		return
+
+	var mat = null
+	# CanvasItems (Sprite2D, MeshInstance2D, etc.) have 'material'
+	if "material" in ground_sprite:
+		mat = ground_sprite.material
+	elif "get_material" in ground_sprite:
+		mat = ground_sprite.get_material()
+	else:
+		push_warning("[Overlay] wire_overlay_to_ground: node has no material property")
+		return
+
+	if mat == null:
+		push_warning("[Overlay] wire_overlay_to_ground: material is null")
+		return
+	if not (mat is ShaderMaterial):
+		push_warning("[Overlay] wire_overlay_to_ground: material is not a ShaderMaterial")
+		return
+
+	var sm := mat as ShaderMaterial
+	# Just set it; if the param doesn't exist the editor will warn once.
+	sm.set_shader_parameter(shader_param_name, tex)
+	prints("[Overlay] wired overlay texture into", ground_sprite.name, "param:", shader_param_name)
+
+
+# --- One-shot sanity stroke to prove the hookup works -------------------------
+func debug_draw_center_line() -> void:
+	var id := 123456
+	var u0 := Vector2(0.49, 0.50)
+	var u1 := Vector2(0.51, 0.50)
+	mm_append_uv(id, 0, u0, true)
+	mm_append_uv(id, 0, u1, true)
+	mm_end(id, 0)
+	prints("[Overlay] drew debug center line")
