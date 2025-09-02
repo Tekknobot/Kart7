@@ -85,21 +85,30 @@ func _ensure_roster_spawned() -> void:
 		if n != selected:
 			remaining.append(n)
 
+	if Globals.has_method("set_selected_racer"):
+		Globals.set_selected_racer(selected)
+		print("Picked:", Globals.selected_racer, " color:", Globals.selected_color)
+
 	# Spawn player
 	var p := player_scene.instantiate()
 	p.name = selected
 	racers_root.add_child(p)
 	_wire_racer(p, true)
-	_player = p  # runtime reference for the rest of the world
+	_player = p
 
-	# Color player now (shader or modulate fallback)
+	# Color (shader) + identity label immediately
+	var pcol := Globals.get_racer_color(selected)
+
+	var pspr := _find_sprite(_player)
+	if pspr != null:
+		_apply_yoshi_shader(pspr, pcol)   # instant tint (Player.gd will keep it in sync too)
+
+	# (optional) if you still want Player.gd to pull from Globals each time:
 	if _player.has_method("RefreshPaletteFromGlobals"):
 		_player.RefreshPaletteFromGlobals()
-	else:
-		if _player.has_method("_ensure_yoshi_material"):
-			_player._ensure_yoshi_material()
-		if _player.has_method("_apply_player_palette_from_globals"):
-			_player._apply_player_palette_from_globals()
+
+	# Update HUD “Name” label now
+	_update_hud_name_color()
 
 	# Spawn opponents
 	for i in range(remaining.size()):
@@ -109,6 +118,13 @@ func _ensure_roster_spawned() -> void:
 		racers_root.add_child(opp)
 		_wire_racer(opp, false)
 
+		var ocol := Globals.get_racer_color(nm)
+		_set_racer_name_label(opp, nm, ocol)
+
+		var ospr := _find_sprite(opp)
+		if ospr != null:
+			_apply_yoshi_shader(ospr, ocol)
+
 	# Make sure HUD sees the new player path now
 	var hud := get_node_or_null(^"RaceHUD")
 	if hud:
@@ -116,8 +132,8 @@ func _ensure_roster_spawned() -> void:
 		hud.set("_player", _player)
 
 	# Keep Globals in sync with the spawned player/color
-	Globals.selected_racer = StringName(selected)
-	Globals.selected_color = Globals.get_racer_color(selected)
+	if Globals.has_method("set_selected_racer"):
+		Globals.set_selected_racer(selected)
 
 func _has_prop(obj: Object, prop: StringName) -> bool:
 	for p in obj.get_property_list():
@@ -273,6 +289,7 @@ func _setup_after_roster() -> void:
 
 	call_deferred("_finalize_ai_grid_spawn")
 	
+	_update_hud_name_color()
 	_map_ready = true
 
 # Wait a couple frames so path points / overlay are pushed, then place AI.
@@ -285,6 +302,8 @@ func _finalize_ai_grid_spawn() -> void:
 
 	if _map != null and _map.has_method("SetOpponentsFromGroup"):
 		_map.call("SetOpponentsFromGroup", "racers", _player)
+		
+	_update_hud_name_color()	
 
 # Place every Opponent child at Opponent.DEFAULT_POINTS[i] (pixels).
 func _place_opponents_from_defaults_post() -> void:
@@ -377,14 +396,50 @@ func _apply_color_to_racer(racer: Node, col: Color, out_sprites: Array) -> void:
 	_apply_yoshi_shader(spr, col)
 	out_sprites.append(spr)
 
-func _find_sprite(root: Node) -> Node:
-	if root is Sprite2D or root is AnimatedSprite2D:
-		return root
-	for c in root.get_children():
-		var n := _find_sprite(c)
-		if n != null:
-			return n
+func _find_sprite(root: Node) -> CanvasItem:
+	if root == null:
+		return null
+
+	# 1) If the racer knows its render sprite, use that.
+	if root.has_method("ReturnSpriteGraphic"):
+		var s = root.call("ReturnSpriteGraphic")
+		if s is CanvasItem:
+			return s
+
+	# 2) Prefer explicit known paths in your prefab.
+	var n := root.get_node_or_null(^"GFX2/AngleSprite")
+	if n is CanvasItem:
+		return n
+	n = root.get_node_or_null(^"GFX/AngleSprite")
+	if n is CanvasItem:
+		return n
+
+	# 3) Any child actually named "AngleSprite".
+	n = root.find_child("AngleSprite", true, false)
+	if n is CanvasItem:
+		return n
+
+	# 4) Fallback: first AnimatedSprite2D/Sprite2D that isn't a wheel/effect.
+	var stack := [root]
+	while stack.size() > 0:
+		var cur = stack.pop_back()
+		for c in cur.get_children():
+			if not (c is Node):
+				continue
+			var nm := ""
+			if "name" in c:
+				nm = c.name
+			var skip := false
+			if nm.findn("Wheel") >= 0:
+				skip = true
+			if nm.findn("Effect") >= 0:
+				skip = true
+			if not skip and (c is AnimatedSprite2D or c is Sprite2D):
+				return c as CanvasItem
+			stack.push_back(c)
+
 	return null
+
 
 func _prime_sprite_grid(spr: Node) -> void:
 	if not prime_hframes:
@@ -494,3 +549,37 @@ func _place_player_from_defaults() -> void:
 	# Map space is pixels on X/Z
 	if _player.has_method("SetMapPosition"):
 		_player.call("SetMapPosition", Vector3(px.x, 0.0, px.y))
+
+func _find_label_named(root: Node, wanted: String) -> Label:
+	if root == null:
+		return null
+	if root is Label and root.name == wanted:
+		return root
+	for child in root.get_children():
+		var got := _find_label_named(child, wanted)
+		if got != null:
+			return got
+	return null
+
+func _set_racer_name_label(racer: Node, label_text: String, col: Color) -> void:
+	if racer == null:
+		return
+	# Set the node's name (used by RaceManager / leaderboard)
+	racer.name = label_text
+	# Update a child Label named "Name" if present
+	var lbl := _find_label_named(racer, "Name")
+	if lbl != null:
+		lbl.text = label_text
+		lbl.add_theme_color_override("font_color", col)
+
+func _update_hud_name_color() -> void:
+	var hud := get_node_or_null(^"RaceHUD")
+	if hud == null:
+		return
+	# Find a child Label named "Name" on the HUD
+	var lbl := hud.get_node_or_null(^"Name")
+	if lbl == null:
+		lbl = _find_label_named(hud, "Name")
+	if lbl != null:
+		lbl.text = String(Globals.selected_racer).to_upper()
+		lbl.add_theme_color_override("font_color", Globals.selected_color)

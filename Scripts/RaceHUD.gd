@@ -66,53 +66,45 @@ var _lap_start_clock_ms: int = 0
 
 func _ready() -> void:
 	_update_dt = max(0.01, 1.0 / updates_per_second)
+
+	# Try an initial bind, but do NOT stop processing if missing
 	_rm = get_node_or_null(race_manager_path)
 	_player = get_node_or_null(player_path)
-
-	if not _check_wiring():
-		set_process(false)
-		return
 
 	_apply_fonts()
 
 	# Defaults
-	time_lbl.text  = "TIME 0'00\"000"
-	lap_lbl.text   = "LAP 0/%d" % total_laps
-	place_lbl.text = "--"
-	speed_lbl.text = "%s --" % speed_label
-	last_lbl.text  = "LAP TIME --"
+	if time_lbl:  time_lbl.text  = "TIME 0'00\"000"
+	if lap_lbl:   lap_lbl.text   = "LAP 0/%d" % total_laps
+	if place_lbl: place_lbl.text = "--"
+	if speed_lbl: speed_lbl.text = "%s --" % speed_label
+	if last_lbl:  last_lbl.text  = "LAP TIME --"
 
 	if ahead_lbl:
 		ahead_lbl.text = "AHEAD --"
-		ahead_lbl.modulate = place_gain_color    # green
-
+		ahead_lbl.modulate = place_gain_color
 	if behind_lbl:
 		behind_lbl.text = "BEHIND --"
-		behind_lbl.modulate = place_loss_color   # red
+		behind_lbl.modulate = place_loss_color
 
+	add_to_group("race_hud")
 
-	set_process(true)
-	
+	# Create arrow once (font style copied later if labels not ready yet)
 	_place_arrow = Label.new()
 	_place_arrow.text = ""
 	_place_arrow.visible = false
-	_place_arrow.add_theme_font_override("font", place_lbl.get_theme_font("font"))
-	_place_arrow.add_theme_font_size_override("font_size", place_lbl.get_theme_font_size("font_size"))
 	add_child(_place_arrow)
-	_place_arrow.global_position = place_lbl.global_position + Vector2(place_lbl.size.x + 8, 0)
-	
-	add_to_group("race_hud")  # optional: lets Player find us automatically
-	_bar = get_node_or_null(nitro_bar_path) as ProgressBar
-	if _bar:
-		_bar.min_value = 0.0
-		_bar.max_value = 1.0
-		_bar.value = 1.0
-		_bar.modulate = color_full
 
 	_lap_seen = -1
 	_lap_start_clock_ms = Time.get_ticks_msec()
-		
+
+	set_process(true)
+	
 func _process(delta: float) -> void:
+	# Lazy bind until both are ready
+	if _rm == null or _player == null or not _bound_once:
+		_bind_if_needed()
+
 	_timer += delta
 	if _timer >= _update_dt:
 		_timer = 0.0
@@ -356,3 +348,53 @@ func SetNitro(level: float, active: bool) -> void:
 		_bar.modulate = color_full
 	else:
 		_bar.modulate = (color_active if active else color_fill)
+
+var _bound_once := false
+
+func BindSources(player: Node, rm: Node) -> void:
+	_player = player
+	_rm = rm
+	_try_finish_first_bind()
+
+func _bind_if_needed() -> void:
+	# Try to fill from the exported paths first
+	if _rm == null and race_manager_path != NodePath():
+		_rm = get_node_or_null(race_manager_path)
+	if _player == null and player_path != NodePath():
+		_player = get_node_or_null(player_path)
+
+	# Fallbacks for prefabs (World tags the player with "player" group)
+	if _player == null:
+		_player = get_tree().get_first_node_in_group("player")
+	if _rm == null:
+		_rm = get_tree().get_first_node_in_group("race_manager")
+	if _rm == null:
+		_rm = get_node_or_null(^"RaceManager") # common name in your tree
+
+	_try_finish_first_bind()
+
+func _try_finish_first_bind() -> void:
+	if _bound_once:
+		return
+	if _rm == null or _player == null:
+		return
+
+	# We’re ready: fonts, arrow, nitro bar can be finalized now too
+	if _place_arrow == null:
+		_place_arrow = Label.new()
+		_place_arrow.text = ""
+		_place_arrow.visible = false
+		_place_arrow.add_theme_font_override("font", place_lbl.get_theme_font("font"))
+		_place_arrow.add_theme_font_size_override("font_size", place_lbl.get_theme_font_size("font_size"))
+		add_child(_place_arrow)
+		_place_arrow.global_position = place_lbl.global_position + Vector2(place_lbl.size.x + 8, 0)
+
+	if _bar == null and nitro_bar_path != NodePath():
+		_bar = get_node_or_null(nitro_bar_path) as ProgressBar
+		if _bar:
+			_bar.min_value = 0.0
+			_bar.max_value = 1.0
+			_bar.value = 1.0
+			_bar.modulate = color_full
+
+	_bound_once = true

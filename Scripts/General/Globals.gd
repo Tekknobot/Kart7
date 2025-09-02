@@ -7,6 +7,7 @@ enum RoadType { VOID, ROAD, GRAVEL, OFF_ROAD, WALL, SINK }
 
 var _camera_map_pos: Vector2 = Vector2.ZERO
 var race_can_drive: bool = false   # false = lock all racers until GO
+var selected_color: Color = Color.WHITE
 
 # --- Character select state ---
 var racer_names := PackedStringArray([
@@ -14,12 +15,6 @@ var racer_names := PackedStringArray([
 ])
 
 var selected_racer: StringName = "Voltage"  # default
-
-func set_camera_map_position(p: Vector2) -> void:
-	_camera_map_pos = p
-
-func get_camera_map_position() -> Vector2:
-	return _camera_map_pos
 
 # --- Racer color map (hex ints -> Color.hex) ---
 const RACER_COLOR_HEX := {
@@ -33,14 +28,6 @@ const RACER_COLOR_HEX := {
 	"Rogue":   0x26C6DAFF  # cyan
 }
 
-var selected_color: Color = Color.WHITE
-
-func get_racer_color(name: String) -> Color:
-	if RACER_COLOR_HEX.has(name):
-		return Color.hex(int(RACER_COLOR_HEX[name]))
-	return Color.WHITE
-
-
 const RACER_COLOR_NAME := {
 	"Voltage": "Gold",
 	"Grip":    "Green",
@@ -52,5 +39,20 @@ const RACER_COLOR_NAME := {
 	"Rogue":   "Cyan"
 }
 
+func set_camera_map_position(p: Vector2) -> void:
+	_camera_map_pos = p
+
+func get_camera_map_position() -> Vector2:
+	return _camera_map_pos
+	
+func get_racer_color(name: String) -> Color:
+	if RACER_COLOR_HEX.has(name):
+		return Color.hex(int(RACER_COLOR_HEX[name]))
+	return Color.WHITE
+
 func get_racer_color_name(name: String) -> String:
 	return RACER_COLOR_NAME.get(name, "White")
+
+func set_selected_racer(name: String) -> void:
+	selected_racer = StringName(name)
+	selected_color = get_racer_color(name)

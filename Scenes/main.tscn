@@ -469,6 +469,12 @@ offset_bottom = 50.0
 [node name="Vbox" type="VBoxContainer" parent="RaceHUD/TopRight"]
 layout_mode = 2
 
+[node name="Name" type="Label" parent="RaceHUD/TopRight/Vbox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 0, 1)
+theme_override_fonts/font = ExtResource("28_ueoa1")
+theme_override_font_sizes/font_size = 32
+
 [node name="Time" type="Label" parent="RaceHUD/TopRight/Vbox"]
 layout_mode = 2
 

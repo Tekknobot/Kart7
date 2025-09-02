@@ -1265,21 +1265,13 @@ func _apply_player_palette_from_globals() -> void:
 	var spr := ReturnSpriteGraphic()
 	if spr == null:
 		return
-
-	# Skip while Nitro's temp material is active; it'll restore our base later.
+	# Skip while Nitro’s temp material is active; base will be restored later.
 	if spr.material == _nitro_mat:
 		return
 
-	# Get chosen name & color from Globals (no ternaries)
-	var name_now := "Voltage"
-	if "selected_racer" in Globals:
-		name_now = String(Globals.selected_racer)
+	var name_now := String(Globals.selected_racer)
+	var col := Globals.get_racer_color(name_now)
 
-	var col := Color.WHITE
-	if Globals.has_method("get_racer_color"):
-		col = Globals.get_racer_color(name_now)
-
-	# Ensure our hue-swap material is actually on the sprite, then set uniforms
 	_ensure_yoshi_material()
 
 	var sm := spr.material
@@ -1290,15 +1282,7 @@ func _apply_player_palette_from_globals() -> void:
 		shmat.set_shader_parameter("hue_tol",     yoshi_tolerance)
 		shmat.set_shader_parameter("edge_soft",   yoshi_edge_soft)
 	else:
-		# Fallback tint if no shader
 		spr.modulate = col
-
-	# Debug (no ternaries)
-	if sm != null and sm is ShaderMaterial:
-		print("Player palette applied → ", name_now, " → ", col, " (shader)")
-	else:
-		print("Player palette applied → ", name_now, " → ", col, " (modulate=", spr.modulate, ")")
-
 
 func RefreshPaletteFromGlobals() -> void:
 	_ensure_yoshi_material()
