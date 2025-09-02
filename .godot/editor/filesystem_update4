@@ -13,3 +13,4 @@ res://Scripts/RaceManager.gd
 res://default_bus_layout.tres
 res://Scripts/MusicManager.gd
 res://Scripts/World Elements/Racers/Opponent.gd
+res://Scripts/World Elements/Pseudo3D.gd

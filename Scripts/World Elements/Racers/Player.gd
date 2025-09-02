@@ -782,8 +782,9 @@ func _register_default_actions() -> void:
 		if not InputMap.has_action(action):
 			InputMap.add_action(action)
 
-	# Gamepad
+	# --- Gamepad ---
 	var jb := InputEventJoypadButton.new()
+	jb.device = -1  # accept any controller (prevents Windows device-id mismatches)
 
 	# Forward: A
 	jb.button_index = JOY_BUTTON_A
@@ -792,9 +793,7 @@ func _register_default_actions() -> void:
 	# Hop / Drift / Nitro: Right Shoulder (RB)
 	jb.button_index = JOY_BUTTON_RIGHT_SHOULDER
 	InputMap.action_add_event("Hop", jb.duplicate())
-	jb.button_index = JOY_BUTTON_RIGHT_SHOULDER
 	InputMap.action_add_event("Drift", jb.duplicate())
-	jb.button_index = JOY_BUTTON_RIGHT_SHOULDER
 	InputMap.action_add_event("Nitro", jb.duplicate())
 
 	# RearView: Left Shoulder (LB)
@@ -807,36 +806,38 @@ func _register_default_actions() -> void:
 	jb.button_index = JOY_BUTTON_DPAD_RIGHT
 	InputMap.action_add_event("Right", jb.duplicate())
 
-	# Keyboard
-	var ev: InputEventKey
-
-	# Forward: W, Up
-	ev = InputEventKey.new(); ev.keycode = KEY_W;       InputMap.action_add_event("Forward", ev)
-	ev = InputEventKey.new(); ev.keycode = KEY_UP;      InputMap.action_add_event("Forward", ev)
-
-	# Brake: S, Down
-	ev = InputEventKey.new(); ev.keycode = KEY_S;       InputMap.action_add_event("Brake", ev)
-	ev = InputEventKey.new(); ev.keycode = KEY_DOWN;    InputMap.action_add_event("Brake", ev)
-
-	# Left / Right: A/D, ←/→
-	ev = InputEventKey.new(); ev.keycode = KEY_A;       InputMap.action_add_event("Left", ev)
-	ev = InputEventKey.new(); ev.keycode = KEY_LEFT;    InputMap.action_add_event("Left", ev)
-	ev = InputEventKey.new(); ev.keycode = KEY_D;       InputMap.action_add_event("Right", ev)
-	ev = InputEventKey.new(); ev.keycode = KEY_RIGHT;   InputMap.action_add_event("Right", ev)
-
-	# Drift: Shift (both)
-	ev = InputEventKey.new(); ev.keycode = KEY_SHIFT;   InputMap.action_add_event("Drift", ev)
-
-	# Item: E (keyboard) / B (pad)
-	ev = InputEventKey.new(); ev.keycode = KEY_E;       InputMap.action_add_event("Item", ev)
+	# Item: B (pad)
 	jb.button_index = JOY_BUTTON_B
 	InputMap.action_add_event("Item", jb.duplicate())
 
-	# Nitro: Space (uses the old Hop key)
-	ev = InputEventKey.new(); ev.keycode = KEY_SPACE;   InputMap.action_add_event("Nitro", ev)
+	# --- Keyboard ---
+	var ev: InputEventKey
+
+	# Forward: W, Up
+	ev = InputEventKey.new(); ev.keycode = KEY_W;     InputMap.action_add_event("Forward", ev)
+	ev = InputEventKey.new(); ev.keycode = KEY_UP;    InputMap.action_add_event("Forward", ev)
+
+	# Brake: S, Down
+	ev = InputEventKey.new(); ev.keycode = KEY_S;     InputMap.action_add_event("Brake", ev)
+	ev = InputEventKey.new(); ev.keycode = KEY_DOWN;  InputMap.action_add_event("Brake", ev)
+
+	# Left / Right: A/D, ←/→
+	ev = InputEventKey.new(); ev.keycode = KEY_A;     InputMap.action_add_event("Left", ev)
+	ev = InputEventKey.new(); ev.keycode = KEY_LEFT;  InputMap.action_add_event("Left", ev)
+	ev = InputEventKey.new(); ev.keycode = KEY_D;     InputMap.action_add_event("Right", ev)
+	ev = InputEventKey.new(); ev.keycode = KEY_RIGHT; InputMap.action_add_event("Right", ev)
+
+	# Drift: Shift (either)
+	ev = InputEventKey.new(); ev.keycode = KEY_SHIFT; InputMap.action_add_event("Drift", ev)
+
+	# Item: E (keyboard)
+	ev = InputEventKey.new(); ev.keycode = KEY_E;     InputMap.action_add_event("Item", ev)
+
+	# Nitro: Space (old Hop key)
+	ev = InputEventKey.new(); ev.keycode = KEY_SPACE; InputMap.action_add_event("Nitro", ev)
 
 	# RearView (keyboard): TAB (hold to look back)
-	ev = InputEventKey.new(); ev.keycode = KEY_TAB;     InputMap.action_add_event("RearView", ev)
+	ev = InputEventKey.new(); ev.keycode = KEY_TAB;   InputMap.action_add_event("RearView", ev)
 
 func _apply_hop_sprite_offset() -> void:
 	# intentionally empty — nitro has no visual bob

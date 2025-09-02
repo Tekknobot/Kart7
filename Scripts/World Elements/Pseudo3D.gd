@@ -49,7 +49,7 @@ var _intro_mode: bool = false
 var _intro_tween: Tween
 var _finish_mode: bool = false
 
-const REARVIEW_ACTION: StringName = "RearView"
+var REARVIEW_ACTION: StringName = "RearView"
 
 # ---- Player facing during intro spin ----
 @export var player_angle_frame_offset_deg: float = 0.0  # rotate mapping if your "front" isn't frame 0
