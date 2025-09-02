@@ -115,7 +115,7 @@ var _skid_strokes: Array = [[], [], [], []]
 
 var _mm_curr := {}        # key "id:ch" -> {pts:PackedVector2Array, col:Color}
 var _mm_done: Array = []  # array of {pts:PackedVector2Array, col:Color, age:float}
-
+@export var rear_axle_back_px: float = 18.0   # distance from kart center to rear axle in texture pixels
 # =========================
 # Lifecycle
 # =========================
@@ -722,22 +722,30 @@ func _is_offroadish(rt: int) -> bool:
 
 
 # ---------- Project wheel screen → map UV using your world matrix --------------
-
 func _screen_px_to_map_uv(screen_px: Vector2) -> Vector2:
-	# Convert the wheel's screen/global pixel into the Pseudo3D sprite's local UV,
-	# then apply the SAME projective transform the shader uses: projectedUV = (M * (uv-0.5,1)).xy / z
+	# Convert a screen/global pixel to the same projectedUV space the shader uses
+	# projectedUV = (M * (uv_sprite - 0.5, 1)).xy / z
 	if _map_ref == null or _map_ref.texture == null:
 		return Vector2(INF, INF)
 
 	var local_px := _map_ref.to_local(screen_px)
-	var tex_sz := _map_ref.texture.get_size()
-	if tex_sz.x <= 0.0 or tex_sz.y <= 0.0:
+
+	# Use the real drawn rectangle (handles centered/region/offset correctly)
+	var rect := _map_ref.get_rect()
+	var sz := rect.size
+	if sz.x <= 0.0 or sz.y <= 0.0:
 		return Vector2(INF, INF)
 
-	var uv := (local_px / tex_sz) + Vector2(0.5, 0.5)
-	var uv_centered := uv - Vector2(0.5, 0.5)
+	# UV on the sprite quad in [0..1]
+	var uv_sprite := Vector2(
+		(local_px.x - rect.position.x) / sz.x,
+		(local_px.y - rect.position.y) / sz.y
+	)
 
-	# _world_matrix is the "mapMatrix" you already pass into the shader
+	# Centered like the shader (UV - 0.5)
+	var uv_centered := uv_sprite - Vector2(0.5, 0.5)
+
+	# Project with the same matrix used in the shader
 	var h: Vector3 = _world_matrix * Vector3(uv_centered.x, uv_centered.y, 1.0)
 	if abs(h.z) < 1e-6:
 		return Vector2(INF, INF)

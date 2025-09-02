@@ -366,10 +366,12 @@ color = Color(0, 0, 0, 0.901961)
 points = PackedVector2Array(919, 555, 919, 100, 856, 100, 425, 556, 288, 556, 288, 100, 108, 100, 108, 900, 919, 900)
 show_debug_markers = false
 follow_speed_px_sec = 160.0
-skid_width_px = 0.6
+skid_width_px = 1.0
 skid_min_segment_px = 1.0
+skid_fade_seconds = 2.5
 skid_color_drift = Color(0, 0, 0, 0.294118)
 skid_color_offroad = Color(0.470588, 0, 0, 0.247059)
+rear_axle_back_px = 0.0
 
 [node name="RaceManager" type="Node2D" parent="."]
 script = ExtResource("21_ee4r6")
@@ -542,3 +544,6 @@ minimap_node = NodePath("../Minimap")
 path_overlay_node = NodePath("../SubViewport/PathOverlay2D")
 racers_group = "opponent"
 draw_when_offroad = true
+rear_axle_back_px = 0.0
+fwd_half_life_s = 0.0
+min_motion_uv_per_sec = 0.0

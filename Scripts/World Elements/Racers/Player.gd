@@ -182,6 +182,19 @@ var _nitro_prev_material: Material = null
 @export var yoshi_edge_soft: float = 0.20
 var _yoshi_mat: ShaderMaterial = null
 
+# === Award Spin (celebration) ===
+const AWARD_SPIN_DURATION := 0.85    # seconds
+const AWARD_SPIN_CYCLES   := 1.50    # how many L↔R swaps over the duration
+
+var _is_award_spin := false
+var _award_spin_timer := 0.0
+var _award_spin_phase := 0.0         # 0..N cycles
+var _award_spin_dir := 1             # +1 = right-first, -1 = left-first
+
+# === Award Spin (celebration) ===
+const AWARD_SPIN_ROTATIONS := 3.0   # exactly two full 360s
+var _award_spin_elapsed := 0.0
+
 var DEFAULT_POINTS: PackedVector2Array = PackedVector2Array([
 	Vector2(920, 584),
 	Vector2(950, 607),
@@ -389,6 +402,11 @@ func _choose_and_apply_frame(dt: float) -> void:
 	var target_mag = abs(steer)
 	var max_range := BASIC_MAX
 
+	# AWARD SPIN: two fast 360s using the 12-frame sheet
+	if _is_award_spin:
+		_apply_award_spin_frames()
+		return
+
 	# SPIN VISUAL: play left turn frames, then a flipped version, repeatedly.
 	if _is_spinning:
 		# phase in [0,1); first half = sweep A, second half = sweep B
@@ -525,6 +543,7 @@ func Update(mapForward : Vector3) -> void:
 	# spinout flow
 	_spinout_update_meter(dt, input_vec)
 	_spinout_tick(dt)
+	_award_spin_tick(dt)
 
 	# --- Item boost trigger (only item stuff lives here) ---
 	if Input.is_action_just_pressed("Item"):
@@ -986,6 +1005,10 @@ func _end_drift_with_award() -> void:
 	# Reset drift charge regardless
 	_drift_charge = 0.0
 
+	# Celebration spin (visual only)
+	if did_award:
+		_award_spin_start()
+
 func _in_drift_visual_state() -> bool:
 	return _is_drifting or (_drift_release_timer > 0.0) or (_post_settle_time > 0.0)
 
@@ -1285,3 +1308,96 @@ func _has_collision_api() -> bool:
 	return _collisionHandler != null \
 		and _collisionHandler.has_method("IsCollidingWithWall") \
 		and _collisionHandler.has_method("ReturnCurrentRoadType")
+
+func _award_spin_start() -> void:
+	if _is_spinning:
+		return
+	_is_award_spin = true
+	_award_spin_elapsed = 0.0
+
+	# pick spin direction from current steering (fallback to last drift side)
+	var steer_now := ReturnPlayerInput().x
+	var dir := 1
+	if steer_now < 0.0:
+		dir = -1
+	elif steer_now == 0.0:
+		if _drift_dir < 0:
+			dir = -1
+	_award_spin_dir = dir
+
+func _award_spin_tick(dt: float) -> void:
+	if not _is_award_spin:
+		return
+	_award_spin_elapsed += dt
+	if _award_spin_elapsed >= AWARD_SPIN_DURATION:
+		_is_award_spin = false
+		_award_spin_elapsed = AWARD_SPIN_DURATION
+		
+func _apply_award_spin_frames() -> void:
+	# progress 0..1 over the celebration
+	var t := 0.0
+	if AWARD_SPIN_DURATION > 0.0:
+		t = _award_spin_elapsed / AWARD_SPIN_DURATION
+	if t < 0.0:
+		t = 0.0
+	if t > 1.0:
+		t = 1.0
+
+	# map to angle; split into 0..180 and 180..360 halves
+	var total_deg := 360.0 * AWARD_SPIN_ROTATIONS * t
+	var local_deg := fmod(total_deg, 360.0)
+	if local_deg < 0.0:
+		local_deg += 360.0
+
+	var half := 0
+	if local_deg >= 180.0:
+		half = 1
+		local_deg -= 180.0
+
+	var frames := FRAMES_PER_ROW            # you have 12 right-facing frames
+	if frames < 1:
+		frames = 1
+	var steps := frames - 1                 # 0..11 usable steps across 180°
+
+	var u := local_deg / 180.0              # 0..1 within this half
+	var idx_half := int(floor(u * float(steps) + 0.0001))
+	if idx_half < 0:
+		idx_half = 0
+	if idx_half > steps:
+		idx_half = steps
+
+	# compute a 0..23 "direction index" for _set_frame_idx when mirroring is used
+	# pattern (RIGHT spin):   half0 → 0..11, half1 → 23..12 (reverse+flip)
+	# pattern (LEFT spin):    half0 → 11..0 (reverse+flip), half1 → 12..23
+	var dir_right := (_award_spin_dir >= 0)
+	var dir_idx := 0
+	var flip := false
+
+	if dir_right:
+		if half == 0:
+			dir_idx = idx_half                 # 0..11
+			flip = false
+		else:
+			dir_idx = (frames * 2 - 1) - idx_half   # 23..12
+			flip = true
+	else:
+		if half == 0:
+			dir_idx = steps - idx_half         # 11..0
+			flip = true
+		else:
+			dir_idx = frames + idx_half        # 12..23
+			flip = false
+
+	# push to sprite:
+	# if your base supports mirroring (12 frames + flip), use _set_frame_idx(dir_idx)
+	# otherwise: set the base frame and apply flip manually after
+	var use_mirror := false
+	if "sheet_uses_mirroring" in self:
+		use_mirror = sheet_uses_mirroring
+
+	if use_mirror:
+		_set_frame_idx(dir_idx)               # will set flip internally
+	else:
+		var base_idx := dir_idx % frames      # 0..11
+		_set_frame(base_idx)                  # sets frame (resets flip)
+		_set_flip_h(flip)                     # then apply the flip
