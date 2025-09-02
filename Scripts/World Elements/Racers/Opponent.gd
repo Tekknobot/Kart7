@@ -302,6 +302,7 @@ func _try_cache_nodes() -> void:
 
 		
 var DEFAULT_POINTS: PackedVector2Array = PackedVector2Array([
+	Vector2(920, 584),
 	Vector2(950, 607),
 	Vector2(920, 631),
 	Vector2(950, 655),
@@ -394,7 +395,9 @@ func _process(delta: float) -> void:
 
 	var my3: Vector3 = ReturnMapPosition()
 	var pos_px_i := _pos_px_from_mappos(my3)
-	var rt_cur = _collisionHandler.ReturnCurrentRoadType(pos_px_i)
+	var rt_cur := Globals.RoadType.ROAD
+	if _has_collision_api():
+		rt_cur = _collisionHandler.ReturnCurrentRoadType(pos_px_i)
 	var terr_mult := _road_speed_mult(rt_cur)
 
 	# === GO edge-detect (start merge the first frame after GO) ===
@@ -1183,37 +1186,40 @@ func _physics_step_like_player(p_uv: Vector2, right: Vector2, target_uv: Vector2
 	var nextPos := _mapPosition + Vector3(v_total.x, 0.0, v_total.y) * dt
 
 	# axis-wise wall resolution (slide along the free axis)
-	var hit_x = _collisionHandler.IsCollidingWithWall(Vector2i(ceil(nextPos.x), ceil(_mapPosition.z)))
-	if hit_x:
-		nextPos.x = _mapPosition.x
-		SetCollisionBump(Vector3(-sign(v_total.x), 0.0, 0.0))
-		if _hit_sfx_cd <= 0.0 and _sfx_ai != null and _sfx_ai.has_method("play_collision"):
-			_sfx_ai.play_collision()
-			_hit_sfx_cd = 0.12
+	var hit_x := false
+	var hit_z := false
+	if _has_collision_api():
+		hit_x = _collisionHandler.IsCollidingWithWall(Vector2i(ceil(nextPos.x), ceil(_mapPosition.z)))
+		if hit_x:
+			nextPos.x = _mapPosition.x
+			SetCollisionBump(Vector3(-sign(v_total.x), 0.0, 0.0))
+			if _hit_sfx_cd <= 0.0 and _sfx_ai != null and _sfx_ai.has_method("play_collision"):
+				_sfx_ai.play_collision()
+				_hit_sfx_cd = 0.12
 
-	var hit_z = _collisionHandler.IsCollidingWithWall(Vector2i(ceil(_mapPosition.x), ceil(nextPos.z)))
-	if hit_z:
-		nextPos.z = _mapPosition.z
-		SetCollisionBump(Vector3(0.0, 0.0, -sign(v_total.y)))
-		if _hit_sfx_cd <= 0.0 and _sfx_ai != null and _sfx_ai.has_method("play_collision"):
-			_sfx_ai.play_collision()
-			_hit_sfx_cd = 0.12
+		hit_z = _collisionHandler.IsCollidingWithWall(Vector2i(ceil(_mapPosition.x), ceil(nextPos.z)))
+		if hit_z:
+			nextPos.z = _mapPosition.z
+			SetCollisionBump(Vector3(0.0, 0.0, -sign(v_total.y)))
+			if _hit_sfx_cd <= 0.0 and _sfx_ai != null and _sfx_ai.has_method("play_collision"):
+				_sfx_ai.play_collision()
+				_hit_sfx_cd = 0.12
+	# if handler is not ready yet, skip wall tests this frame
 
-	# if an axis hit, zero that component of our side velocity to stop grinding
+	# if an axis hit, damp side velocity to stop grinding
 	if hit_x:
-		# projecting v_total onto x means side might be the culprit; damp lane chase so it re-plans
 		_lane_side_vel *= 0.5
 	if hit_z:
 		_lane_side_vel *= 0.5
 
-	# ... after hit_x / hit_z handling
-
-	# AI↔AI body collision & separation (this frame)
+	# AI↔AI body collision (unchanged)
 	nextPos = _ai_resolve_body_overlap(nextPos, dt)
 
-	# terrain + finalize (same as Player flow)
+	# terrain + finalize
 	var nextPixelPos : Vector2i = Vector2i(ceil(nextPos.x), ceil(nextPos.z))
-	var curr_rt = _collisionHandler.ReturnCurrentRoadType(nextPixelPos)
+	var curr_rt := Globals.RoadType.ROAD
+	if _has_collision_api():
+		curr_rt = _collisionHandler.ReturnCurrentRoadType(nextPixelPos)
 	HandleRoadType(nextPixelPos, curr_rt)
 
 	SetMapPosition(nextPos)
@@ -1492,7 +1498,9 @@ func _ai_tick_nitro(dt: float) -> void:
 
 	# simple surface check: prefer ROAD (don’t waste nitro off-road)
 	var pos_px_i := _pos_px_from_mappos(ReturnMapPosition())
-	var rt_cur = _collisionHandler.ReturnCurrentRoadType(pos_px_i)
+	var rt_cur := Globals.RoadType.ROAD
+	if _has_collision_api():
+		rt_cur = _collisionHandler.ReturnCurrentRoadType(pos_px_i)
 	var on_good_surface = (rt_cur == Globals.RoadType.ROAD)
 
 	# --- NEW: require FULL gauge before considering nitro ---
@@ -1527,3 +1535,11 @@ func _ai_tick_nitro(dt: float) -> void:
 	if _nitro_timer > 0.0:
 		out_mult = max(out_mult, AI_NITRO_MULT)
 	SetOutputSpeedMultiplier(out_mult)
+
+func SetCollisionHandler(node: Node) -> void:
+	_collisionHandler = node
+
+func _has_collision_api() -> bool:
+	return _collisionHandler != null \
+		and _collisionHandler.has_method("IsCollidingWithWall") \
+		and _collisionHandler.has_method("ReturnCurrentRoadType")

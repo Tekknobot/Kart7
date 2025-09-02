@@ -1,0 +1,118 @@
+[gd_scene load_steps=13 format=3 uid="uid://ctt3p16uxh0dd"]
+
+[ext_resource type="Script" uid="uid://cq2qm30peuh2" path="res://Scripts/World Elements/Racers/Opponent.gd" id="1_rx6yg"]
+[ext_resource type="FontFile" uid="uid://buw362wjb8o8d" path="res://Fonts/magofonts/mago2.ttf" id="2_cyera"]
+[ext_resource type="Texture2D" uid="uid://bvioi2jfn2hmv" path="res://Textures/Racers/Yoshi Back.png" id="3_t8iht"]
+[ext_resource type="Script" uid="uid://jwsfedkwc2mf" path="res://Scripts/KartSFX.gd" id="4_rsahb"]
+[ext_resource type="AudioStream" uid="uid://dao0xo2qdbnow" path="res://Audio/pSE_EG_IDLE_B_AMB.wav" id="5_ttmly"]
+[ext_resource type="AudioStream" uid="uid://bdu3ele2dkq3w" path="res://Audio/pSE_EG_LOOP_B_AMB.wav" id="6_i4xd2"]
+[ext_resource type="AudioStream" uid="uid://b5m8w2chfjqdn" path="res://Audio/real_drift.mp3" id="7_uyk7u"]
+[ext_resource type="AudioStream" uid="uid://d1awsowjhkwt7" path="res://Audio/boost.wav" id="8_1ejkn"]
+[ext_resource type="AudioStream" uid="uid://bfxphvr6hykl1" path="res://Audio/spinout.wav" id="9_g3rks"]
+[ext_resource type="AudioStream" uid="uid://ch151vyr1o65" path="res://Audio/collision_thud.wav" id="10_xjl4b"]
+[ext_resource type="AudioStream" uid="uid://dr0ab3ogjrbbl" path="res://Audio/offroad_rumble.wav" id="11_xagfj"]
+[ext_resource type="AudioStream" uid="uid://cjlujousugdtr" path="res://Audio/jump.wav" id="12_sd3ku"]
+
+[node name="Opponent" type="Node2D" node_paths=PackedStringArray("_spriteGFX")]
+script = ExtResource("1_rx6yg")
+player_ref = NodePath("../Player")
+lane_offset_px = 8.0
+target_speed = 150.0
+accel = 10.0
+max_turn_rate = 16.0
+lookahead_px = 8.0
+steer_gain = 4.0
+max_speed_override = 200.0
+catchup_gain_speed = 90.0
+min_ratio_vs_player = 0.85
+AI_NITRO_MIN_FRAC = 0.1
+AI_NITRO_REFILL_S = 15.0
+AI_NITRO_LOOKAHEAD_PX = 400.0
+AI_NITRO_MIN_STRAIGHT_PX = 350.0
+nitro_outline_px = 1.0
+nitro_chroma_max_px = 1.0
+race_manager_ref = NodePath("../../../RaceManager")
+diff_speed_per_lap = 10.0
+diff_max_speed_per_lap = 25.0
+diff_catchup_gain_per_lap = 30.0
+diff_min_ratio_per_lap = 10.0
+diff_turn_per_lap = 6.0
+diff_max_speed_cap = 200.0
+diff_max_min_ratio = 1.0
+avoid_enabled = false
+avoid_lookahead_s = 0.85
+avoid_width_px = 8.0
+pass_bias_outer_on_turn = 0.0
+block_slow_mult = 0.19
+draft_dist_px = 128.0
+draft_lateral_px = 32.0
+draft_speed_bonus = 25.0
+humanize_amp_px = 8.0
+humanize_freq_hz = 0.25
+humanize_noise_hz = 0.15
+humanize_nearby_fade_px = 16.0
+lookahead_px_base = 8.0
+lookahead_px_min = 8.0
+lookahead_px_max = 32.0
+lookahead_curv_boost = 32.0
+desired_yaw_half_life_s = 0.18
+merge_time_s = 1.2
+randomize_on_ready = true
+assume_player_target_speed = 110.0
+speed_tag_font = ExtResource("2_cyera")
+speed_tag_offset_px = 8.0
+lane_chase_speed_px = 150.0
+lane_chase_damp = 2.0
+_maxMovementSpeed = 200.0
+_movementAccel = 10.0
+_movementDeaccel = 90.0
+path_ref = NodePath("../../../SubViewport/PathOverlay2D")
+pseudo3d_ref = NodePath("../../../Map")
+lane_offset = 8.0
+ai_auto_launch = false
+ai_launch_delay_s = 0.0
+ai_launch_time_s = 0.0
+ai_target_speed = 150.0
+ai_auto_throttle = true
+ai_throttle_delay_s = 1.0
+ai_accel_per_sec = 0.0
+mult_gravel = 0.75
+mult_offroad = 0.55
+mult_sink = 0.33
+mult_void = 1.0
+broadcast_view_to_opponents = true
+_spriteGFX = NodePath("GFX/AngleSprite")
+
+[node name="GFX" type="Node" parent="."]
+
+[node name="AngleSprite" type="Sprite2D" parent="GFX"]
+z_index = -1
+texture = ExtResource("3_t8iht")
+
+[node name="Audio" type="Node2D" parent="."]
+script = ExtResource("4_rsahb")
+idle_stream = ExtResource("5_ttmly")
+mid_stream = ExtResource("6_i4xd2")
+high_stream = ExtResource("6_i4xd2")
+drift_stream = ExtResource("7_uyk7u")
+boost_stream = ExtResource("8_1ejkn")
+spin_stream = ExtResource("9_g3rks")
+collision_stream = ExtResource("10_xjl4b")
+offroad_stream = ExtResource("11_xagfj")
+hop_stream = ExtResource("12_sd3ku")
+bump_stream = ExtResource("10_xjl4b")
+hop_volume_db = 0.0
+bump_volume_db = 0.0
+sfx_bus_volume_db = 0.0
+
+[node name="idle_loop" type="AudioStreamPlayer2D" parent="Audio"]
+
+[node name="mid_loop" type="AudioStreamPlayer2D" parent="Audio"]
+
+[node name="high_loop" type="AudioStreamPlayer2D" parent="Audio"]
+
+[node name="drift_loop" type="AudioStreamPlayer2D" parent="Audio"]
+
+[node name="one_shots" type="AudioStreamPlayer2D" parent="Audio"]
+
+[node name="offroad_loop" type="AudioStreamPlayer2D" parent="Audio"]

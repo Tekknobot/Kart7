@@ -23,3 +23,6 @@ res://Scenes/RacerButton.tscn
 res://Scenes/RacerButton.gd
 res://Scenes/CharacterSelect.tscn
 res://Scripts/RacerButton.gd
+res://Scripts/RaceHUD.gd
+res://Scenes/player.tscn
+res://Scenes/opponent.tscn

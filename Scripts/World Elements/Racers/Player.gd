@@ -182,6 +182,17 @@ var _nitro_prev_material: Material = null
 @export var yoshi_edge_soft: float = 0.20
 var _yoshi_mat: ShaderMaterial = null
 
+var DEFAULT_POINTS: PackedVector2Array = PackedVector2Array([
+	Vector2(920, 584),
+	Vector2(950, 607),
+	Vector2(920, 631),
+	Vector2(950, 655),
+	Vector2(920, 679),
+	Vector2(950, 703),
+	Vector2(920, 727),
+	Vector2(950, 751)
+])
+
 func ReturnCollisionRadiusUV() -> float:
 	# Convert the pixel radius to UV using your map’s real width.
 	var map_w := 1024.0
@@ -581,29 +592,32 @@ func Update(mapForward : Vector3) -> void:
 	var nextPos : Vector3 = _mapPosition + ReturnVelocity()
 	var nextPixelPos : Vector2i = Vector2i(ceil(nextPos.x), ceil(nextPos.z))
 
-	# wall checks
-	if _collisionHandler.IsCollidingWithWall(Vector2i(ceil(nextPos.x), ceil(_mapPosition.z))):
-		nextPos.x = _mapPosition.x
-		SetCollisionBump(Vector3(-sign(ReturnVelocity().x), 0.0, 0.0))
-		if _wall_hit_cd <= 0.0 and _sfx and _sfx.has_method("play_collision"):
-			_sfx.play_collision()
-			_wall_hit_cd = WALL_HIT_COOLDOWN_S
+	# --- X axis wall ---
+	if _has_collision_api():
+		if _collisionHandler.IsCollidingWithWall(Vector2i(ceil(nextPos.x), ceil(_mapPosition.z))):
+			nextPos.x = _mapPosition.x
+			SetCollisionBump(Vector3(-sign(ReturnVelocity().x), 0.0, 0.0))
+			if _wall_hit_cd <= 0.0 and _sfx and _sfx.has_method("play_collision"):
+				_sfx.play_collision()
+				_wall_hit_cd = WALL_HIT_COOLDOWN_S
 
-	# Z axis wall hit
-	if _collisionHandler.IsCollidingWithWall(Vector2i(ceil(_mapPosition.x), ceil(nextPos.z))):
-		nextPos.z = _mapPosition.z
-		SetCollisionBump(Vector3(0.0, 0.0, -sign(ReturnVelocity().z)))
-		if _wall_hit_cd <= 0.0 and _sfx and _sfx.has_method("play_collision"):
-			_sfx.play_collision()
-			_wall_hit_cd = WALL_HIT_COOLDOWN_S
+	# --- Z axis wall ---
+	if _has_collision_api():
+		if _collisionHandler.IsCollidingWithWall(Vector2i(ceil(_mapPosition.x), ceil(nextPos.z))):
+			nextPos.z = _mapPosition.z
+			SetCollisionBump(Vector3(0.0, 0.0, -sign(ReturnVelocity().z)))
+			if _wall_hit_cd <= 0.0 and _sfx and _sfx.has_method("play_collision"):
+				_sfx.play_collision()
+				_wall_hit_cd = WALL_HIT_COOLDOWN_S
 
+	# --- Terrain type ---
+	var curr_rt := Globals.RoadType.ROAD
+	if _has_collision_api():
+		curr_rt = _collisionHandler.ReturnCurrentRoadType(Vector2i(ceil(nextPos.x), ceil(nextPos.z)))
+	HandleRoadType(Vector2i(ceil(nextPos.x), ceil(nextPos.z)), curr_rt)
 
 	# apply drift side-slip after wall clamps
 	nextPos += right_vec * _drift_side_slip * dt
-
-	# TERRAIN (smoothed)
-	var curr_rt = _collisionHandler.ReturnCurrentRoadType(Vector2i(ceil(nextPos.x), ceil(nextPos.z)))
-	HandleRoadType(Vector2i(ceil(nextPos.x), ceil(nextPos.z)), curr_rt)
 
 	var terrain_raw := _speedMultiplier
 	if terrain_raw <= 0.0:
@@ -1294,3 +1308,8 @@ func IsUsingNitroMaterial() -> bool:
 	var spr := ReturnSpriteGraphic()
 	if spr == null: return false
 	return spr.material == _nitro_mat
+
+func _has_collision_api() -> bool:
+	return _collisionHandler != null \
+		and _collisionHandler.has_method("IsCollidingWithWall") \
+		and _collisionHandler.has_method("ReturnCurrentRoadType")

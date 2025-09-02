@@ -121,6 +121,9 @@ func Setup(screenSize : Vector2, player : Racer) -> void:
 		call_deferred("PlayIntroSpin", player)
 		
 func Update(player: Racer) -> void:
+	if player == null:
+		return
+			
 	if _rearview_on():
 		if Engine.get_frames_drawn() % 15 == 0:
 			print("RearView held")
@@ -317,39 +320,29 @@ func PlayIntroSpin(player: Racer) -> void:
 		return
 
 	_intro_mode = true
+	_intro_player = player
 
-	# freeze any existing rotation and keep centered on player
 	_mapRotSpeed = 0.0
 	KeepRotationDistance(player)
 	UpdateShader()
 	_update_opponents_view_bindings()
 
-	# animate yaw for N spins (TAU = 2π radians)
 	var start_yaw := _mapRotationAngle.y
 	var end_yaw   := start_yaw + TAU * intro_spin_spins
 
-	# tween yaw via SetYaw so matrix/overlay get updated every step
-	_intro_tween = create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_intro_tween = create_tween()
+	_intro_tween.set_trans(Tween.TRANS_SINE)
+	_intro_tween.set_ease(Tween.EASE_IN_OUT)
 
-	_intro_tween.tween_method(
-		func(v: float) -> void:
-			# v is the camera yaw we’re animating to
-			SetYaw(v)
-			KeepRotationDistance(player)
-			_set_player_facing_for_camera_yaw(player, v)
-			UpdateShader()
-			_update_opponents_view_bindings()
-	, start_yaw, end_yaw, intro_spin_duration)
+	var step_cb := Callable(self, "_intro_spin_step")
+	_intro_tween.tween_method(step_cb, start_yaw, end_yaw, intro_spin_duration)
 
-	# parallel “punch-in then out” zoom
 	var size_start := size_k
 	_intro_tween.parallel().tween_property(self, "size_k", intro_spin_zoom_k, intro_spin_duration * 0.45)
-	_intro_tween.parallel().tween_property(self, "size_k", size_start,        intro_spin_duration * 0.55).set_delay(intro_spin_duration * 0.45)
+	var t_back := _intro_tween.parallel().tween_property(self, "size_k", size_start, intro_spin_duration * 0.55)
+	t_back.set_delay(intro_spin_duration * 0.45)
 
-	_intro_tween.finished.connect(func() -> void:
-		_intro_mode = false
-		emit_signal("intro_spin_finished")
-	)
+	_intro_tween.finished.connect(Callable(self, "_on_intro_spin_finished"))
 
 func _set_player_facing_for_camera_yaw(player: Racer, cam_yaw: float) -> void:
 	if player == null:
@@ -412,3 +405,47 @@ func _view_angle_from_camera_yaw(cam_yaw: float) -> float:
 	# As camera yaw increases, we walk around the player, so the *viewed* angle equals cam_yaw.
 	# If your asset is authored differently, adjust with player_angle_frame_offset_deg above.
 	return fposmod(cam_yaw, TAU)
+
+# --- dynamic opponent registration ---------------------------------
+
+func ClearOpponents() -> void:
+	_opponents.clear()
+
+func RegisterOpponent(n: Node) -> void:
+	if n == null:
+		return
+	if _opponents.has(n):
+		return
+	_opponents.append(n)
+
+func SetOpponentsFromGroup(group_name: String = "racers", exclude: Node = null) -> void:
+	_opponents.clear()
+	var nodes := get_tree().get_nodes_in_group(group_name)
+	for n in nodes:
+		if exclude != null and n == exclude:
+			continue
+		_opponents.append(n)
+
+# --- safe overlay rebinding (optional, if you want to set it at runtime) ----
+
+func SetPathOverlayNodePath(p: NodePath, viewport: SubViewport = null) -> void:
+	path_overlay_node = p
+	if viewport != null:
+		path_overlay_viewport = viewport
+	_overlay_node = get_node_or_null(path_overlay_node)
+	_bind_path_overlay_texture()
+
+var _intro_player: Racer = null
+
+func _intro_spin_step(v: float) -> void:
+	if _intro_player == null:
+		return
+	SetYaw(v)
+	KeepRotationDistance(_intro_player)
+	_set_player_facing_for_camera_yaw(_intro_player, v)
+	UpdateShader()
+	_update_opponents_view_bindings()
+
+func _on_intro_spin_finished() -> void:
+	_intro_mode = false
+	emit_signal("intro_spin_finished")

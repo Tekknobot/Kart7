@@ -1,8 +1,11 @@
 extends Node2D
 
+var _roster_ready := false
+var _map_ready := false
+
 @export var _map : Node2D
 @export var _collision : Node
-@export var _player : Racer
+var _player: Racer = null
 @export var _spriteHandler : Node2D
 @export var _animationHandler : Node
 @export var _backgroundElements : Node2D
@@ -16,101 +19,105 @@ var _player_freeze_frames := 0
 @onready var _player_script   := preload("res://Scripts/World Elements/Racers/Player.gd")
 @onready var _opponent_script := preload("res://Scripts/World Elements/Racers/Opponent.gd")
 
+@export var racers_root_path: NodePath           # e.g. "Sprite Handler/Racers"
+@export var spawn_points_path: NodePath          # Node2D whose children are your grid spots (P1..P8)
+@export var player_scene: PackedScene            # Player prefab (tscn)
+@export var opponent_scene: PackedScene          # Opponent prefab (tscn)
+
+# Yoshi recolor shader for sprites
+@export_file("*.gdshader") var yoshi_shader_path: String = "res://Scripts/Shaders/YoshiSwap.gdshader"
+@export var src_hue: float   = 0.333333
+@export var hue_tol: float   = 0.08
+@export var edge_soft: float = 0.20
+
+# Priming sheet (avoid 1-frame flash)
+@export var prime_hframes: bool = true
+@export var sheet_hframes: int  = 12
+
+var DEFAULT_POINTS: PackedVector2Array = PackedVector2Array([
+	Vector2(920, 584),
+	Vector2(950, 607),
+	Vector2(920, 631),
+	Vector2(950, 655),
+	Vector2(920, 679),
+	Vector2(950, 703),
+	Vector2(920, 727),
+	Vector2(950, 751)
+])
+
 func _apply_character_selection() -> void:
-	var racers_root := get_node_or_null(^"Sprite Handler/Racers")
+	_ensure_roster_spawned()
+
+func _ensure_roster_spawned() -> void:
+	var racers_root := get_node_or_null(racers_root_path)
 	if racers_root == null:
+		racers_root = get_node_or_null(^"Sprite Handler/Racers")
+	if racers_root == null:
+		push_error("World: Racers root not found; set racers_root_path.")
 		return
 
-	var choice := "Voltage"
-	if _has_prop(Globals, "selected_racer"):
-		choice = str(Globals.selected_racer)
-
-	var new_player: Node = _player
-	
-	_apply_selected_yoshi_shader_to_player()
-
+	# Already spawned? bail
+	var existing := 0
 	for c in racers_root.get_children():
-		if not (c is Node2D):
-			continue
-		if c.name == choice:
-			if c.get_script() != _player_script:
-				c.set_script(_player_script)
-			new_player = c
+		if c is Node2D:
+			existing += 1
+	if existing >= Globals.racer_names.size():
+		return
+
+	# Need prefabs
+	if player_scene == null or opponent_scene == null:
+		push_error("World: assign player_scene and opponent_scene in the Inspector.")
+		return
+
+	# Build ordered names: selected first, then the rest
+	var all_names: Array = []
+	for n in Globals.racer_names:
+		all_names.append(String(n))
+	var selected := String(Globals.selected_racer)
+	if selected == "" or not all_names.has(selected):
+		if all_names.size() > 0:
+			selected = String(all_names[0])
 		else:
-			if c.get_script() != _opponent_script:
-				c.set_script(_opponent_script)
+			selected = "Voltage"
 
-	if new_player:
-		_player = new_player
+	var remaining: Array = []
+	for n in all_names:
+		if n != selected:
+			remaining.append(n)
 
-		# Apply the selected color from Globals to the actual player sprite
-		if _player.has_method("RefreshPaletteFromGlobals"):
-			_player.RefreshPaletteFromGlobals()
-		else:
-			if _player.has_method("_ensure_yoshi_material"):
-				_player._ensure_yoshi_material()
-			if _player.has_method("_apply_player_palette_from_globals"):
-				_player._apply_player_palette_from_globals()
+	# Spawn player
+	var p := player_scene.instantiate()
+	p.name = selected
+	racers_root.add_child(p)
+	_wire_racer(p, true)
+	_player = p  # runtime reference for the rest of the world
 
-		var spr = null
-		if _player.has_method("ReturnSpriteGraphic"):
-			spr = _player.ReturnSpriteGraphic()
+	# Color player now (shader or modulate fallback)
+	if _player.has_method("RefreshPaletteFromGlobals"):
+		_player.RefreshPaletteFromGlobals()
+	else:
+		if _player.has_method("_ensure_yoshi_material"):
+			_player._ensure_yoshi_material()
+		if _player.has_method("_apply_player_palette_from_globals"):
+			_player._apply_player_palette_from_globals()
 
-		if spr != null:
-			if spr.material is ShaderMaterial:
-				var sm := spr.material as ShaderMaterial
-				var shader_path := ""
-				if sm.shader != null:
-					shader_path = sm.shader.resource_path
-				print("Palette applied → racer=", Globals.selected_racer, " color=", Globals.selected_color, " shader=", shader_path)
-			else:
-				print("Palette via modulate → racer=", Globals.selected_racer, " color=", Globals.selected_color, " modulate=", spr.modulate)
+	# Spawn opponents
+	for i in range(remaining.size()):
+		var nm := String(remaining[i])
+		var opp := opponent_scene.instantiate()
+		opp.name = nm
+		racers_root.add_child(opp)
+		_wire_racer(opp, false)
 
-		# Update any node that has an exported `player_path` to point at the new player
-		_retarget_player_paths(get_tree().current_scene, _player)
+	# Make sure HUD sees the new player path now
+	var hud := get_node_or_null(^"RaceHUD")
+	if hud:
+		hud.set("player_path", hud.get_path_to(_player))
+		hud.set("_player", _player)
 
-		# Keep HUD in sync immediately
-		var hud := get_node_or_null(^"RaceHUD")
-		if hud:
-			hud.set("player_path", hud.get_path_to(_player))
-			hud.set("_player", _player)
-
-func _apply_selected_yoshi_shader_to_player() -> void:
-	if _player == null:
-		return
-
-	var spr = null
-	if _player.has_method("ReturnSpriteGraphic"):
-		spr = _player.ReturnSpriteGraphic()
-	if spr == null:
-		return
-
-	var sh_path := "res://Scripts/Shaders/YoshiSwap.gdshader"
-	if not ResourceLoader.exists(sh_path):
-		return
-
-	var sh := load(sh_path)
-	if sh == null:
-		return
-
-	var sm := ShaderMaterial.new()
-	sm.shader = sh
-	sm.resource_local_to_scene = true
-	spr.material = sm
-
-	var name_now := "Voltage"
-	if "selected_racer" in Globals:
-		name_now = String(Globals.selected_racer)
-
-	var col := Color.WHITE
-	if Globals.has_method("get_racer_color"):
-		col = Globals.get_racer_color(name_now)
-
-	# set your shader uniforms (matches your shader code)
-	sm.set_shader_parameter("target_color", col)
-	sm.set_shader_parameter("src_hue", 0.333333)
-	sm.set_shader_parameter("hue_tol", 0.08)
-	sm.set_shader_parameter("edge_soft", 0.20)
+	# Keep Globals in sync with the spawned player/color
+	Globals.selected_racer = StringName(selected)
+	Globals.selected_color = Globals.get_racer_color(selected)
 
 func _has_prop(obj: Object, prop: StringName) -> bool:
 	for p in obj.get_property_list():
@@ -129,6 +136,9 @@ func _retarget_player_paths(node: Node, player: Node) -> void:
 		_retarget_player_paths(child, player)
 
 func _process(delta: float) -> void:
+	if not _roster_ready or not _map_ready:
+		return
+
 	var dt := _smoother.smooth_delta(delta)
 
 	_map.Update(_player)
@@ -141,13 +151,13 @@ func _process(delta: float) -> void:
 	_animationHandler.Update()
 	_backgroundElements.Update(_map.ReturnMapRotation())
 
-	# NEW: advance standings & z-ordering
 	if is_instance_valid(_raceManager):
 		_raceManager.Update()
 
 func _ready() -> void:
 	_apply_character_selection()
 	# (keep the rest of your existing _ready() as-is)
+	await _await_roster_and_boot()
 	
 	if _map == null or _player == null:
 		push_error("World: _map or _player is null.")
@@ -159,7 +169,85 @@ func _ready() -> void:
 		push_error("World: _map Sprite2D has no texture.")
 		return
 
+func _await_roster_and_boot() -> void:
+	var racers_root := get_node_or_null(^"Sprite Handler/Racers")
+	var tries := 0
+	while racers_root == null and tries < 360:
+		await get_tree().process_frame
+		racers_root = get_node_or_null(^"Sprite Handler/Racers")
+		tries += 1
+	if racers_root == null:
+		push_error("World: Racers root never appeared.")
+		return
+
+	var want := Globals.racer_names.size()
+	var chosen_name := String(Globals.selected_racer)
+	var candidate: Node = null
+
+	tries = 0
+	while tries < 360:
+		var have := 0
+		candidate = null
+		for c in racers_root.get_children():
+			if c is Node2D:
+				have += 1
+				if c.name == chosen_name:
+					candidate = c
+		if have >= want and candidate != null:
+			break
+		await get_tree().process_frame
+		tries += 1
+
+	if candidate == null:
+		push_error("World: chosen racer node not found.")
+		return
+
+	_player = candidate
+	_wire_player_dependencies()
+
+	if _player.has_method("RefreshPaletteFromGlobals"):
+		_player.RefreshPaletteFromGlobals()
+	else:
+		if _player.has_method("_ensure_yoshi_material"): _player._ensure_yoshi_material()
+		if _player.has_method("_apply_player_palette_from_globals"): _player._apply_player_palette_from_globals()
+
+	_retarget_player_paths(get_tree().current_scene, _player)
+
+	var hud := get_node_or_null(^"RaceHUD")
+	if hud:
+		hud.set("player_path", hud.get_path_to(_player))
+		hud.set("_player", _player)
+
+	_roster_ready = true
+	_setup_after_roster()
+
+func _setup_after_roster() -> void:
+	if _map == null or _player == null:
+		push_error("World: _map or _player is null.")
+		return
+	if not (_map is Sprite2D):
+		push_error("World: _map is not a Sprite2D (Pseudo3D.gd).")
+		return
+	if (_map as Sprite2D).texture == null:
+		push_error("World: _map Sprite2D has no texture.")
+		return
+
+	# Boot map + systems
 	_map.Setup(Globals.screenSize, _player)
+
+	# Bind PathOverlay2D to the Map (Pseudo3D) now that Map is set up
+	var overlay_node := get_node(^"SubViewport/PathOverlay2D")          # sibling of Map
+	var overlay_vp   := get_node(^"SubViewport") as SubViewport         # the SubViewport instance
+	var rel_from_map := _map.get_path_to(overlay_node)                  # "../SubViewport/PathOverlay2D"
+
+	if _map != null and _map.has_method("SetPathOverlayNodePath"):
+		_map.call("SetPathOverlayNodePath", rel_from_map, overlay_vp)
+
+	# Tell Map which nodes are opponents (everyone in "racers" except the player)
+	if _map != null and _map.has_method("SetOpponentsFromGroup"):
+		_map.call("SetOpponentsFromGroup", "racers", _player)
+
+
 	if _collision != null and _collision.has_method("Setup"):
 		_collision.call("Setup")
 
@@ -167,13 +255,81 @@ func _ready() -> void:
 	_spriteHandler.Setup(_map.ReturnWorldMatrix(), (_map as Sprite2D).texture.get_size().x, _player)
 	_animationHandler.Setup(_player)
 
-	# NEW: RaceManager boot
+	# RaceManager boot
 	if is_instance_valid(_raceManager):
 		_raceManager.Setup()
 		_raceManager.connect("standings_changed", Callable(self, "_on_standings_changed"))
 
+	# Push path/overlay to subsystems, then finalize AI grid when the path is hot
 	call_deferred("_push_path_points_once")
 	call_deferred("_spawn_player_at_path_index", 1)
+
+	# Register opponents with the map now (they were spawned dynamically)
+	_refresh_map_opponents()
+
+	# Finalize opponent grid a couple frames later so the path is guaranteed ready
+	if _map != null and _map.has_method("SetOpponentsFromGroup"):
+		_map.call("SetOpponentsFromGroup", "racers", _player)
+
+	call_deferred("_finalize_ai_grid_spawn")
+	
+	_map_ready = true
+
+# Wait a couple frames so path points / overlay are pushed, then place AI.
+func _finalize_ai_grid_spawn() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	_place_player_from_defaults()        # player → DEFAULT_POINTS[0]
+	_place_opponents_from_defaults_post()# opponents → DEFAULT_POINTS[1..]
+
+	if _map != null and _map.has_method("SetOpponentsFromGroup"):
+		_map.call("SetOpponentsFromGroup", "racers", _player)
+
+# Place every Opponent child at Opponent.DEFAULT_POINTS[i] (pixels).
+func _place_opponents_from_defaults_post() -> void:
+	var racers_root := get_node_or_null(racers_root_path)
+	if racers_root == null:
+		racers_root = get_node_or_null(^"Sprite Handler/Racers")
+	if racers_root == null:
+		return
+
+	if DEFAULT_POINTS.size() < 2:
+		return
+
+	# If you prefer a glide-into-path (like ArmMergeFromGrid), we need a UV scale.
+	# Using the map texture width is a good default (your project uses 1024).
+	var scale_px := 1024.0
+	if _map is Sprite2D and (_map as Sprite2D).texture != null:
+		scale_px = float((_map as Sprite2D).texture.get_size().x)
+
+	var opp_index := 1  # start AFTER the player's slot (0)
+	for n in racers_root.get_children():
+		if n == _player:
+			continue
+
+		if opp_index >= DEFAULT_POINTS.size():
+			break
+
+		var px: Vector2 = DEFAULT_POINTS[opp_index]
+
+		# Prefer a smooth, pre-GO hold -> path merge if the AI exposes it:
+		var used_merge := false
+		if n.has_method("ArmMergeFromGrid"):
+			var uv := px / scale_px
+			# path_idx = 0, lane_px = 0.0; adjust if you want per-row lanes
+			n.call("ArmMergeFromGrid", uv, 0, 0.0)
+			used_merge = true
+
+		# Fallback: hard place in map pixels
+		if not used_merge and n.has_method("SetMapPosition"):
+			n.call("SetMapPosition", Vector3(px.x, 0.0, px.y))
+
+		# Make sure each opponent knows who the player is (for catch-up/depth)
+		if _player != null and _has_prop(n, "player_ref"):
+			n.set("player_ref", n.get_path_to(_player))
+
+		opp_index += 1
 
 func _on_standings_changed(board: Array) -> void:
 	# example: print leader name and lap
@@ -181,3 +337,160 @@ func _on_standings_changed(board: Array) -> void:
 		var lead = board[0]
 		#print("P1:", lead["node"].name, "lap", lead["lap"])
 		pass
+
+func _sort_by_name(a: Node, b: Node) -> bool:
+	return a.name < b.name
+
+func _set_identity(racer: Node, name_str: String) -> void:
+	racer.name = name_str
+	if racer.has_meta("racer_name"):
+		racer.set("racer_name", StringName(name_str))
+	if racer.has_method("SetDisplayName"):
+		racer.call("SetDisplayName", name_str)
+	# Put everyone in groups most systems expect
+	racer.add_to_group("racers")
+	racer.add_to_group("kart")
+
+func _place_at(racer: Node, parent: Node, spots: Array, index: int) -> void:
+	parent.add_child(racer)
+	if racer is Node2D:
+		var r2d := racer as Node2D
+		var pos := Vector2.ZERO
+		var rot := 0.0
+		if index >= 0 and index < spots.size():
+			var mk := spots[index] as Node2D
+			pos = mk.global_position
+			rot = mk.global_rotation
+		r2d.global_position = pos
+		r2d.global_rotation = rot
+
+func _apply_color_to_racer(racer: Node, col: Color, out_sprites: Array) -> void:
+	var spr := _find_sprite(racer)
+	if spr == null:
+		return
+
+	# Hide until primed (no sheet flash)
+	if spr is CanvasItem:
+		(spr as CanvasItem).visible = false
+
+	_prime_sprite_grid(spr)
+	_apply_yoshi_shader(spr, col)
+	out_sprites.append(spr)
+
+func _find_sprite(root: Node) -> Node:
+	if root is Sprite2D or root is AnimatedSprite2D:
+		return root
+	for c in root.get_children():
+		var n := _find_sprite(c)
+		if n != null:
+			return n
+	return null
+
+func _prime_sprite_grid(spr: Node) -> void:
+	if not prime_hframes:
+		return
+	if spr is Sprite2D:
+		var s := spr as Sprite2D
+		if sheet_hframes > 0:
+			s.hframes = sheet_hframes
+			s.vframes = 1
+			s.frame = 0
+			s.flip_h = false
+	if spr is AnimatedSprite2D:
+		var a := spr as AnimatedSprite2D
+		if a.sprite_frames != null and a.sprite_frames.get_animation_names().size() > 0:
+			if a.animation == "":
+				a.animation = a.sprite_frames.get_animation_names()[0]
+			a.frame = 0
+			a.stop()
+
+func _apply_yoshi_shader(spr: Node, col: Color) -> void:
+	if ResourceLoader.exists(yoshi_shader_path):
+		var sh := load(yoshi_shader_path) as Shader
+		if sh != null:
+			var sm := ShaderMaterial.new()
+			sm.shader = sh
+			sm.resource_local_to_scene = true
+			sm.set_shader_parameter("target_color", col)
+			sm.set_shader_parameter("src_hue",     src_hue)
+			sm.set_shader_parameter("hue_tol",     hue_tol)
+			sm.set_shader_parameter("edge_soft",   edge_soft)
+			if spr is CanvasItem:
+				(spr as CanvasItem).material = sm
+	else:
+		# fallback: multiply tint
+		if spr is CanvasItem:
+			(spr as CanvasItem).modulate = col
+
+func _wire_player_dependencies() -> void:
+	if _player == null:
+		return
+	if _collision != null:
+		if _player.has_method("SetCollisionHandler"):
+			_player.call("SetCollisionHandler", _collision)
+		elif _has_prop(_player, "_collisionHandler"):   # <-- use _has_prop, not has_meta
+			_player.set("_collisionHandler", _collision)
+	if _player.has_method("OnBecamePlayer"):
+		_player.call_deferred("OnBecamePlayer")
+
+func _refresh_map_opponents() -> void:
+	if _map != null and _map.has_method("SetOpponentsFromGroup"):
+		# Put everyone in group "racers" except the player into Pseudo3D’s list
+		_map.call("SetOpponentsFromGroup", "racers", _player)
+
+func _wire_racer(racer: Node, is_player: bool) -> void:
+	# Give the racer the collision handler so IsCollidingWithWall/ReturnCurrentRoadType exist
+	if _collision != null:
+		if racer.has_method("SetCollisionHandler"):
+			racer.call("SetCollisionHandler", _collision)
+		elif _has_prop(racer, "_collisionHandler"):
+			# only set if the property actually exists
+			racer.set("_collisionHandler", _collision)
+
+	# For opponents, pass a player ref if they expose it (so catchup/depth sort work)
+	if not is_player and _player != null and _has_prop(racer, "player_ref"):
+		racer.set("player_ref", racer.get_path_to(_player))
+
+	# Let prefabs run any re-init hook after they become Player/Opponent
+	if is_player:
+		if racer.has_method("OnBecamePlayer"):
+			racer.call_deferred("OnBecamePlayer")
+	else:
+		if racer.has_method("OnBecameOpponent"):
+			racer.call_deferred("OnBecameOpponent")
+
+
+# Places every Opponent child at Opponent.DEFAULT_POINTS[i] in pixel space.
+# Uses the API your Opponent.gd already exposes.
+func _place_opponents_from_defaults(racers_root: Node) -> void:
+	var idx := 0
+	for n in racers_root.get_children():
+		if n == _player:
+			continue
+		# Hide sprite briefly to avoid a 1-frame sheet peek
+		var spr := _find_sprite(n)
+		if spr != null and spr is CanvasItem:
+			(spr as CanvasItem).visible = false
+
+		# Prefer the prefab API if present
+		if n.has_method("ApplySpawnFromDefaultIndex"):
+			n.call("ApplySpawnFromDefaultIndex", idx, 0.0)  # lane_px = 0.. tweak if you want rows
+			# Optional: if you want the nice pre-GO hold → path merge, use ArmMergeFromGrid instead:
+			# if n.has_method("ArmMergeFromGrid") and n.has_method("DefaultCount"):
+			#   var cnt := int(n.call("DefaultCount"))
+			#   var di := clamp(idx, 0, max(0, cnt - 1))
+			#   var px := n.DEFAULT_POINTS[di]   # if you export it, or expose a getter
+			#   var scale_px := 1024.0           # or n.call("_pos_scale_px")
+			#   var uv := Vector2(px.x, px.y) / scale_px
+			#   n.call("A
+
+func _place_player_from_defaults() -> void:
+	if _player == null:
+		return
+	if DEFAULT_POINTS.size() == 0:
+		return
+
+	var px: Vector2 = DEFAULT_POINTS[0]
+	# Map space is pixels on X/Z
+	if _player.has_method("SetMapPosition"):
+		_player.call("SetMapPosition", Vector3(px.x, 0.0, px.y))
