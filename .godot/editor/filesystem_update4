@@ -27,3 +27,4 @@ res://Scripts/RaceHUD.gd
 res://Scenes/player.tscn
 res://Scenes/opponent.tscn
 res://Scripts/Minimap.gd
+res://Scripts/LeaderBoard.gd

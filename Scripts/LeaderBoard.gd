@@ -81,29 +81,42 @@ func _input(event: InputEvent) -> void:
 # ---------------- lifecycle ----------------
 func _ready() -> void:
 	_ensure_toggle_action()
-	set_process_input(true)  # so _input runs
+	set_process_input(true)
 	_build_ui_once()
 
-	_rm = get_node_or_null(race_manager_path)
-	_player = get_node_or_null(player_path)
+	_wire_refs_initial()      # <— NEW
 
-	if _rm and _rm.has_signal("standings_changed"):
-		if not _rm.is_connected("standings_changed", Callable(self, "_on_standings_changed")):
-			_rm.connect("standings_changed", Callable(self, "_on_standings_changed"))
-
-	# NEW: lock on final results
-	if _rm and _rm.has_signal("race_finished"):
-		if not _rm.is_connected("race_finished", Callable(self, "_on_race_finished")):
-			_rm.connect("race_finished", Callable(self, "_on_race_finished"))
-
+	# Seed initial table if possible
 	if _rm and _rm.has_method("GetCurrentStandings"):
 		_update_loop_len()
 		var board: Array = _rm.call("GetCurrentStandings")
 		if not board.is_empty():
+			# discover player from board if we still don't have one
+			if _player == null:
+				_player = _discover_player_from_board(board)
 			_apply_leader_snapshot(board)
 			_update_rows(board)
 
 	set_process(false)
+
+func _discover_player_from_board(board: Array) -> Node:
+	for it in board:
+		var r: Node = it.get("node", null)
+		if r != null and r.has_method("ReturnPlayerInput"):
+			return r
+	# name match fallback
+	if "selected_racer" in Globals:
+		var want := String(Globals.selected_racer)
+		for it in board:
+			var r2: Node = it.get("node", null)
+			if r2 != null and String(r2.name) == want:
+				return r2
+	# anything racer-ish
+	for it in board:
+		var r3: Node = it.get("node", null)
+		if r3 != null and r3.has_method("ReturnMapPosition"):
+			return r3
+	return null
 
 func _exit_tree() -> void:
 	for k in _tweens_by_id.keys():
@@ -116,6 +129,10 @@ func _exit_tree() -> void:
 func _on_standings_changed(board: Array) -> void:
 	if board.is_empty():
 		return
+	# Late spawn case: find player now
+	if _player == null:
+		_player = _discover_player_from_board(board)
+
 	if lock_on_finish and _locked:
 		return
 	_update_loop_len()
@@ -486,3 +503,39 @@ func _on_race_finished(board: Array) -> void:
 			if old_tw: old_tw.kill()
 			bg.set_meta("hl_tw", null)
 		bg.set_meta("hl_until", 0.0)
+
+func _wire_refs_initial() -> void:
+	_rm = get_node_or_null(race_manager_path)
+	# Player path is now optional; try it first, otherwise discover.
+	_player = get_node_or_null(player_path)
+	if _player == null:
+		_player = _discover_player_from_scene()
+
+	# Signals (idempotent)
+	if _rm and _rm.has_signal("standings_changed"):
+		if not _rm.is_connected("standings_changed", Callable(self, "_on_standings_changed")):
+			_rm.connect("standings_changed", Callable(self, "_on_standings_changed"))
+
+	if _rm and _rm.has_signal("race_finished"):
+		if not _rm.is_connected("race_finished", Callable(self, "_on_race_finished")):
+			_rm.connect("race_finished", Callable(self, "_on_race_finished"))
+
+func _discover_player_from_scene() -> Node:
+	# 1) Prefer a racer with human input (your Player.gd exposes ReturnPlayerInput)
+	var racers := get_tree().get_nodes_in_group("racers")
+	for n in racers:
+		if n is Node and n.has_method("ReturnPlayerInput"):
+			return n
+
+	# 2) If Globals knows the selected racer, pick by name
+	if "selected_racer" in Globals:
+		var want := String(Globals.selected_racer)
+		for n in racers:
+			if n is Node and String(n.name) == want:
+				return n
+
+	# 3) Last resort: first racer-like node in the scene (has map methods)
+	for n in racers:
+		if n is Node and n.has_method("ReturnMapPosition"):
+			return n
+	return null
