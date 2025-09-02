@@ -26,3 +26,4 @@ res://Scripts/RacerButton.gd
 res://Scripts/RaceHUD.gd
 res://Scenes/player.tscn
 res://Scenes/opponent.tscn
+res://Scripts/Minimap.gd

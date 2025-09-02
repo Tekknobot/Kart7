@@ -37,6 +37,12 @@ var _finish_order: Array = []  # ids in the order they finish
 
 var _finish_cam_played := false
 
+@export var require_go_to_start := true      # wait for Globals.race_can_drive
+@export var min_race_ms_to_finish := 1500    # safety time before finish is allowed (ms)
+
+var _race_started := false
+var _go_ms := 0
+
 # >>> NEW: public helpers for the UI <<<
 func GetLoopLengthPx() -> float:
 	return _loop_len_px
@@ -225,6 +231,9 @@ func _ahead(a: Dictionary, b: Dictionary) -> bool:
 	return aid < bid
 
 func Setup() -> void:
+	_race_started = false
+	_go_ms = 0
+	
 	# Cache scene refs
 	_pseudo3d = get_node_or_null(pseudo3d_node)
 	_overlay  = get_node_or_null(path_overlay_node)
@@ -279,6 +288,24 @@ func Setup() -> void:
 	emit_signal("standings_changed", GetCurrentStandings())
 
 func Update() -> void:
+	# START GATE — only once when GO turns on
+	if require_go_to_start and not _race_started:
+		var go_now := false
+		if "race_can_drive" in Globals:
+			go_now = Globals.race_can_drive
+		if go_now:
+			_race_started = true
+			_go_ms = Time.get_ticks_msec()
+			# Baseline every racer's s so first frame after GO can't wrap across the line.
+			for r in _racers:
+				if not is_instance_valid(r): continue
+				var id := r.get_instance_id()
+				var s0 := _sample_s_of(r)
+				if not _progress.has(id):
+					_progress[id] = {}
+				_progress[id]["s_px"] = s0
+				_progress[id]["prev_s_px"] = s0
+	
 	if _segments.is_empty():
 		_rebuild_path_segments()
 		if _segments.is_empty():
@@ -310,6 +337,14 @@ func Update() -> void:
 		var prev_s := float(_progress[id]["s_px"])
 		var lap    := int(_progress[id]["lap"])
 		var s := _sample_s_of(r)
+
+		# Hold laps at 0 until the start gate opens.
+		if require_go_to_start and not _race_started:
+			_progress[id]["prev_s_px"] = s
+			_progress[id]["s_px"] = s
+			_progress[id]["lap"] = 0
+			_progress[id]["timing_started"] = false
+			continue
 
 		var half = max(_loop_len_px * 0.5, 1.0)
 		var ds := s - prev_s
@@ -348,15 +383,18 @@ func Update() -> void:
 				var accum := int(_progress[id].get("total_ms", 0))
 				_progress[id]["total_ms"] = accum + lap_ms
 
-			# mark finished on crossing that reaches total_laps
-			if lap > total_laps and not bool(_progress[id]["finished"]):
+			# mark finished strictly after the race has started and timing has begun
+			if lap > total_laps \
+			and _race_started \
+			and bool(_progress[id].get("timing_started", false)) \
+			and (min_race_ms_to_finish <= 0 or (Time.get_ticks_msec() - _go_ms) >= min_race_ms_to_finish):
 				_progress[id]["finished"] = true
 				_finish_order.append(id)
 				_progress[id]["finish_rank"] = _finish_order.size()
 				lap = total_laps
 				changed = true
 
-				# if the player just finished, start finish camera once
+				# trigger finish camera only for the player, once
 				if is_instance_valid(_player) and id == _player.get_instance_id():
 					if not _finish_cam_played:
 						_finish_cam_played = true
@@ -365,6 +403,7 @@ func Update() -> void:
 							_player.call("EnableInput", false)
 						if is_instance_valid(_pseudo3d) and _pseudo3d.has_method("StartFinishCamera"):
 							_pseudo3d.call("StartFinishCamera", _player)
+
 
 		if s != prev_s or lap != int(_progress[id]["lap"]):
 			changed = true
@@ -410,11 +449,10 @@ func Update() -> void:
 
 	_apply_z_order()
 
-	if not _race_over and is_instance_valid(_player):
+	if not _race_over and _race_started and is_instance_valid(_player):
 		var pid := _player.get_instance_id()
 		if _progress.has(pid) and bool(_progress[pid].get("finished", false)):
 			_race_over = true
-			# Deep copy so listeners can’t mutate internal state
 			var results := board.duplicate(true)
 			emit_signal("race_finished", results)
 			
