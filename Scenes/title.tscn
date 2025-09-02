@@ -47,7 +47,6 @@ text = "Formula Z"
 [node name="Subtitle" type="Label" parent="Center/VBox"]
 layout_mode = 2
 theme_override_fonts/font = ExtResource("3_2qdx2")
-theme_override_font_sizes/font_size = 32
 text = "Mode 7 Racer"
 
 [node name="Start" type="Button" parent="Center/VBox"]
@@ -55,11 +54,9 @@ layout_mode = 2
 theme_override_fonts/font = ExtResource("4_3eqdi")
 theme_override_font_sizes/font_size = 16
 text = "Start Racing"
-alignment = 0
 
 [node name="Quit" type="Button" parent="Center/VBox"]
 layout_mode = 2
 theme_override_fonts/font = ExtResource("4_3eqdi")
 theme_override_font_sizes/font_size = 16
 text = "Quit Game"
-alignment = 0

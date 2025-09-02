@@ -49,35 +49,35 @@ theme_override_constants/h_separation = 8
 theme_override_constants/v_separation = 2
 columns = 4
 
-[node name="RacerButton" parent="Center/VBox/Grid" instance=ExtResource("3_i0prf")]
+[node name="Voltage" parent="Center/VBox/Grid" instance=ExtResource("3_i0prf")]
 layout_mode = 2
 racer_name = &"Voltage"
 
-[node name="RacerButton2" parent="Center/VBox/Grid" instance=ExtResource("3_i0prf")]
+[node name="Grip" parent="Center/VBox/Grid" instance=ExtResource("3_i0prf")]
 layout_mode = 2
 racer_name = &"Grip"
 
-[node name="RacerButton3" parent="Center/VBox/Grid" instance=ExtResource("3_i0prf")]
+[node name="Torque" parent="Center/VBox/Grid" instance=ExtResource("3_i0prf")]
 layout_mode = 2
 racer_name = &"Torque"
 
-[node name="RacerButton4" parent="Center/VBox/Grid" instance=ExtResource("3_i0prf")]
+[node name="Razor" parent="Center/VBox/Grid" instance=ExtResource("3_i0prf")]
 layout_mode = 2
 racer_name = &"Razor"
 
-[node name="RacerButton5" parent="Center/VBox/Grid" instance=ExtResource("3_i0prf")]
+[node name="Havok" parent="Center/VBox/Grid" instance=ExtResource("3_i0prf")]
 layout_mode = 2
 racer_name = &"Havok"
 
-[node name="RacerButton6" parent="Center/VBox/Grid" instance=ExtResource("3_i0prf")]
+[node name="Blitz" parent="Center/VBox/Grid" instance=ExtResource("3_i0prf")]
 layout_mode = 2
 racer_name = &"Blitz"
 
-[node name="RacerButton7" parent="Center/VBox/Grid" instance=ExtResource("3_i0prf")]
+[node name="Nitro" parent="Center/VBox/Grid" instance=ExtResource("3_i0prf")]
 layout_mode = 2
 racer_name = &"Nitro"
 
-[node name="RacerButton8" parent="Center/VBox/Grid" instance=ExtResource("3_i0prf")]
+[node name="Rogue" parent="Center/VBox/Grid" instance=ExtResource("3_i0prf")]
 layout_mode = 2
 racer_name = &"Rogue"
 
