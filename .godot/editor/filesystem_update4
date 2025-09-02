@@ -1,18 +1,15 @@
-res://Scenes/main.tscn
+res://Scenes/player.tscn
 res://Scripts/Shaders/ModeSeven.gdshader
-res://Scripts/Shaders/WindPixel2D.gdshader
 res://Scripts/Shaders/FinishFlag.gdshader
 res://Scripts/Shaders/GasDistort.gdshader
 res://Scripts/Shaders/YoshiSwap.gdshader
 res://Scripts/Shaders/Tunnel.gdshader
 res://Scripts/Shaders/NitroPulse.gdshader
 res://Scripts/Shaders/OpponentNitroPulse.gdshader
-res://Scripts/World Elements/Pseudo3D.gd
+res://Scripts/Shaders/WindPixel2D.gdshader
+res://Scenes/main.tscn
 res://Scenes/title.tscn
 res://Scenes/CharacterSelect.tscn
 res://Scenes/RacerButton.tscn
-res://Scenes/player.tscn
 res://Scenes/opponent.tscn
-res://Scripts/SkidMarkPainter2D.gd
-res://Scripts/General/Game.gd
-res://Scripts/AI/PathOverlay2D.gd
+res://Scripts/World Elements/Racers/Player.gd

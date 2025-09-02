@@ -364,9 +364,10 @@ color = Color(0, 0, 0, 0.901961)
 points = PackedVector2Array(919, 555, 919, 100, 856, 100, 425, 556, 288, 556, 288, 100, 108, 100, 108, 900, 919, 900)
 show_debug_markers = false
 follow_speed_px_sec = 160.0
-skid_width_px = 1.0
+skid_width_px = 0.6
 skid_min_segment_px = 1.0
-skid_color_offroad = Color(0.470588, 0, 0, 0.4)
+skid_color_drift = Color(0, 0, 0, 0.294118)
+skid_color_offroad = Color(0.470588, 0, 0, 0.247059)
 
 [node name="RaceManager" type="Node2D" parent="."]
 script = ExtResource("21_ee4r6")
@@ -378,13 +379,12 @@ total_laps = 4
 finish_auto_speed_px = 200.0
 
 [node name="LeaderBoard" type="Control" parent="."]
-visible = false
 layout_mode = 3
 anchors_preset = 0
 offset_left = 11.0
-offset_top = 47.0
+offset_top = 61.0
 offset_right = 466.0
-offset_bottom = 200.0
+offset_bottom = 214.0
 theme = SubResource("Theme_gt3je")
 script = ExtResource("22_ee4r6")
 race_manager_path = NodePath("../RaceManager")
@@ -438,8 +438,8 @@ race_manager_path = NodePath("../RaceManager")
 total_laps = 4
 show_kmh = true
 speed_label = ""
-time_lbl = NodePath("TopRight/Vbox/Time")
-lap_lbl = NodePath("TopRight/Vbox/Lap")
+time_lbl = NodePath("TopLeft/Vbox/Time")
+lap_lbl = NodePath("TopLeft/Vbox/Lap")
 place_lbl = NodePath("BottomRight/Vbox/Place")
 speed_lbl = NodePath("BottomRight/Vbox/Speed")
 last_lbl = NodePath("BottomRight/Vbox/LapTime")
@@ -463,25 +463,25 @@ best_font = ExtResource("23_gt3je")
 best_size = 16
 place_gain_color = Color(1, 1, 1, 1)
 
-[node name="TopRight" type="MarginContainer" parent="RaceHUD"]
+[node name="TopLeft" type="MarginContainer" parent="RaceHUD"]
 layout_mode = 0
-offset_left = 368.0
-offset_right = 479.0
-offset_bottom = 50.0
+offset_left = 9.0
+offset_right = 120.0
+offset_bottom = 80.0
 
-[node name="Vbox" type="VBoxContainer" parent="RaceHUD/TopRight"]
+[node name="Vbox" type="VBoxContainer" parent="RaceHUD/TopLeft"]
 layout_mode = 2
 
-[node name="Name" type="Label" parent="RaceHUD/TopRight/Vbox"]
+[node name="Name" type="Label" parent="RaceHUD/TopLeft/Vbox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 0, 1)
 theme_override_fonts/font = ExtResource("28_ueoa1")
 theme_override_font_sizes/font_size = 32
 
-[node name="Time" type="Label" parent="RaceHUD/TopRight/Vbox"]
+[node name="Time" type="Label" parent="RaceHUD/TopLeft/Vbox"]
 layout_mode = 2
 
-[node name="Lap" type="Label" parent="RaceHUD/TopRight/Vbox"]
+[node name="Lap" type="Label" parent="RaceHUD/TopLeft/Vbox"]
 layout_mode = 2
 
 [node name="BottomRight" type="MarginContainer" parent="RaceHUD"]

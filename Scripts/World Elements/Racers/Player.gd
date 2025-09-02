@@ -3,7 +3,7 @@ extends "res://Scripts/World Elements/Racers/Racer.gd"
 
 # === Controls & Drift/Hop Settings ===
 const DRIFT_MIN_SPEED := 60.0
-const DRIFT_STEER_MULT := 0.86
+const DRIFT_STEER_MULT := 8.86
 const DRIFT_SPEED_MULT := 0.92
 const DRIFT_BUILD_RATE := 28.0
 const TURBO_THRESHOLD_SMALL := 35.0
@@ -367,8 +367,8 @@ func _set_turn_amount_in_range(right_amount: float, is_left: bool, range_max: in
 
 	_set_frame(idx)
 
-	# SAFELY set flip (no direct ReturnSpriteGraphic().flip_h)
-	if _is_drifting:
+	# keep outward-lean mirroring while drifting *and* during release/settle
+	if _in_drift_visual_state():
 		_set_flip_h(not is_left)
 	else:
 		_set_flip_h(is_left)
@@ -985,6 +985,9 @@ func _end_drift_with_award() -> void:
 
 	# Reset drift charge regardless
 	_drift_charge = 0.0
+
+func _in_drift_visual_state() -> bool:
+	return _is_drifting or (_drift_release_timer > 0.0) or (_post_settle_time > 0.0)
 
 func ReturnIsHopping() -> bool:
 	return false

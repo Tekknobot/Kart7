@@ -61,7 +61,7 @@ texture = ExtResource("2_pu2lt")
 
 [node name="RightWheel" type="Node2D" parent="Road Type Effects"]
 texture_filter = 1
-position = Vector2(48, 36)
+position = Vector2(32, 36)
 scale = Vector2(3, 3)
 
 [node name="RightWheelSpecial" type="Node2D" parent="Road Type Effects"]
@@ -71,7 +71,7 @@ scale = Vector2(3, 3)
 
 [node name="LeftWheel" type="Node2D" parent="Road Type Effects"]
 texture_filter = 1
-position = Vector2(-48, 36)
+position = Vector2(-32, 36)
 scale = Vector2(3, 3)
 
 [node name="LeftWheelSpecial" type="Node2D" parent="Road Type Effects"]
