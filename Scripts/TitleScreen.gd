@@ -29,10 +29,8 @@ func _ready() -> void:
 	_connect_focus_pop(quit_btn)
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("ui_accept"):
-		_on_start()
-	elif event.is_action_pressed("ui_cancel"):
-		_on_quit()
+	start_btn.pressed.connect(_on_start)
+	quit_btn.pressed.connect(_on_quit)
 
 func _on_start() -> void:
 	var err := get_tree().change_scene_to_file(character_select_scene)
@@ -43,7 +41,6 @@ func _on_quit() -> void:
 	get_tree().quit()
 
 # ---------------- helpers (no nested funcs, no chains) ----------------
-
 func _style_label(l: Label, font_size: int, font_col: Color, outline_size: int, outline_col: Color, shadow_off: Vector2, shadow_col: Color) -> void:
 	var ls := LabelSettings.new()
 	ls.font_size = font_size

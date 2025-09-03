@@ -22,3 +22,4 @@ res://Scripts/SkidsOnTrackFromMinimap.gd
 res://Scripts/CharacterSelect.gd
 res://Scripts/RacerButton.gd
 res://Scripts/General/Globals.gd
+res://Scripts/TitleScreen.gd
