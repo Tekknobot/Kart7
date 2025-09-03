@@ -69,10 +69,11 @@ func _ensure_roster_spawned() -> void:
 		push_error("World: assign player_scene and opponent_scene in the Inspector.")
 		return
 
-	# Build ordered names: selected first, then the rest
+	# Build ordered names: selected, then remaining (we’ll spawn opponents from remaining, player last)
 	var all_names: Array = []
 	for n in Globals.racer_names:
 		all_names.append(String(n))
+
 	var selected := String(Globals.selected_racer)
 	if selected == "" or not all_names.has(selected):
 		if all_names.size() > 0:
@@ -89,7 +90,24 @@ func _ensure_roster_spawned() -> void:
 		Globals.set_selected_racer(selected)
 		print("Picked:", Globals.selected_racer, " color:", Globals.selected_color)
 
-	# Spawn player
+	# === 1) Spawn ALL OPPONENTS FIRST (player comes last) ===
+	for i in range(remaining.size()):
+		var nm := String(remaining[i])
+		var opp := opponent_scene.instantiate()
+		opp.name = nm
+		racers_root.add_child(opp)
+
+		# Collision + opponent setup (player_ref set later, after player exists)
+		_wire_racer(opp, false)
+
+		# Colorize now
+		var ocol := Globals.get_racer_color(nm)
+		_set_racer_name_label(opp, nm, ocol)
+		var ospr := _find_sprite(opp)
+		if ospr != null:
+			_apply_yoshi_shader(ospr, ocol)
+
+	# === 2) Spawn PLAYER LAST ===
 	var p := player_scene.instantiate()
 	p.name = selected
 	racers_root.add_child(p)
@@ -98,42 +116,36 @@ func _ensure_roster_spawned() -> void:
 
 	# Color (shader) + identity label immediately
 	var pcol := Globals.get_racer_color(selected)
-
 	var pspr := _find_sprite(_player)
 	if pspr != null:
-		_apply_yoshi_shader(pspr, pcol)   # instant tint (Player.gd will keep it in sync too)
+		_apply_yoshi_shader(pspr, pcol)
 
-	# (optional) if you still want Player.gd to pull from Globals each time:
 	if _player.has_method("RefreshPaletteFromGlobals"):
 		_player.RefreshPaletteFromGlobals()
 
-	# Update HUD “Name” label now
-	_update_hud_name_color()
-
-	# Spawn opponents
-	for i in range(remaining.size()):
-		var nm := String(remaining[i])
-		var opp := opponent_scene.instantiate()
-		opp.name = nm
-		racers_root.add_child(opp)
-		_wire_racer(opp, false)
-
-		var ocol := Globals.get_racer_color(nm)
-		_set_racer_name_label(opp, nm, ocol)
-
-		var ospr := _find_sprite(opp)
-		if ospr != null:
-			_apply_yoshi_shader(ospr, ocol)
-
-	# Make sure HUD sees the new player path now
+	# HUD: point to the new player
 	var hud := get_node_or_null(^"RaceHUD")
 	if hud:
 		hud.set("player_path", hud.get_path_to(_player))
 		hud.set("_player", _player)
 
+	# Bind player_ref on opponents now that player exists
+	_bind_player_ref_to_opponents(racers_root, _player)
+
 	# Keep Globals in sync with the spawned player/color
 	if Globals.has_method("set_selected_racer"):
 		Globals.set_selected_racer(selected)
+
+	_update_hud_name_color()
+
+func _bind_player_ref_to_opponents(racers_root: Node, player: Node) -> void:
+	if racers_root == null or player == null:
+		return
+	for n in racers_root.get_children():
+		if n == player:
+			continue
+		if _has_prop(n, "player_ref"):
+			n.set("player_ref", n.get_path_to(player))
 
 func _has_prop(obj: Object, prop: StringName) -> bool:
 	for p in obj.get_property_list():
@@ -301,8 +313,7 @@ func _finalize_ai_grid_spawn() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 
-	_place_player_from_defaults()        # player → DEFAULT_POINTS[0]
-	_place_opponents_from_defaults_post()# opponents → DEFAULT_POINTS[1..]
+	_place_grid_player_last()
 
 	if _map != null and _map.has_method("SetOpponentsFromGroup"):
 		_map.call("SetOpponentsFromGroup", "racers", _player)
@@ -620,3 +631,61 @@ func _attach_skids_to_opponents() -> void:
 		painter.min_segment_px = 1.0
 		painter.draw_while_drifting = true
 		painter.draw_while_offroad  = true
+
+func _place_grid_player_last() -> void:
+	var racers_root := get_node_or_null(racers_root_path)
+	if racers_root == null:
+		racers_root = get_node_or_null(^"Sprite Handler/Racers")
+	if racers_root == null:
+		return
+	if DEFAULT_POINTS.size() == 0:
+		return
+
+	# UV scale for ArmMergeFromGrid (uses map texture width)
+	var scale_px := 1024.0
+	if _map is Sprite2D and (_map as Sprite2D).texture != null:
+		scale_px = float((_map as Sprite2D).texture.get_size().x)
+
+	# How many racers are in this race?
+	var total := 0
+	for n in racers_root.get_children():
+		if n is Node2D:
+			total += 1
+	if total <= 0:
+		return
+
+	# Last grid index we will use for the player
+	var last_idx := total - 1
+	if last_idx >= DEFAULT_POINTS.size():
+		last_idx = DEFAULT_POINTS.size() - 1
+	if last_idx < 0:
+		last_idx = 0
+
+	# 1) Place opponents into 0 .. last_idx-1
+	var opp_i := 0
+	for n in racers_root.get_children():
+		if n == _player:
+			continue
+		if opp_i >= last_idx:
+			break
+
+		var px: Vector2 = DEFAULT_POINTS[opp_i]
+
+		var used_merge := false
+		if n.has_method("ArmMergeFromGrid"):
+			var uv := px / scale_px
+			n.call("ArmMergeFromGrid", uv, 0, 0.0)
+			used_merge = true
+		if not used_merge and n.has_method("SetMapPosition"):
+			n.call("SetMapPosition", Vector3(px.x, 0.0, px.y))
+
+		# Ensure they know the player (now that _player exists)
+		if _player != null and _has_prop(n, "player_ref"):
+			n.set("player_ref", n.get_path_to(_player))
+
+		opp_i += 1
+
+	# 2) Place the player at the last slot
+	var ppx: Vector2 = DEFAULT_POINTS[last_idx]
+	if _player != null and _player.has_method("SetMapPosition"):
+		_player.call("SetMapPosition", Vector3(ppx.x, 0.0, ppx.y))

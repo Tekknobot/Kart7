@@ -20,7 +20,7 @@ var selected_racer: StringName = "Voltage"  # default
 const RACER_COLOR_HEX := {
 	"Voltage": 0xFFD54DFF, # gold
 	"Grip":    0x66BB6AFF, # green
-	"Torque":  0x000000FF, # black
+	"Torque":  0xFF5F00FF, # orange
 	"Razor":   0xEF5350FF, # red
 	"Havok":   0xAB47BCFF, # purple
 	"Blitz":   0x42A5F5FF, # blue
@@ -31,7 +31,7 @@ const RACER_COLOR_HEX := {
 const RACER_COLOR_NAME := {
 	"Voltage": "Gold",
 	"Grip":    "Green",
-	"Torque":  "Black",
+	"Torque":  "Orange",
 	"Razor":   "Red",
 	"Havok":   "Purple",
 	"Blitz":   "Blue",

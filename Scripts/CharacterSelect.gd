@@ -14,7 +14,7 @@ const DEFAULT_RACERS := [
 const RACER_COLOR_HEX := {
 	"Voltage": 0xFFD54DFF,
 	"Grip":    0x66BB6AFF,
-	"Torque":  0x000000FF,
+	"Torque":  0xFF5F00FF,
 	"Razor":   0xEF5350FF,
 	"Havok":   0xAB47BCFF,
 	"Blitz":   0x42A5F5FF,
