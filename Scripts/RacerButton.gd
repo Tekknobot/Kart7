@@ -173,51 +173,71 @@ func _on_anim_finished() -> void:
 			sprite.flip_h = idle_flip_h
 			_play_idle()
 
+func _shader_has_param(sm: ShaderMaterial, pname: String) -> bool:
+	if sm == null:
+		return false
+	var sh := sm.shader
+	if sh == null:
+		return false
+	for u in sh.get_shader_uniform_list():
+		if u.has("name"):
+			if String(u["name"]) == pname:
+				return true
+	return false
+
 func _ensure_yoshi_shader() -> void:
+	if sprite == null:
+		return
+
+	# Get or create a unique ShaderMaterial
+	var sm: ShaderMaterial = null
 	var mat := sprite.material
-
-	# Case 1: already a ShaderMaterial → ensure it's UNIQUE to this instance
 	if mat != null and mat is ShaderMaterial:
-		var sm := mat as ShaderMaterial
-
-		# If this material resource is shared, duplicate it locally to this scene
-		if !sm.resource_local_to_scene:
-			var dupe := sm.duplicate(true) as ShaderMaterial  # deep copy
+		sm = mat as ShaderMaterial
+		if not sm.resource_local_to_scene:
+			var dupe := sm.duplicate(true) as ShaderMaterial
 			dupe.resource_local_to_scene = true
 			sprite.material = dupe
 			sm = dupe
+	else:
+		sm = ShaderMaterial.new()
+		sm.resource_local_to_scene = true
+		sprite.material = sm
 
-		# If it has no shader set, assign our Yoshi shader if available
-		if sm.shader == null and ResourceLoader.exists(yoshi_shader_path):
-			sm.shader = load(yoshi_shader_path)
+	# Ensure it is the Yoshi shader (has target_color/src_hue)
+	var need_shader := true
+	if sm.shader != null:
+		var has_target := _shader_has_param(sm, "target_color")
+		var has_src    := _shader_has_param(sm, "src_hue")
+		if has_target and has_src:
+			need_shader = false
 
-		return
-
-	# Case 2: no material yet → create our own unique ShaderMaterial
-	if ResourceLoader.exists(yoshi_shader_path):
+	if need_shader and ResourceLoader.exists(yoshi_shader_path):
 		var sh := load(yoshi_shader_path) as Shader
 		if sh != null:
-			var new_sm := ShaderMaterial.new()
-			new_sm.shader = sh
-			new_sm.resource_local_to_scene = true
-			sprite.material = new_sm
+			sm.shader = sh
+
+	# Avoid stacking multiply-tint on the texture
+	sprite.modulate = Color(1, 1, 1, 1)
 
 func _apply_tint_to_shader() -> void:
-	# Keep label text white
 	if name_label:
 		name_label.remove_theme_color_override("font_color")
 		name_label.add_theme_color_override("font_color", Color.WHITE)
 
-	var sm := sprite.material
-	if sm != null and sm is ShaderMaterial and sm.shader != null:
-		# YOUR shader params
+	var sm: ShaderMaterial = null
+	if sprite != null and sprite.material != null and sprite.material is ShaderMaterial:
+		sm = sprite.material as ShaderMaterial
+
+	# If we have the right shader, set its params
+	if sm != null and _shader_has_param(sm, "target_color"):
 		sm.set_shader_parameter("target_color", tint_color)
 		sm.set_shader_parameter("src_hue",     yoshi_source_hue)
 		sm.set_shader_parameter("hue_tol",     yoshi_tolerance)
 		sm.set_shader_parameter("edge_soft",   yoshi_edge_soft)
 	else:
-		# Fallback if no shader: tint only the sprite
-		if sprite:
+		# Fallback (shouldn't happen after _ensure_yoshi_shader), but keep it safe
+		if sprite != null:
 			sprite.modulate = tint_color
 
 # Manual override (kept for flexibility)

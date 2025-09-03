@@ -14,7 +14,7 @@ const DEFAULT_RACERS := [
 const RACER_COLOR_HEX := {
 	"Voltage": 0xFFD54DFF,
 	"Grip":    0x66BB6AFF,
-	"Torque":  0xFF8A65FF,
+	"Torque":  0x000000FF,
 	"Razor":   0xEF5350FF,
 	"Havok":   0xAB47BCFF,
 	"Blitz":   0x42A5F5FF,
@@ -27,28 +27,13 @@ func _ready() -> void:
 		push_error("CharacterSelect: Grid not found at Center/VBox/Grid.")
 		return
 
-	# Style only the title
+	# title style (unchanged)
 	if select_title:
 		_style_label(select_title, 16, Color.hex(0xFFFFFFFF), 2, Color(0,0,0,0.90), Vector2(2,2), Color(0,0,0,0.55))
 		_pulse(select_title, 1.03, 0.8)
 
-	var names: Array = DEFAULT_RACERS
-	if _has_prop(Globals, "racer_names"):
-		names = Array(Globals.racer_names)
-
-	# Assign names, apply tint to each button, and connect with bound name
-	var i := 0
-	for child in grid.get_children():
-		if child is RacerButton:
-			var nm := String(child.racer_name)
-			if nm == "" and names.size() > 0:
-				nm = names[i % names.size()]
-				child.set_racer_name(StringName(nm))  # updates label + color
-			else:
-				child.refresh_from_globals()          # ensure tint matches Globals
-			child.pressed.connect(Callable(self, "_on_racer_pressed").bind(nm))
-			i += 1
-
+	# ✅ deterministically assign unique names/colors to every RacerButton
+	_populate_grid_unique()
 
 	if back_btn:
 		back_btn.pressed.connect(_back)
@@ -101,3 +86,53 @@ func _pulse(node: CanvasItem, scale_up: float, seconds_each_way: float) -> void:
 	var s2 := tw.tween_property(node, "scale", Vector2.ONE, seconds_each_way)
 	s2.set_trans(Tween.TRANS_SINE)
 	s2.set_ease(Tween.EASE_IN_OUT)
+
+func _next_unused(names: Array, used: Dictionary, start_idx: int) -> String:
+	var n := names.size()
+	var k := start_idx
+	if n <= 0:
+		return ""
+	# find the next name that hasn't been used yet
+	while k < start_idx + n:
+		var cand := String(names[k % n])
+		if not used.has(cand):
+			return cand
+		k += 1
+	# fallback (should not happen): first name
+	return String(names[start_idx % n])
+
+func _populate_grid_unique() -> void:
+	if grid == null:
+		push_error("CharacterSelect: Grid not found at Center/VBox/Grid.")
+		return
+
+	# source of truth for names
+	var names: Array = DEFAULT_RACERS
+	if _has_prop(Globals, "racer_names"):
+		names = Array(Globals.racer_names)
+
+	var used := {}   # name -> true
+	var idx := 0
+
+	for child in grid.get_children():
+		if child is RacerButton:
+			var nm := String(child.racer_name)
+
+			# if blank OR duplicate, assign the next unused name
+			if nm == "" or used.has(nm):
+				nm = _next_unused(names, used, idx)
+
+			# write name + color to the button
+			child.set_racer_name(StringName(nm))   # also updates tint via Globals
+			child.refresh_from_globals()           # push color to shader (safety)
+
+			# (re)wire the click with the correct name
+			child.pressed.connect(Callable(self, "_on_racer_pressed").bind(nm))
+
+			used[nm] = true
+			idx += 1
+
+	# sanity: warn if any expected name wasn’t placed
+	for nm in names:
+		if not used.has(String(nm)):
+			push_warning("CharacterSelect: missing racer '" + String(nm) + "' in grid.")
