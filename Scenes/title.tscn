@@ -2,20 +2,30 @@
 
 [ext_resource type="Script" uid="uid://cwf6dvmkcsxgo" path="res://Scripts/TitleScreen.gd" id="1_q2qps"]
 [ext_resource type="Shader" uid="uid://de3h13uhlsk7r" path="res://Scripts/Shaders/FinishFlag.gdshader" id="2_2qdx2"]
-[ext_resource type="FontFile" uid="uid://bav3dn0ajclr6" path="res://Fonts/vermin_vibes_1989.ttf" id="2_yosvi"]
 [ext_resource type="FontFile" uid="uid://buw362wjb8o8d" path="res://Fonts/magofonts/mago2.ttf" id="3_2qdx2"]
 [ext_resource type="Script" uid="uid://0p4etiyothhl" path="res://Scripts/FinishFlagFader.gd" id="3_3eqdi"]
+[ext_resource type="FontFile" uid="uid://da843lunw601x" path="res://Fonts/NickelGothicV3Variableslntwdth-BF674fcf11737ff.ttf" id="4_2qdx2"]
 [ext_resource type="FontFile" uid="uid://csnhk3q4gx0" path="res://Fonts/magofonts/mago1.ttf" id="4_3eqdi"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_3eqdi"]
 shader = ExtResource("2_2qdx2")
-shader_parameter/light_color = Color(1, 1, 1, 1)
+shader_parameter/light_color = Color(1, 1, 1, 0.12549)
 shader_parameter/dark_color = Color(0.05, 0.05, 0.05, 1)
 shader_parameter/tiles = Vector2(8, 8)
 shader_parameter/angle_deg = 0.0
 shader_parameter/fade = 0.0
-shader_parameter/fade_soft = 0.21
+shader_parameter/fade_soft = 0.08
 shader_parameter/opacity = 1.0
+shader_parameter/wave_amp_uv = 0.003
+shader_parameter/wave_len_uv = 2.0
+shader_parameter/wave_speed_hz = 3.8e-07
+shader_parameter/ripple_amp_uv = 0.009
+shader_parameter/ripple_len_uv = 0.18
+shader_parameter/ripple_speed_hz = 6.0
+shader_parameter/pin_left = 0.85
+shader_parameter/pin_width_uv = 0.15
+shader_parameter/light_strength = 0.35
+shader_parameter/light_dir = Vector2(0.35, -0.8)
 
 [node name="Title" type="Control"]
 layout_mode = 3
@@ -36,42 +46,47 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.06, 0.06, 0.08, 1)
 script = ExtResource("3_3eqdi")
+auto_start = false
 
-[node name="Center" type="CenterContainer" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="VBox" type="VBoxContainer" parent="Center"]
-custom_minimum_size = Vector2(160, 160)
+[node name="GameTitle" type="Label" parent="."]
 layout_mode = 2
-theme_override_constants/separation = 8
-alignment = 1
+offset_left = 122.0
+offset_top = 85.0
+offset_right = 359.0
+offset_bottom = 124.0
+theme_override_fonts/font = ExtResource("4_2qdx2")
+theme_override_font_sizes/font_size = 32
+text = "Zero Horizon"
 
-[node name="GameTitle" type="Label" parent="Center/VBox"]
+[node name="Subtitle" type="Label" parent="."]
 layout_mode = 2
-theme_override_fonts/font = ExtResource("2_yosvi")
-theme_override_font_sizes/font_size = 16
-text = "MIDNIGHT GP"
-
-[node name="Subtitle" type="Label" parent="Center/VBox"]
-layout_mode = 2
+offset_left = 242.0
+offset_top = 112.0
+offset_right = 362.0
+offset_bottom = 138.0
 theme_override_fonts/font = ExtResource("3_2qdx2")
 theme_override_font_sizes/font_size = 32
 text = "Mode 7 Racer"
+horizontal_alignment = 1
 
-[node name="Start" type="Button" parent="Center/VBox"]
-custom_minimum_size = Vector2(120, 24)
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 2
+offset_left = 257.0
+offset_top = 198.0
+offset_right = 345.0
+offset_bottom = 248.0
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="Start" type="Button" parent="VBox"]
+custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("4_3eqdi")
 theme_override_font_sizes/font_size = 16
 text = "Start Racing"
 
-[node name="Quit" type="Button" parent="Center/VBox"]
-custom_minimum_size = Vector2(120, 24)
+[node name="Quit" type="Button" parent="VBox"]
+custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("4_3eqdi")
 theme_override_font_sizes/font_size = 16

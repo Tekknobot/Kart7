@@ -3,34 +3,29 @@ extends Control
 @export_file("*.tscn")
 var character_select_scene: String = "res://Scenes/CharacterSelect.tscn"
 
-@onready var game_title: Label = $Center/VBox/GameTitle
-@onready var subtitle:   Label = $Center/VBox/Subtitle
-@onready var start_btn:  Button = $Center/VBox/Start
-@onready var quit_btn:   Button = $Center/VBox/Quit
+@onready var game_title: Label = $GameTitle
+@onready var subtitle:   Label = $Subtitle
+@onready var start_btn:  Button = $VBox/Start
+@onready var quit_btn:   Button = $VBox/Quit
 
 func _ready() -> void:
+	# Style labels
+	_style_label(game_title, 32, Color.hex(0xFFD54DFF), 3, Color.hex(0x291600FF), Vector2(3,3), Color(0,0,0,0.65))
+	_style_label(subtitle,   32, Color.hex(0xFFFFFFFF), 1, Color(0,0,0,0.85), Vector2(2,2), Color(0,0,0,0.5))
+
+	# Style buttons (solid, no transparency)
+	_style_button(start_btn, Color(0.25, 0.6, 1.0)) # blue
+	_style_button(quit_btn,  Color(1.0, 0.3, 0.3)) # red
+
 	# Wire up actions
 	start_btn.pressed.connect(_on_start)
 	quit_btn.pressed.connect(_on_quit)
 	start_btn.grab_focus()
 
-	# ---- Title + subtitle styling (use positional args) ----
-	_style_label(game_title, 32, Color.hex(0xFFD54DFF), 3, Color.hex(0x291600FF), Vector2(3,3), Color(0,0,0,0.65))
-	_style_label(subtitle,   32, Color.hex(0xFFFFFFFF), 1, Color(0,0,0,0.85), Vector2(2,2), Color(0,0,0,0.5))
-
-	# Gentle breathing pulse on the big title
-	_pulse(game_title, 1.06, 0.6)
-
-	# Blink “Start” a bit to attract attention
-	_blink_alpha(start_btn, 0.85, 0.7)
-
-	# Focus pop without lambdas
+	# Animations
+	_pulse(subtitle, 1.06, 0.6)
 	_connect_focus_pop(start_btn)
 	_connect_focus_pop(quit_btn)
-
-func _unhandled_input(event: InputEvent) -> void:
-	start_btn.pressed.connect(_on_start)
-	quit_btn.pressed.connect(_on_quit)
 
 func _on_start() -> void:
 	var err := get_tree().change_scene_to_file(character_select_scene)
@@ -40,7 +35,7 @@ func _on_start() -> void:
 func _on_quit() -> void:
 	get_tree().quit()
 
-# ---------------- helpers (no nested funcs, no chains) ----------------
+# ---------------- helpers ----------------
 func _style_label(l: Label, font_size: int, font_col: Color, outline_size: int, outline_col: Color, shadow_off: Vector2, shadow_col: Color) -> void:
 	var ls := LabelSettings.new()
 	ls.font_size = font_size
@@ -52,6 +47,30 @@ func _style_label(l: Label, font_size: int, font_col: Color, outline_size: int, 
 	l.label_settings = ls
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
+func _style_button(b: Button, base_color: Color) -> void:
+	# Create solid styleboxes (no alpha)
+	var normal = StyleBoxFlat.new()
+	normal.bg_color = base_color
+	normal.border_width_bottom = 1
+	normal.border_width_top = 1
+	normal.border_width_left = 1
+	normal.border_width_right = 1
+	normal.border_color = base_color.darkened(0.3)
+	
+	var hover = normal.duplicate()
+	hover.bg_color = base_color.lightened(0.2)
+	
+	var pressed = normal.duplicate()
+	pressed.bg_color = base_color.darkened(0.2)
+
+	# Apply overrides
+	b.add_theme_stylebox_override("normal", normal)
+	b.add_theme_stylebox_override("hover", hover)
+	b.add_theme_stylebox_override("pressed", pressed)
+
+	# Ensure text is fully visible
+	b.add_theme_color_override("font_color", Color(1,1,1,1))
+
 func _pulse(node: CanvasItem, scale_up: float, seconds_each_way: float) -> void:
 	node.scale = Vector2.ONE
 	var tw := create_tween()
@@ -62,17 +81,6 @@ func _pulse(node: CanvasItem, scale_up: float, seconds_each_way: float) -> void:
 	var s2 := tw.tween_property(node, "scale", Vector2.ONE, seconds_each_way)
 	s2.set_trans(Tween.TRANS_SINE)
 	s2.set_ease(Tween.EASE_IN_OUT)
-
-func _blink_alpha(node: CanvasItem, min_a: float, seconds_each_way: float) -> void:
-	node.modulate = Color(1,1,1,1)
-	var tw := create_tween()
-	tw.set_loops()
-	var a1 := tw.tween_property(node, "modulate:a", min_a, seconds_each_way)
-	a1.set_trans(Tween.TRANS_SINE)
-	a1.set_ease(Tween.EASE_IN_OUT)
-	var a2 := tw.tween_property(node, "modulate:a", 1.0, seconds_each_way)
-	a2.set_trans(Tween.TRANS_SINE)
-	a2.set_ease(Tween.EASE_IN_OUT)
 
 func _focus_pop(node: CanvasItem, target: float) -> void:
 	var tw := create_tween()

@@ -2,13 +2,13 @@
 
 importer="font_data_dynamic"
 type="FontFile"
-uid="uid://bkglmebcm77hf"
-path="res://.godot/imported/HighWayChase1980.ttf-4760f70f7731b1f5363cff1e2afef51a.fontdata"
+uid="uid://da843lunw601x"
+path="res://.godot/imported/NickelGothicV3Variableslntwdth-BF674fcf11737ff.ttf-181ceed4bdc848f51fab34fb1d7b802e.fontdata"
 
 [deps]
 
-source_file="res://Fonts/HighWayChase1980.ttf"
-dest_files=["res://.godot/imported/HighWayChase1980.ttf-4760f70f7731b1f5363cff1e2afef51a.fontdata"]
+source_file="res://Fonts/NickelGothicV3Variableslntwdth-BF674fcf11737ff.ttf"
+dest_files=["res://.godot/imported/NickelGothicV3Variableslntwdth-BF674fcf11737ff.ttf-181ceed4bdc848f51fab34fb1d7b802e.fontdata"]
 
 [params]
 
@@ -22,7 +22,7 @@ msdf_size=48
 allow_system_fallback=true
 force_autohinter=false
 hinting=1
-subpixel_positioning=1
+subpixel_positioning=4
 keep_rounding_remainders=true
 oversampling=0.0
 Fallbacks=null
