@@ -19,6 +19,7 @@ extends Node
 @onready var offroad: AudioStreamPlayer2D   = get_node_or_null(^"offroad_loop")
 @onready var hop_shot: AudioStreamPlayer2D   = get_node_or_null(^"hop_shot")
 @onready var bump_shot: AudioStreamPlayer2D   = get_node_or_null(^"bump_shot")
+@onready var spin_shot: AudioStreamPlayer2D   = get_node_or_null(^"spin_shot")
 
 @export var hop_stream: AudioStream
 @export var bump_stream: AudioStream
@@ -167,10 +168,20 @@ func _process(_dt: float) -> void:
 			_since_go_s += _dt
 			
 func play_boost():
-	_play_oneshot(one_shot, boost_stream, -6.0, 1.0)
+	_play_oneshot(one_shot, boost_stream, 0.0, 1.0)
 
-func play_spin():
-	_play_oneshot(one_shot, spin_stream, -6.0, 1.0)
+func play_spin() -> void:
+	if not _sfx_ok(): 
+		return
+	if spin_shot != null and bump_stream != null:
+		spin_shot.stream = spin_stream
+		spin_shot.volume_db = bump_volume_db
+		spin_shot.pitch_scale = bump_pitch
+		spin_shot.bus = sfx_bus_name
+		spin_shot.seek(0.0)
+		spin_shot.play()
+	elif one_shot != null and spin_stream != null:
+		_play_oneshot(one_shot, spin_stream, bump_volume_db, bump_pitch)
 
 func play_collision():
 	_play_oneshot(one_shot, collision_stream, -6.0, 1.0)
@@ -215,6 +226,7 @@ func _assign_players_to_bus() -> void:
 	if one_shot != null: one_shot.bus = sfx_bus_name
 	if hop_shot != null: hop_shot.bus = sfx_bus_name
 	if bump_shot != null: bump_shot.bus = sfx_bus_name
+	if spin_shot != null: spin_shot.bus = sfx_bus_name
 
 func _apply_bus_volume() -> void:
 	if _bus_index < 0:

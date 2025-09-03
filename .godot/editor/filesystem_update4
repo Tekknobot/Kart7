@@ -24,3 +24,4 @@ res://Scripts/RacerButton.gd
 res://Scripts/General/Globals.gd
 res://Scripts/TitleScreen.gd
 res://Scenes/PromptPanel.tscn
+res://Scripts/KartSFX.gd
