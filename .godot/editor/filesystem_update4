@@ -1,4 +1,4 @@
-res://Scenes/title.tscn
+res://Scenes/main.tscn
 res://Scripts/Shaders/ModeSeven.gdshader
 res://Scripts/Shaders/FinishFlag.gdshader
 res://Scripts/Shaders/GasDistort.gdshader
@@ -7,9 +7,8 @@ res://Scripts/Shaders/Tunnel.gdshader
 res://Scripts/Shaders/NitroPulse.gdshader
 res://Scripts/Shaders/OpponentNitroPulse.gdshader
 res://Scripts/Shaders/WindPixel2D.gdshader
-res://Scenes/main.tscn
+res://Scenes/title.tscn
 res://Scenes/CharacterSelect.tscn
 res://Scenes/RacerButton.tscn
 res://Scenes/player.tscn
 res://Scenes/opponent.tscn
-res://Scripts/World Elements/Racers/Player.gd

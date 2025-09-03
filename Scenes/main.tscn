@@ -10,8 +10,8 @@
 [ext_resource type="Texture2D" uid="uid://cqfw8jfuvds0q" path="res://Textures/Tracks/Buildings.png" id="5_3pmx8"]
 [ext_resource type="Script" uid="uid://dhfy5381d720i" path="res://Scripts/General/Collision.gd" id="6_q57ja"]
 [ext_resource type="Script" uid="uid://5uqme7h2yul3" path="res://Scripts/On Screen Elements/SpriteHandler.gd" id="7_wmybs"]
-[ext_resource type="Texture2D" uid="uid://c80jwe8c2vkb1" path="res://Textures/Tracks/My Tracks/Track_01_cyberpunk_final.png" id="9_o1aky"]
 [ext_resource type="Script" uid="uid://crr8fhlnitj4a" path="res://Scripts/World Elements/Hazard.gd" id="11_gfs62"]
+[ext_resource type="Texture2D" uid="uid://mpxffsojr57o" path="res://Textures/Tracks/My Tracks/Track_01_GreenGrid.png" id="11_jwpg7"]
 [ext_resource type="Texture2D" uid="uid://d1pw55e38rqo" path="res://Textures/Tracks/My Tracks/Track_01_Road.png" id="12_8cuat"]
 [ext_resource type="Script" uid="uid://bomqe0y8c30wy" path="res://Scripts/General/AnimationHandler.gd" id="13_6hxns"]
 [ext_resource type="PackedScene" uid="uid://4y14qyh1accq" path="res://Scenes/player.tscn" id="15_jut3y"]
@@ -40,7 +40,7 @@
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_lhngl"]
 shader = ExtResource("3_okd74")
-shader_parameter/trackTexture = ExtResource("9_o1aky")
+shader_parameter/trackTexture = ExtResource("11_jwpg7")
 shader_parameter/grassTexture = ExtResource("4_7c8ey")
 shader_parameter/mapMatrix = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
 shader_parameter/overlay_strength = 1.0
@@ -70,6 +70,7 @@ amount = 5000
 script = ExtResource("2_330he")
 _skyLine = NodePath("Sky Line")
 _treeLine = NodePath("Tree Line")
+dawn_sky_color = Color(1, 0.768246, 0.709611, 1)
 day_tree_color = Color(0.298743, 0.59482, 0.897929, 1)
 
 [node name="Background" type="Sprite2D" parent="Background Elements"]
@@ -105,7 +106,7 @@ texture_repeat = 1
 material = SubResource("ShaderMaterial_lhngl")
 position = Vector2(240, 180)
 scale = Vector2(0.46875, 0.351563)
-texture = ExtResource("9_o1aky")
+texture = ExtResource("11_jwpg7")
 script = ExtResource("4_s71t4")
 _mapStartRotationAngle = Vector2(4.9, 6.25)
 _mapMaxRotationSpeed = 1.5

@@ -50,13 +50,14 @@ auto_start = false
 
 [node name="GameTitle" type="Label" parent="."]
 layout_mode = 2
-offset_left = 114.0
-offset_top = 85.0
-offset_right = 401.0
-offset_bottom = 124.0
+offset_left = 152.0
+offset_top = 88.0
+offset_right = 358.0
+offset_bottom = 127.0
 theme_override_fonts/font = ExtResource("4_2qdx2")
 theme_override_font_sizes/font_size = 32
-text = "Drift Mode GP"
+text = "HyperDrift"
+horizontal_alignment = 2
 
 [node name="Subtitle" type="Label" parent="."]
 layout_mode = 2
@@ -71,10 +72,10 @@ horizontal_alignment = 1
 
 [node name="VBox" type="VBoxContainer" parent="."]
 layout_mode = 2
-offset_left = 271.0
-offset_top = 152.0
-offset_right = 359.0
-offset_bottom = 208.0
+offset_left = 270.0
+offset_top = 141.0
+offset_right = 358.0
+offset_bottom = 197.0
 theme_override_constants/separation = 8
 alignment = 1
 

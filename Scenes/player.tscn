@@ -13,7 +13,7 @@
 
 [node name="Player" type="Node2D" node_paths=PackedStringArray("_spriteGFX")]
 script = ExtResource("1_gymyn")
-NITRO_REFILL_S = 15.0
+NITRO_REFILL_S = 10.0
 hud_path = NodePath("../../../RaceHUD")
 drift_particle_path = NodePath("Road Type Effects/RightWheelSpecial")
 sparks_particle_path = NodePath("Road Type Effects/LeftWheelSpecial")
