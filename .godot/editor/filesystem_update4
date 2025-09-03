@@ -1,4 +1,4 @@
-res://Scenes/player.tscn
+res://Scenes/title.tscn
 res://Scripts/Shaders/ModeSeven.gdshader
 res://Scripts/Shaders/FinishFlag.gdshader
 res://Scripts/Shaders/GasDistort.gdshader
@@ -8,20 +8,8 @@ res://Scripts/Shaders/NitroPulse.gdshader
 res://Scripts/Shaders/OpponentNitroPulse.gdshader
 res://Scripts/Shaders/WindPixel2D.gdshader
 res://Scenes/main.tscn
-res://Scenes/title.tscn
 res://Scenes/CharacterSelect.tscn
 res://Scenes/RacerButton.tscn
+res://Scenes/player.tscn
 res://Scenes/opponent.tscn
 res://Scripts/World Elements/Racers/Player.gd
-res://Scripts/World Elements/Racers/Opponent.gd
-res://Scripts/AI/PathOverlay2D.gd
-res://Scripts/World Elements/Pseudo3D.gd
-res://Scripts/General/Game.gd
-res://Scripts/Minimap.gd
-res://Scripts/SkidsOnTrackFromMinimap.gd
-res://Scripts/CharacterSelect.gd
-res://Scripts/RacerButton.gd
-res://Scripts/General/Globals.gd
-res://Scripts/TitleScreen.gd
-res://Scenes/PromptPanel.tscn
-res://Scripts/KartSFX.gd

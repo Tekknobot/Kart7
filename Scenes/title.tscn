@@ -50,13 +50,13 @@ auto_start = false
 
 [node name="GameTitle" type="Label" parent="."]
 layout_mode = 2
-offset_left = 122.0
+offset_left = 114.0
 offset_top = 85.0
-offset_right = 359.0
+offset_right = 401.0
 offset_bottom = 124.0
 theme_override_fonts/font = ExtResource("4_2qdx2")
 theme_override_font_sizes/font_size = 32
-text = "Zero Horizon"
+text = "Drift Mode GP"
 
 [node name="Subtitle" type="Label" parent="."]
 layout_mode = 2
@@ -71,10 +71,10 @@ horizontal_alignment = 1
 
 [node name="VBox" type="VBoxContainer" parent="."]
 layout_mode = 2
-offset_left = 257.0
-offset_top = 198.0
-offset_right = 345.0
-offset_bottom = 248.0
+offset_left = 271.0
+offset_top = 152.0
+offset_right = 359.0
+offset_bottom = 208.0
 theme_override_constants/separation = 8
 alignment = 1
 

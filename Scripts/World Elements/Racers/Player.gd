@@ -571,26 +571,32 @@ func Update(mapForward : Vector3) -> void:
 	if _nitro_latched and nitro_tap:
 		_nitro_latched = false
 
-	var want_request := (_nitro_latched or nitro_down) and not _is_spinning
+	# NEW: block Nitro while drifting (spins were already blocked)
+	var nitro_blocked := _is_drifting or _is_spinning
+
+	var want_request := (_nitro_latched or nitro_down) and not nitro_blocked
 	var drain_rate  = 1.0 / max(0.001, NITRO_CAPACITY_S)
 	var refill_rate = 1.0 / max(0.001, NITRO_REFILL_S)
 
-	# Engage only if gauge ≥ threshold; also auto-drop below threshold
+	# Engage only if gauge ≥ threshold AND not blocked
 	var can_nitro := want_request and (_nitro_charge >= NITRO_MIN_ACTIVATE_FRAC)
 
 	if can_nitro:
 		# drain and show shader
 		_nitro_charge = max(0.0, _nitro_charge - drain_rate * dt)
 		_nitro_timer  = 1.0  # visual ON while active
-		# if we run under threshold, we’ll flip off next frame
 	else:
-		# stop visuals, clear latch unless the button is still held
+		# stop visuals
 		_nitro_timer  = 0.0
+		# keep latch only if the button is still held
 		if not nitro_down:
 			_nitro_latched = false
-		# refill
-		_nitro_charge = min(1.0, _nitro_charge + refill_rate * dt)
 
+		# Pause gauge while blocked; otherwise refill as usual
+		if not nitro_blocked:
+			_nitro_charge = min(1.0, _nitro_charge + refill_rate * dt)
+		# (if blocked, do nothing → no drain, no refill)
+		
 	_apply_nitro_fx(mapForward)
 	_push_nitro_hud()
 
