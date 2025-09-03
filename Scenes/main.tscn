@@ -543,6 +543,7 @@ script = ExtResource("37_jwpg7")
 minimap_node = NodePath("../Minimap")
 path_overlay_node = NodePath("../SubViewport/PathOverlay2D")
 racers_group = "opponent"
+rear_half_span_px = 4.0
 draw_when_offroad = true
 rear_axle_back_px = 0.0
 fwd_half_life_s = 0.0
