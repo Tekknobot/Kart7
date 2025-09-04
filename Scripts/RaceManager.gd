@@ -305,6 +305,7 @@ func Update() -> void:
 					_progress[id] = {}
 				_progress[id]["s_px"] = s0
 				_progress[id]["prev_s_px"] = s0
+			return  # ← NEW: don't evaluate laps/finish this same frame
 	
 	if _segments.is_empty():
 		_rebuild_path_segments()

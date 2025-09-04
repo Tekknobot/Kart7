@@ -4,14 +4,15 @@ class_name PostRaceController
 @export var race_manager_path: NodePath
 @export var leaderboard_path: NodePath
 
-# EITHER point to an existing prompt node...
 @export var prompt_node_path: NodePath
-# ...OR provide a prefab and where to put it:
 @export var prompt_scene: PackedScene
-@export var ui_parent_path: NodePath   # e.g. a CanvasLayer/Control; if empty, it parents under this node
+@export var ui_parent_path: NodePath
 
 @export var delay_seconds: float = 5.0
-@export var handle_actions_locally := true   # if true: Continue/Retry reload scene, Quit closes app
+@export var handle_actions_locally := true
+
+# NEW: time-based arming to avoid early “finish” from spawn positions
+@export var arm_after_seconds: float = 2.0
 
 signal continue_pressed
 signal retry_pressed
@@ -22,21 +23,34 @@ var _leaderboard: Node
 var _prompt: Node
 var _delay_timer: Timer
 var _lock_input := false
+var _armed := false
+var _auto_arm_timer: SceneTreeTimer
+
+func _enter_tree() -> void:
+	# Hide any UI immediately to prevent pre-ready flicker
+	var lb := get_node_or_null(leaderboard_path)
+	if lb != null and lb is CanvasItem:
+		(lb as CanvasItem).visible = false
+	var pr := get_node_or_null(prompt_node_path)
+	if pr != null and pr is CanvasItem:
+		(pr as CanvasItem).visible = false
 
 func _ready() -> void:
 	_rm = get_node_or_null(race_manager_path)
 	_leaderboard = get_node_or_null(leaderboard_path)
 
-	# Resolve or instance the prompt prefab
+	# Resolve or instance the prompt prefab (ensure it's hidden BEFORE adding)
 	_prompt = get_node_or_null(prompt_node_path)
 	if _prompt == null and prompt_scene != null:
 		var parent_node := get_node_or_null(ui_parent_path)
 		if parent_node == null:
 			parent_node = self
 		_prompt = prompt_scene.instantiate()
+		if _prompt is CanvasItem:
+			(_prompt as CanvasItem).visible = false
 		parent_node.add_child(_prompt)
 
-	# Visibility defaults
+	# Reinforce hidden
 	if _leaderboard != null and _leaderboard is CanvasItem:
 		(_leaderboard as CanvasItem).visible = false
 	if _prompt != null and _prompt is CanvasItem:
@@ -50,21 +64,45 @@ func _ready() -> void:
 		add_child(_delay_timer)
 	_delay_timer.one_shot = true
 
-	# Hook race end
+	# Finish event (ignored until _armed)
 	if _rm != null and _rm.has_signal("race_finished"):
 		_rm.connect("race_finished", Callable(self, "_on_race_finished"))
+
+	# Try to arm on a start signal; otherwise auto-arm after a delay
+	_try_connect_start_signal()
+	_schedule_auto_arm_if_needed()
 
 	# Wire prefab signals/buttons
 	_connect_prompt_controls()
 
-	# Swallow gameplay input during ladder
 	set_process_unhandled_input(true)
+
+func _try_connect_start_signal() -> void:
+	if _rm == null:
+		return
+	for sig in ["race_started", "go", "countdown_finished", "race_began"]:
+		if _rm.has_signal(sig):
+			_rm.connect(sig, Callable(self, "arm"))
+			return
+
+# NEW: auto-arm fallback
+func _schedule_auto_arm_if_needed() -> void:
+	if arm_after_seconds <= 0.0:
+		return
+	_auto_arm_timer = get_tree().create_timer(arm_after_seconds, false)
+	_auto_arm_timer.timeout.connect(Callable(self, "_on_auto_arm_timeout"))
+
+func _on_auto_arm_timeout() -> void:
+	if not _armed:
+		arm()
+
+# Public: manually arm when race begins
+func arm() -> void:
+	_armed = true
 
 func _connect_prompt_controls() -> void:
 	if _prompt == null:
 		return
-
-	# Case A: prefab script emits signals
 	if _prompt.has_signal("continue_pressed"):
 		_prompt.connect("continue_pressed", Callable(self, "_on_continue"))
 	if _prompt.has_signal("retry_pressed"):
@@ -72,20 +110,21 @@ func _connect_prompt_controls() -> void:
 	if _prompt.has_signal("quit_pressed"):
 		_prompt.connect("quit_pressed", Callable(self, "_on_quit"))
 
-	# Case B: prefab has buttons by name
 	var cont_btn := _prompt.get_node_or_null("ContinueBtn") as Button
 	if cont_btn != null:
 		cont_btn.pressed.connect(Callable(self, "_on_continue"))
-
 	var retry_btn := _prompt.get_node_or_null("RetryBtn") as Button
 	if retry_btn != null:
 		retry_btn.pressed.connect(Callable(self, "_on_retry"))
-
 	var quit_btn := _prompt.get_node_or_null("QuitBtn") as Button
 	if quit_btn != null:
 		quit_btn.pressed.connect(Callable(self, "_on_quit"))
 
 func _on_race_finished(results: Array) -> void:
+	# Ignore any end events until we’re armed (either via start signal or time-based auto-arm)
+	if not _armed:
+		return
+
 	# 1) Show ladder, hide prompt, lock gameplay input
 	_lock_input = true
 
@@ -108,7 +147,6 @@ func _on_race_finished(results: Array) -> void:
 	_delay_timer.start()
 
 func _show_prompt() -> void:
-	# 3) Reveal prompt and focus default
 	_lock_input = false
 	if _prompt == null:
 		return
@@ -126,15 +164,11 @@ func _show_prompt() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not _lock_input:
 		return
-	if event.is_action_pressed("ui_accept"):
-		get_viewport().set_input_as_handled()
-	if event.is_action_pressed("ui_up"):
-		get_viewport().set_input_as_handled()
-	if event.is_action_pressed("ui_down"):
-		get_viewport().set_input_as_handled()
-	if event.is_action_pressed("ui_left"):
-		get_viewport().set_input_as_handled()
-	if event.is_action_pressed("ui_right"):
+	if event.is_action_pressed("ui_accept") \
+	or event.is_action_pressed("ui_up") \
+	or event.is_action_pressed("ui_down") \
+	or event.is_action_pressed("ui_left") \
+	or event.is_action_pressed("ui_right"):
 		get_viewport().set_input_as_handled()
 
 # --- Button / prompt callbacks ---

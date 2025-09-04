@@ -65,16 +65,16 @@ func _ready() -> void:
 
 	visible = true
 	Globals.race_can_drive = false
-
 	var pseudo := get_node_or_null(pseudo3d_path)
-	# If there is an intro spin, wait for it to finish, THEN start the countdown (after your delay)
 	if pseudo != null and pseudo.has_signal("intro_spin_finished") and pseudo.get("intro_spin_enabled"):
-		# wait for cinematic 360 to end
 		await pseudo.intro_spin_finished
-		# optional extra delay after spin, if you still want it
 		if delay > 0:
 			await get_tree().create_timer(delay).timeout
 		start_countdown()
+	else:
+		if delay > 0:
+			await get_tree().create_timer(delay).timeout
+		start_countdown()   # ← NEW when no intro spin
 
 func start_countdown() -> void:
 	await _show_word("READY", ready_color, show_seconds_ready)

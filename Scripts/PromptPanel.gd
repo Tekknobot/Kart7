@@ -60,6 +60,21 @@ var _opened_at_ms := 0
 @export var show_retry := false
 @export var show_quit := false
 
+var _active := false  # panel is logically hidden until shown
+
+func set_active(on: bool) -> void:
+	_active = on
+	# hide/show the built UI root (CanvasLayer child), not just this Node2D
+	if _ui_root != null:
+		_ui_root.visible = on
+		_ui_root.mouse_filter = Control.MOUSE_FILTER_STOP if on else Control.MOUSE_FILTER_IGNORE
+	# keep our root invisible too, but CanvasLayer wouldn't care anyway
+	visible = on
+
+func ensure_hidden() -> void:
+	_set_controls_alpha(0.0)
+	set_active(false)
+
 func _ready() -> void:
 	set_process_unhandled_input(true)  # for JOY A
 	call_deferred("_deferred_init")
@@ -120,19 +135,23 @@ func _deferred_init() -> void:
 	# wait one frame so theme/UI are fully ready (export-safe)
 	await get_tree().process_frame
 
-	# guard again then style
 	if is_instance_valid(_title_lbl) and is_instance_valid(_subtitle_lbl):
 		_apply_fonts()
 		_apply_text_effects(self)
 
 	_set_controls_alpha(0.0)
-	visible = true
+
+	# OLD: visible = true  (this made it "present" and could swallow input)
+	# NEW:
 	if show_on_ready:
 		show_prompt()
+	else:
+		ensure_hidden()
 
 func show_prompt() -> void:
 	_opened_at_ms = Time.get_ticks_msec()
-	visible = true
+	set_active(true)
+	_set_controls_alpha(0.0)
 	var tw := create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	_fade_control(_title_lbl, 1.0, 0.2, tw)
 	_fade_control(_subtitle_lbl, 1.0, 0.2, tw)
@@ -153,9 +172,8 @@ func hide_prompt() -> void:
 		_fade_control(_btn_retry, 0.0, 0.15, tw)
 	if _btn_quit != null and _btn_quit.visible:
 		_fade_control(_btn_quit, 0.0, 0.15, tw)
-	tw.finished.connect(func():
-		visible = false
-	)
+	await tw.finished
+	set_active(false)
 
 # ---------- RUNTIME UI BUILD ----------
 func _build_ui_runtime() -> void:
@@ -167,12 +185,10 @@ func _build_ui_runtime() -> void:
 	_ui_root = Control.new()
 	_ui_root.name = "PromptUIRoot"
 	_ui_root.anchors_preset = Control.PRESET_FULL_RECT
-	_ui_root.anchor_right = 1.0
-	_ui_root.anchor_bottom = 1.0
-	_ui_root.mouse_filter = Control.MOUSE_FILTER_STOP   # capture UI clicks
+	_ui_root.mouse_filter = Control.MOUSE_FILTER_IGNORE  # hidden by default
+	_ui_root.visible = false                              # ← important
 	_layer.add_child(_ui_root)
 
-	# Backdrop dimmer
 	var dim := ColorRect.new()
 	dim.name = "Dimmer"
 	dim.color = Color(0, 0, 0, 0.5)
@@ -414,6 +430,9 @@ func _on_quit() -> void:
 
 # --- Exact JOYPAD A (south) support ---
 func _unhandled_input(event: InputEvent) -> void:
+	if not _active:
+		return
+			
 	if not visible:
 		return
 

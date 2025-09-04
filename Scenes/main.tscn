@@ -536,6 +536,7 @@ auto_create_players = false
 delay = 1
 
 [node name="PostRaceController" type="Node2D" parent="."]
+visible = false
 script = ExtResource("39_8cuat")
 race_manager_path = NodePath("../RaceManager")
 leaderboard_path = NodePath("../LeaderBoard")
