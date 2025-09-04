@@ -5,7 +5,9 @@
 [ext_resource type="FontFile" uid="uid://dgugahs6bc7so" path="res://Fonts/magofonts/mago3.ttf" id="2_nrrq2"]
 [ext_resource type="AudioStream" uid="uid://dkat0nv3lms45" path="res://Audio/gun.wav" id="3_n2twd"]
 
-[node name="CountdownUI" type="CanvasLayer" node_paths=PackedStringArray("word_lbl", "beep", "go_sfx")]
+[node name="CountdownUI" type="Control" node_paths=PackedStringArray("word_lbl", "beep", "go_sfx")]
+layout_mode = 3
+anchors_preset = 0
 script = ExtResource("1_xiknl")
 word_lbl = NodePath("CenterContainer/Word")
 beep = NodePath("Beep")
@@ -17,6 +19,7 @@ go_stream = ExtResource("3_n2twd")
 beep_volume_db = 0.0
 
 [node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 0
 offset_top = 3.0
 offset_right = 480.0
 offset_bottom = 325.0

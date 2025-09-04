@@ -27,6 +27,10 @@ func _ready() -> void:
 	_connect_focus_pop(start_btn)
 	_connect_focus_pop(quit_btn)
 
+func _input(event: InputEvent) -> void:
+	if event is InputEventJoypadButton and event.pressed:
+		print("Pressed button index:", event.button_index)
+			
 func _on_start() -> void:
 	var err := get_tree().change_scene_to_file(character_select_scene)
 	if err != OK:

@@ -1,4 +1,4 @@
-[gd_scene load_steps=35 format=3 uid="uid://d2glnv32t8md1"]
+[gd_scene load_steps=36 format=3 uid="uid://d2glnv32t8md1"]
 
 [ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_emb0w"]
 [ext_resource type="Script" uid="uid://cex362lk6utnk" path="res://Scripts/On Screen Elements/BackgroundEffects.gd" id="2_330he"]
@@ -28,6 +28,7 @@
 [ext_resource type="FontFile" uid="uid://dgugahs6bc7so" path="res://Fonts/magofonts/mago3.ttf" id="28_ueoa1"]
 [ext_resource type="PackedScene" uid="uid://7sye74odmhah" path="res://Scenes/CountdownUI.tscn" id="29_6vcvc"]
 [ext_resource type="AudioStream" uid="uid://bs3d11v2wgjn1" path="res://Audio/Music/Techno/Drifter.wav" id="31_kltya"]
+[ext_resource type="PackedScene" uid="uid://dleafvawfqsd3" path="res://Scenes/PauseMenu.tscn" id="33_e08e2"]
 [ext_resource type="Script" uid="uid://c7rugtwfllds7" path="res://Scripts/SkidsOnTrackFromMinimap.gd" id="37_jwpg7"]
 [ext_resource type="Script" uid="uid://dcb4blo4uiyti" path="res://Scripts/PostRaceController.gd" id="39_8cuat"]
 [ext_resource type="PackedScene" uid="uid://bgkivo666nl2a" path="res://Scenes/PromptPanel.tscn" id="40_o1aky"]
@@ -56,6 +57,8 @@ racers_root_path = NodePath("Sprite Handler/Racers")
 spawn_points_path = NodePath("SubViewport/PathOverlay2D")
 player_scene = ExtResource("15_jut3y")
 opponent_scene = ExtResource("16_v2nl5")
+
+[node name="PauseMenu" parent="." instance=ExtResource("33_e08e2")]
 
 [node name="StarryNight" parent="." instance=ExtResource("25_u50mg")]
 z_index = -4096
@@ -519,6 +522,7 @@ theme_override_colors/font_color = Color(1, 0, 0, 1)
 
 [node name="CountdownUI" parent="." instance=ExtResource("29_6vcvc")]
 visible = false
+z_index = 4000
 pseudo3d_path = NodePath("../Map")
 go_volume_db = 0.0
 auto_create_players = false

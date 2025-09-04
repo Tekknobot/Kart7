@@ -7,8 +7,13 @@ res://Scripts/Shaders/Tunnel.gdshader
 res://Scripts/Shaders/NitroPulse.gdshader
 res://Scripts/Shaders/OpponentNitroPulse.gdshader
 res://Scripts/Shaders/WindPixel2D.gdshader
+res://Scripts/PauseMenuOverlay.gd
 res://Scenes/title.tscn
 res://Scenes/CharacterSelect.tscn
 res://Scenes/RacerButton.tscn
 res://Scenes/player.tscn
 res://Scenes/opponent.tscn
+res://Scenes/CountdownUI.tscn
+res://Scenes/pause_menu.tscn
+res://Scenes/PauseMenu.tscn
+res://Scripts/TitleScreen.gd
