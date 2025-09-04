@@ -1,4 +1,4 @@
-[gd_scene load_steps=36 format=3 uid="uid://d2glnv32t8md1"]
+[gd_scene load_steps=41 format=3 uid="uid://d2glnv32t8md1"]
 
 [ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_emb0w"]
 [ext_resource type="Script" uid="uid://cex362lk6utnk" path="res://Scripts/On Screen Elements/BackgroundEffects.gd" id="2_330he"]
@@ -27,9 +27,14 @@
 [ext_resource type="Script" uid="uid://dcfngv7oaf2c8" path="res://Scripts/RaceHUD.gd" id="26_cbgmd"]
 [ext_resource type="FontFile" uid="uid://dgugahs6bc7so" path="res://Fonts/magofonts/mago3.ttf" id="28_ueoa1"]
 [ext_resource type="PackedScene" uid="uid://7sye74odmhah" path="res://Scenes/CountdownUI.tscn" id="29_6vcvc"]
-[ext_resource type="AudioStream" uid="uid://bs3d11v2wgjn1" path="res://Audio/Music/Techno/Drifter.wav" id="31_kltya"]
+[ext_resource type="AudioStream" uid="uid://yew0dvtgsf7f" path="res://Audio/Music/Faded_Dm_120Bpm.mp3" id="32_k2e45"]
+[ext_resource type="AudioStream" uid="uid://cjxy0q8k2u71p" path="res://Audio/Music/Future_Ebm_122Bpm.mp3" id="33_536cc"]
 [ext_resource type="PackedScene" uid="uid://dleafvawfqsd3" path="res://Scenes/PauseMenu.tscn" id="33_e08e2"]
+[ext_resource type="AudioStream" uid="uid://b6h77g8bxrs18" path="res://Audio/Music/Jam_Am_124Bpm.mp3" id="34_aqgau"]
+[ext_resource type="AudioStream" uid="uid://bot744byv38v8" path="res://Audio/Music/Nightmode_Em_126Bpm.mp3" id="35_8cuat"]
+[ext_resource type="AudioStream" uid="uid://d4jut3ep1fxd" path="res://Audio/Music/Pumped_Bm_111Bpm.mp3" id="36_o1aky"]
 [ext_resource type="Script" uid="uid://c7rugtwfllds7" path="res://Scripts/SkidsOnTrackFromMinimap.gd" id="37_jwpg7"]
+[ext_resource type="AudioStream" uid="uid://bgjg8xsfhxrj4" path="res://Audio/Music/Summer_Bbm_117Bpm.mp3" id="37_kwxat"]
 [ext_resource type="Script" uid="uid://dcb4blo4uiyti" path="res://Scripts/PostRaceController.gd" id="39_8cuat"]
 [ext_resource type="PackedScene" uid="uid://bgkivo666nl2a" path="res://Scenes/PromptPanel.tscn" id="40_o1aky"]
 [ext_resource type="Script" uid="uid://d2n3bufpojtei" path="res://Scripts/MusicManager.gd" id="43_kwxat"]
@@ -538,7 +543,7 @@ delay_seconds = 3.0
 
 [node name="MusicManager" type="Node2D" parent="."]
 script = ExtResource("43_kwxat")
-music_tracks = Array[AudioStream]([ExtResource("31_kltya")])
+music_tracks = Array[AudioStream]([ExtResource("32_k2e45"), ExtResource("33_536cc"), ExtResource("34_aqgau"), ExtResource("35_8cuat"), ExtResource("36_o1aky"), ExtResource("37_kwxat")])
 
 [node name="SkidsOnTrackFromMinimap" type="Node2D" parent="."]
 script = ExtResource("37_jwpg7")
