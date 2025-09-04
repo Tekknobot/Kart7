@@ -19,3 +19,4 @@ res://Scenes/PauseMenu.tscn
 res://Scripts/TitleScreen.gd
 res://Scripts/CharacterSelect.gd
 res://Scripts/CountdownUI.gd
+res://Scripts/Transition.gd

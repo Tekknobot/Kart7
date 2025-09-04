@@ -1,4 +1,4 @@
-[gd_scene load_steps=41 format=3 uid="uid://d2glnv32t8md1"]
+[gd_scene load_steps=42 format=3 uid="uid://d2glnv32t8md1"]
 
 [ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_emb0w"]
 [ext_resource type="Script" uid="uid://cex362lk6utnk" path="res://Scripts/On Screen Elements/BackgroundEffects.gd" id="2_330he"]
@@ -36,6 +36,7 @@
 [ext_resource type="Script" uid="uid://c7rugtwfllds7" path="res://Scripts/SkidsOnTrackFromMinimap.gd" id="37_jwpg7"]
 [ext_resource type="AudioStream" uid="uid://bgjg8xsfhxrj4" path="res://Audio/Music/Summer_Bbm_117Bpm.mp3" id="37_kwxat"]
 [ext_resource type="Script" uid="uid://dcb4blo4uiyti" path="res://Scripts/PostRaceController.gd" id="39_8cuat"]
+[ext_resource type="Script" uid="uid://phcpocpluv50" path="res://Scripts/Transition.gd" id="39_536cc"]
 [ext_resource type="PackedScene" uid="uid://bgkivo666nl2a" path="res://Scenes/PromptPanel.tscn" id="40_o1aky"]
 [ext_resource type="Script" uid="uid://d2n3bufpojtei" path="res://Scripts/MusicManager.gd" id="43_kwxat"]
 
@@ -555,3 +556,18 @@ draw_when_offroad = true
 rear_axle_back_px = 0.0
 fwd_half_life_s = 0.0
 min_motion_uv_per_sec = 0.0
+
+[node name="Transition" type="ColorRect" parent="."]
+z_index = 4096
+custom_minimum_size = Vector2(100, 100)
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = 480.0
+offset_bottom = 361.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 1)
+script = ExtResource("39_536cc")
+fade_in_time = 3.0
+fade_out_time = 3.0
