@@ -6,6 +6,7 @@ extends Control
 @onready var grid: GridContainer   = $"Center/VBox/Grid"
 @onready var back_btn: Button      = $"Center/VBox/Back"
 @onready var select_title: Label   = $"Center/VBox/Title"
+@onready var game_title: Label   = $"Center/VBox/GameTitle"
 
 const DEFAULT_RACERS := [
 	"Voltage","Grip","Torque","Razor","Havok","Blitz","Nitro","Rogue"
@@ -29,6 +30,7 @@ func _ready() -> void:
 
 	# title style (unchanged)
 	if select_title:
+		_style_label(game_title, 32, Color.hex(0xEF5350FF), 2, Color(0,0,0,0.90), Vector2(2,2), Color(0,0,0,0.55))
 		_style_label(select_title, 16, Color.hex(0xFFFFFFFF), 2, Color(0,0,0,0.90), Vector2(2,2), Color(0,0,0,0.55))
 		_pulse(select_title, 1.03, 0.8)
 

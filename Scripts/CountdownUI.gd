@@ -120,7 +120,7 @@ func _show_word(txt: String, col: Color, dur: float, is_go: bool = false) -> voi
 	var pseudo := get_node_or_null(pseudo3d_path)
 	var intro_active = (pseudo != null and pseudo.get("_intro_mode") == true)
 
-	# ---- SFX (single, guarded trigger — no ternary) ----
+	# ---- SFX (single, guarded trigger) ----
 	if not intro_active:
 		var now := Time.get_ticks_msec()
 		if now - _ui_last_play_ms >= ui_min_gap_ms:
@@ -141,7 +141,7 @@ func _show_word(txt: String, col: Color, dur: float, is_go: bool = false) -> voi
 					beep.volume_db = beep_volume_db
 					beep.play()
 
-	# ---- Visuals (unchanged) ----
+	# ---- Visuals ----
 	_apply_label_style()
 	word_lbl.text = txt
 	word_lbl.scale = Vector2(0.2, 0.2)
@@ -152,20 +152,38 @@ func _show_word(txt: String, col: Color, dur: float, is_go: bool = false) -> voi
 	var settle = tw.tween_property(word_lbl, "scale", Vector2(1.0, 1.0), 0.12)
 	if settle != null: settle.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
+	# --- Safe frame waits + hue wobble ---
+	var st := Engine.get_main_loop()
+	if !(st is SceneTree):
+		return
+	var scene_tree := st as SceneTree
+
 	var t := 0.0
+	var last_us := Time.get_ticks_usec()
 	var base_h: float = col.h
+
 	while t < dur:
-		var dt := get_process_delta_time()
+		# bail if we (or the label) leave the scene tree
+		if !is_inside_tree() or !is_instance_valid(word_lbl):
+			return
+
+		await scene_tree.process_frame
+
+		var now_us := Time.get_ticks_usec()
+		var dt := float(now_us - last_us) / 1_000_000.0
+		last_us = now_us
 		t += dt
+
 		var wob := 0.02 * sin(TAU * (t / max(0.001, dur)) * 2.0)
 		var h := fposmod(base_h + wob, 1.0)
-		if word_lbl.label_settings != null:
-			word_lbl.label_settings.font_color = Color.from_hsv(h, 1.0, 1.0, 1.0)
-		else:
-			word_lbl.modulate = Color.from_hsv(h, 1.0, 1.0, 1.0)
-		await get_tree().process_frame
+		var c := Color.from_hsv(h, 1.0, 1.0, 1.0)
 
-	if is_go:
+		if word_lbl.label_settings != null:
+			word_lbl.label_settings.font_color = c
+		else:
+			word_lbl.modulate = c
+
+	if is_go and is_inside_tree():
 		Globals.race_can_drive = true
 		emit_signal("go")
 

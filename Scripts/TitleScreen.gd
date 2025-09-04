@@ -9,20 +9,17 @@ var character_select_scene: String = "res://Scenes/CharacterSelect.tscn"
 @onready var quit_btn:   Button = $VBox/Quit
 
 func _ready() -> void:
-	# Style labels
+	# Style labels (keep if you want), but make buttons default:
 	_style_label(game_title, 32, Color.hex(0xFFD54DFF), 3, Color.hex(0x291600FF), Vector2(3,3), Color(0,0,0,0.65))
 	_style_label(subtitle,   32, Color.hex(0xFFFFFFFF), 1, Color(0,0,0,0.85), Vector2(2,2), Color(0,0,0,0.5))
 
-	# Style buttons (solid, no transparency)
-	_style_button(start_btn, Color(0.25, 0.6, 1.0)) # blue
-	_style_button(quit_btn,  Color(1.0, 0.3, 0.3)) # red
+	_use_default_button(start_btn)
+	_use_default_button(quit_btn)
 
-	# Wire up actions
 	start_btn.pressed.connect(_on_start)
 	quit_btn.pressed.connect(_on_quit)
 	start_btn.grab_focus()
 
-	# Animations
 	_pulse(subtitle, 1.06, 0.6)
 	_connect_focus_pop(start_btn)
 	_connect_focus_pop(quit_btn)
@@ -51,29 +48,15 @@ func _style_label(l: Label, font_size: int, font_col: Color, outline_size: int, 
 	l.label_settings = ls
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
-func _style_button(b: Button, base_color: Color) -> void:
-	# Create solid styleboxes (no alpha)
-	var normal = StyleBoxFlat.new()
-	normal.bg_color = base_color
-	normal.border_width_bottom = 1
-	normal.border_width_top = 1
-	normal.border_width_left = 1
-	normal.border_width_right = 1
-	normal.border_color = base_color.darkened(0.3)
-	
-	var hover = normal.duplicate()
-	hover.bg_color = base_color.lightened(0.2)
-	
-	var pressed = normal.duplicate()
-	pressed.bg_color = base_color.darkened(0.2)
-
-	# Apply overrides
-	b.add_theme_stylebox_override("normal", normal)
-	b.add_theme_stylebox_override("hover", hover)
-	b.add_theme_stylebox_override("pressed", pressed)
-
-	# Ensure text is fully visible
-	b.add_theme_color_override("font_color", Color(1,1,1,1))
+func _use_default_button(b: Button) -> void:
+	# Remove any per-node overrides so the engine theme takes over
+	for name in ["normal", "hover", "pressed", "focus", "disabled"]:
+		b.remove_theme_stylebox_override(name)
+	for name in ["font_color", "font_color_hover", "font_color_pressed", "font_color_disabled"]:
+		b.remove_theme_color_override(name)
+	# Inherit the default type/appearance
+	b.theme_type_variation = ""   # ensure no custom type variation
+	b.flat = false                # default buttons aren't flat
 
 func _pulse(node: CanvasItem, scale_up: float, seconds_each_way: float) -> void:
 	node.scale = Vector2.ONE

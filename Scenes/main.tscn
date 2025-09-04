@@ -465,6 +465,7 @@ last_size = 16
 best_font = ExtResource("23_gt3je")
 best_size = 16
 place_gain_color = Color(1, 1, 1, 1)
+place_loss_color = Color(0.937255, 0.32549, 0.313726, 1)
 
 [node name="TopLeft" type="MarginContainer" parent="RaceHUD"]
 layout_mode = 0

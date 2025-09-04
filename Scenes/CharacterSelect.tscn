@@ -9,7 +9,7 @@
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_8cwx3"]
 shader = ExtResource("2_j555r")
-shader_parameter/light_color = Color(1, 1, 1, 0.12549)
+shader_parameter/light_color = Color(1, 1, 1, 0.0823529)
 shader_parameter/dark_color = Color(0.05, 0.05, 0.05, 1)
 shader_parameter/tiles = Vector2(8, 8)
 shader_parameter/angle_deg = 0.0
