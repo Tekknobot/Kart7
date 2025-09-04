@@ -96,10 +96,7 @@ hop_volume_db = 6.0
 bump_volume_db = 6.0
 sfx_bus_volume_db = 0.0
 engine_start_speed = 1.0
-idle_target_db = 0.0
-mid_target_db = 0.0
-high_target_db = 2.0
-drift_target_db = 0.0
+drift_target_db = -8.0
 
 [node name="idle_loop" type="AudioStreamPlayer2D" parent="Audio"]
 

@@ -1,4 +1,4 @@
-[gd_scene load_steps=40 format=3 uid="uid://d2glnv32t8md1"]
+[gd_scene load_steps=35 format=3 uid="uid://d2glnv32t8md1"]
 
 [ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_emb0w"]
 [ext_resource type="Script" uid="uid://cex362lk6utnk" path="res://Scripts/On Screen Elements/BackgroundEffects.gd" id="2_330he"]
@@ -27,16 +27,11 @@
 [ext_resource type="Script" uid="uid://dcfngv7oaf2c8" path="res://Scripts/RaceHUD.gd" id="26_cbgmd"]
 [ext_resource type="FontFile" uid="uid://dgugahs6bc7so" path="res://Fonts/magofonts/mago3.ttf" id="28_ueoa1"]
 [ext_resource type="PackedScene" uid="uid://7sye74odmhah" path="res://Scenes/CountdownUI.tscn" id="29_6vcvc"]
+[ext_resource type="AudioStream" uid="uid://bs3d11v2wgjn1" path="res://Audio/Music/Techno/Drifter.wav" id="31_kltya"]
 [ext_resource type="Script" uid="uid://c7rugtwfllds7" path="res://Scripts/SkidsOnTrackFromMinimap.gd" id="37_jwpg7"]
 [ext_resource type="Script" uid="uid://dcb4blo4uiyti" path="res://Scripts/PostRaceController.gd" id="39_8cuat"]
 [ext_resource type="PackedScene" uid="uid://bgkivo666nl2a" path="res://Scenes/PromptPanel.tscn" id="40_o1aky"]
 [ext_resource type="Script" uid="uid://d2n3bufpojtei" path="res://Scripts/MusicManager.gd" id="43_kwxat"]
-[ext_resource type="AudioStream" uid="uid://yew0dvtgsf7f" path="res://Audio/untitled folder/Faded_Dm_120Bpm.mp3" id="44_v2nl5"]
-[ext_resource type="AudioStream" uid="uid://cjxy0q8k2u71p" path="res://Audio/untitled folder/Future_Ebm_122Bpm.mp3" id="45_dmskm"]
-[ext_resource type="AudioStream" uid="uid://b6h77g8bxrs18" path="res://Audio/untitled folder/Jam_Am_124Bpm.mp3" id="46_xdkp6"]
-[ext_resource type="AudioStream" uid="uid://bot744byv38v8" path="res://Audio/untitled folder/Nightmode_Em_126Bpm.mp3" id="47_54nrm"]
-[ext_resource type="AudioStream" uid="uid://d4jut3ep1fxd" path="res://Audio/untitled folder/Pumped_Bm_111Bpm.mp3" id="48_55jeb"]
-[ext_resource type="AudioStream" uid="uid://bgjg8xsfhxrj4" path="res://Audio/untitled folder/Summer_Bbm_117Bpm.mp3" id="49_gsvbx"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_lhngl"]
 shader = ExtResource("3_okd74")
@@ -523,6 +518,7 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 0, 0, 1)
 
 [node name="CountdownUI" parent="." instance=ExtResource("29_6vcvc")]
+visible = false
 pseudo3d_path = NodePath("../Map")
 go_volume_db = 0.0
 auto_create_players = false
@@ -537,7 +533,7 @@ delay_seconds = 3.0
 
 [node name="MusicManager" type="Node2D" parent="."]
 script = ExtResource("43_kwxat")
-music_tracks = Array[AudioStream]([ExtResource("44_v2nl5"), ExtResource("45_dmskm"), ExtResource("46_xdkp6"), ExtResource("47_54nrm"), ExtResource("48_55jeb"), ExtResource("49_gsvbx")])
+music_tracks = Array[AudioStream]([ExtResource("31_kltya")])
 
 [node name="SkidsOnTrackFromMinimap" type="Node2D" parent="."]
 script = ExtResource("37_jwpg7")
