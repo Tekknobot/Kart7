@@ -1,4 +1,4 @@
-[gd_scene load_steps=42 format=3 uid="uid://d2glnv32t8md1"]
+[gd_scene load_steps=41 format=3 uid="uid://d2glnv32t8md1"]
 
 [ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_emb0w"]
 [ext_resource type="Script" uid="uid://cex362lk6utnk" path="res://Scripts/On Screen Elements/BackgroundEffects.gd" id="2_330he"]
@@ -37,7 +37,6 @@
 [ext_resource type="AudioStream" uid="uid://bgjg8xsfhxrj4" path="res://Audio/Music/Summer_Bbm_117Bpm.mp3" id="37_kwxat"]
 [ext_resource type="Script" uid="uid://dcb4blo4uiyti" path="res://Scripts/PostRaceController.gd" id="39_8cuat"]
 [ext_resource type="Script" uid="uid://phcpocpluv50" path="res://Scripts/Transition.gd" id="39_536cc"]
-[ext_resource type="PackedScene" uid="uid://bgkivo666nl2a" path="res://Scenes/PromptPanel.tscn" id="40_o1aky"]
 [ext_resource type="Script" uid="uid://d2n3bufpojtei" path="res://Scripts/MusicManager.gd" id="43_kwxat"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_lhngl"]
@@ -528,7 +527,6 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 0, 0, 1)
 
 [node name="CountdownUI" parent="." instance=ExtResource("29_6vcvc")]
-visible = false
 z_index = 4000
 pseudo3d_path = NodePath("../Map")
 go_volume_db = 0.0
@@ -536,12 +534,11 @@ auto_create_players = false
 delay = 1
 
 [node name="PostRaceController" type="Node2D" parent="."]
-visible = false
 script = ExtResource("39_8cuat")
 race_manager_path = NodePath("../RaceManager")
 leaderboard_path = NodePath("../LeaderBoard")
-prompt_scene = ExtResource("40_o1aky")
 delay_seconds = 3.0
+fader_path = NodePath("../Transition")
 
 [node name="MusicManager" type="Node2D" parent="."]
 script = ExtResource("43_kwxat")
@@ -570,5 +567,3 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0, 0, 0, 1)
 script = ExtResource("39_536cc")
-fade_in_time = 3.0
-fade_out_time = 3.0

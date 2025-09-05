@@ -1,17 +1,14 @@
-[gd_scene load_steps=5 format=3 uid="uid://bgkivo666nl2a"]
+[gd_scene load_steps=2 format=3 uid="uid://bgkivo666nl2a"]
 
 [ext_resource type="Script" uid="uid://dg47l6cwahfpv" path="res://Scripts/PromptPanel.gd" id="1_ljn0w"]
-[ext_resource type="FontFile" uid="uid://dgugahs6bc7so" path="res://Fonts/magofonts/mago3.ttf" id="2_c70cy"]
-[ext_resource type="FontFile" uid="uid://csnhk3q4gx0" path="res://Fonts/magofonts/mago1.ttf" id="3_ukvwn"]
-[ext_resource type="FontFile" uid="uid://buw362wjb8o8d" path="res://Fonts/magofonts/mago2.ttf" id="4_dx5ol"]
 
-[node name="PromptPanel" type="Node2D"]
+[node name="PromptPanel" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 script = ExtResource("1_ljn0w")
-shadow_offset = Vector2i(1, 1)
-title_font = ExtResource("2_c70cy")
-title_font_size = 32
-subtitle_font = ExtResource("3_ukvwn")
-subtitle_font_size = 16
-button_font = ExtResource("4_dx5ol")
-button_font_size = 16
-button_height = 16
+auto_show_on_ready = true
+reload_scene_path = "uid://bf3ednlls52qo"

@@ -17,3 +17,5 @@ res://Scenes/CountdownUI.tscn
 res://Scenes/PauseMenu.tscn
 res://Scenes/PromptPanel.tscn
 res://Scripts/PromptPanel.gd
+res://Scripts/PostRaceController.gd
+res://Scripts/Transition.gd

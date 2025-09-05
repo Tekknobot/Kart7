@@ -1,15 +1,14 @@
-RichTextLabel
 Control
+CenterContainer
+RichTextLabel
 CanvasLayer
 ColorRect
 Button
 VBoxContainer
 Label
 Panel
-CenterContainer
 Node2D
 GPUParticles2D
 AnimatedSprite2D
 GridContainer
 Node
-ProgressBar
