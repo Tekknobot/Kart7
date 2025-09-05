@@ -1,13 +1,8 @@
-[gd_scene load_steps=8 format=3 uid="uid://0q8tkgywkb3h"]
+[gd_scene load_steps=3 format=3 uid="uid://0q8tkgywkb3h"]
 
 [ext_resource type="Script" uid="uid://d2n3bufpojtei" path="res://Scripts/MusicManager.gd" id="1_m1xhr"]
-[ext_resource type="AudioStream" uid="uid://yew0dvtgsf7f" path="res://Audio/Music/Faded_Dm_120Bpm.mp3" id="2_gup21"]
-[ext_resource type="AudioStream" uid="uid://cjxy0q8k2u71p" path="res://Audio/Music/Future_Ebm_122Bpm.mp3" id="3_wyxmh"]
-[ext_resource type="AudioStream" uid="uid://b6h77g8bxrs18" path="res://Audio/Music/Jam_Am_124Bpm.mp3" id="4_me85s"]
-[ext_resource type="AudioStream" uid="uid://bot744byv38v8" path="res://Audio/Music/Nightmode_Em_126Bpm.mp3" id="5_57cfc"]
-[ext_resource type="AudioStream" uid="uid://d4jut3ep1fxd" path="res://Audio/Music/Pumped_Bm_111Bpm.mp3" id="6_wjxqf"]
-[ext_resource type="AudioStream" uid="uid://bgjg8xsfhxrj4" path="res://Audio/Music/Summer_Bbm_117Bpm.mp3" id="7_42d86"]
+[ext_resource type="AudioStream" uid="uid://whk8vhmlkg0n" path="res://Audio/Music/Drifter.mp3" id="2_hsxb6"]
 
 [node name="MusicManager" type="Node2D"]
 script = ExtResource("1_m1xhr")
-music_tracks = Array[AudioStream]([ExtResource("2_gup21"), ExtResource("3_wyxmh"), ExtResource("4_me85s"), ExtResource("5_57cfc"), ExtResource("6_wjxqf"), ExtResource("7_42d86")])
+music_tracks = Array[AudioStream]([ExtResource("2_hsxb6")])
