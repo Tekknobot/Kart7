@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://goyuoujaf3xo"]
+[gd_scene load_steps=9 format=3 uid="uid://goyuoujaf3xo"]
 
 [ext_resource type="Script" uid="uid://cwf6dvmkcsxgo" path="res://Scripts/TitleScreen.gd" id="1_q2qps"]
 [ext_resource type="Shader" uid="uid://de3h13uhlsk7r" path="res://Scripts/Shaders/FinishFlag.gdshader" id="2_2qdx2"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" uid="uid://0p4etiyothhl" path="res://Scripts/FinishFlagFader.gd" id="3_3eqdi"]
 [ext_resource type="FontFile" uid="uid://da843lunw601x" path="res://Fonts/NickelGothicV3Variableslntwdth-BF674fcf11737ff.ttf" id="4_2qdx2"]
 [ext_resource type="FontFile" uid="uid://csnhk3q4gx0" path="res://Fonts/magofonts/mago1.ttf" id="4_3eqdi"]
+[ext_resource type="PackedScene" uid="uid://0q8tkgywkb3h" path="res://Scenes/music_manager.tscn" id="7_3eqdi"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_3eqdi"]
 shader = ExtResource("2_2qdx2")
@@ -92,3 +93,5 @@ layout_mode = 2
 theme_override_fonts/font = ExtResource("4_3eqdi")
 theme_override_font_sizes/font_size = 16
 text = "Quit Game"
+
+[node name="MusicManager" parent="." instance=ExtResource("7_3eqdi")]

@@ -19,3 +19,4 @@ res://Scenes/PromptPanel.tscn
 res://Scripts/PromptPanel.gd
 res://Scripts/PostRaceController.gd
 res://Scripts/Transition.gd
+res://Scripts/MusicManager.gd
