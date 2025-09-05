@@ -5,15 +5,15 @@
 [ext_resource type="Texture2D" uid="uid://b7ri4tesomgep" path="res://Temp/Background Color_Black.png" id="3_fevyy"]
 [ext_resource type="Shader" uid="uid://hpt6elsw8vyg" path="res://Scripts/Shaders/ModeSeven.gdshader" id="3_okd74"]
 [ext_resource type="Texture2D" uid="uid://dc7jsgl2xv1da" path="res://Textures/Tracks/Skyline.png" id="4_3pmx8"]
-[ext_resource type="Texture2D" uid="uid://cnp7d7djiq0dd" path="res://Textures/Tracks/Grass_Tile.png" id="4_7c8ey"]
 [ext_resource type="Script" uid="uid://4oyj7tns2kqe" path="res://Scripts/World Elements/Pseudo3D.gd" id="4_s71t4"]
 [ext_resource type="Texture2D" uid="uid://cqfw8jfuvds0q" path="res://Textures/Tracks/Buildings.png" id="5_3pmx8"]
 [ext_resource type="Script" uid="uid://dhfy5381d720i" path="res://Scripts/General/Collision.gd" id="6_q57ja"]
 [ext_resource type="Script" uid="uid://5uqme7h2yul3" path="res://Scripts/On Screen Elements/SpriteHandler.gd" id="7_wmybs"]
 [ext_resource type="Script" uid="uid://crr8fhlnitj4a" path="res://Scripts/World Elements/Hazard.gd" id="11_gfs62"]
-[ext_resource type="Texture2D" uid="uid://mpxffsojr57o" path="res://Textures/Tracks/My Tracks/Track_01_GreenGrid.png" id="11_jwpg7"]
-[ext_resource type="Texture2D" uid="uid://d1pw55e38rqo" path="res://Textures/Tracks/My Tracks/Track_01_Road.png" id="12_8cuat"]
+[ext_resource type="Texture2D" uid="uid://baswq6uaio1tg" path="res://Textures/Tracks/Grass/Grass_Tile_02.png" id="11_hpc6h"]
+[ext_resource type="Texture2D" uid="uid://cuhl0bp0xfw80" path="res://Textures/Tracks/My Tracks/Track_02.png" id="12_kltya"]
 [ext_resource type="Script" uid="uid://bomqe0y8c30wy" path="res://Scripts/General/AnimationHandler.gd" id="13_6hxns"]
+[ext_resource type="Texture2D" uid="uid://bkmti72i7af1q" path="res://Textures/Tracks/My Tracks/Track_02_Road.png" id="15_hpc6h"]
 [ext_resource type="PackedScene" uid="uid://4y14qyh1accq" path="res://Scenes/player.tscn" id="15_jut3y"]
 [ext_resource type="Texture2D" uid="uid://d1nvgl514d4vw" path="res://Textures/Hazards/Orange_Pipes.png" id="16_t3snl"]
 [ext_resource type="PackedScene" uid="uid://ctt3p16uxh0dd" path="res://Scenes/opponent.tscn" id="16_v2nl5"]
@@ -34,8 +34,8 @@
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_lhngl"]
 shader = ExtResource("3_okd74")
-shader_parameter/trackTexture = ExtResource("11_jwpg7")
-shader_parameter/grassTexture = ExtResource("4_7c8ey")
+shader_parameter/trackTexture = ExtResource("12_kltya")
+shader_parameter/grassTexture = ExtResource("11_hpc6h")
 shader_parameter/mapMatrix = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
 shader_parameter/overlay_strength = 1.0
 
@@ -102,7 +102,7 @@ texture_repeat = 1
 material = SubResource("ShaderMaterial_lhngl")
 position = Vector2(240, 180)
 scale = Vector2(0.46875, 0.351563)
-texture = ExtResource("11_jwpg7")
+texture = ExtResource("12_kltya")
 script = ExtResource("4_s71t4")
 _mapStartRotationAngle = Vector2(4.9, 6.25)
 _mapMaxRotationSpeed = 1.5
@@ -120,7 +120,7 @@ intro_spin_zoom_k = 0.0
 
 [node name="Collision Handler" type="Node" parent="Map"]
 script = ExtResource("6_q57ja")
-_collisionMap = ExtResource("12_8cuat")
+_collisionMap = ExtResource("15_hpc6h")
 _wallColor = Color(0.4, 0.4, 0.4, 1)
 _roadTypeColors = Array[Color]([Color(0, 0, 0, 1), Color(1, 1, 1, 1), Color(0.8, 0.8, 0.8, 1), Color(0.603922, 0.603922, 0.603922, 1), Color(0.4, 0.4, 0.4, 1), Color(0.2, 0.2, 0.2, 1)])
 
@@ -360,7 +360,7 @@ size = Vector2i(1024, 1024)
 script = ExtResource("21_pdsj5")
 line_width = 0.5
 color = Color(0, 0, 0, 0.901961)
-points = PackedVector2Array(919, 555, 919, 100, 856, 100, 425, 556, 288, 556, 288, 100, 108, 100, 108, 900, 919, 900)
+points = PackedVector2Array(919, 583, 941, 100, 76, 100, 76, 174, 792, 627, 792, 750, 81, 657, 81, 950, 841, 950, 947, 874)
 show_debug_markers = false
 follow_speed_px_sec = 160.0
 skid_width_px = 1.0
