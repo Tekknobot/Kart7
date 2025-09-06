@@ -169,14 +169,14 @@ var _screen_pair_chain   := {}      # key -> {count:int, last:float}
 
 
 var DEFAULT_POINTS: PackedVector2Array = PackedVector2Array([
-	Vector2(920, 583),	
-	Vector2(950, 607),
-	Vector2(920, 631),
-	Vector2(950, 655),
-	Vector2(920, 679),
-	Vector2(950, 703),
-	Vector2(920, 727),
-	Vector2(950, 751)
+	Vector2(922, 583),	
+	Vector2(952, 607),
+	Vector2(922, 631),
+	Vector2(952, 655),
+	Vector2(922, 679),
+	Vector2(952, 703),
+	Vector2(922, 727),
+	Vector2(952, 751)
 ])
 
 # Depth along the camera forward (positive = in front of the player's position, negative = behind)

@@ -63,6 +63,7 @@ z_index = -4096
 amount = 5000
 
 [node name="Background Elements" type="Node2D" parent="." node_paths=PackedStringArray("_skyLine", "_treeLine")]
+position = Vector2(80, 0)
 script = ExtResource("2_330he")
 _skyLine = NodePath("Sky Line")
 _treeLine = NodePath("Tree Line")
@@ -72,35 +73,35 @@ day_tree_color = Color(0.298743, 0.59482, 0.897929, 1)
 [node name="Background" type="Sprite2D" parent="Background Elements"]
 z_index = -1
 position = Vector2(240, 180)
-scale = Vector2(15, 11.25)
+scale = Vector2(20, 11.25)
 texture = ExtResource("3_fevyy")
 
 [node name="Sky Line" type="Sprite2D" parent="Background Elements"]
 texture_filter = 1
 texture_repeat = 2
-position = Vector2(0, 48)
+position = Vector2(-81, 48)
 scale = Vector2(2, 2)
 texture = ExtResource("4_3pmx8")
 centered = false
 region_enabled = true
-region_rect = Rect2(0, 0, 240, 32)
+region_rect = Rect2(0, 0, 320, 32)
 
 [node name="Tree Line" type="Sprite2D" parent="Background Elements"]
 texture_filter = 1
 texture_repeat = 2
-position = Vector2(0, 48)
+position = Vector2(-80, 48)
 scale = Vector2(2, 2)
 texture = ExtResource("5_3pmx8")
 centered = false
 region_enabled = true
-region_rect = Rect2(0, 0, 240, 32)
+region_rect = Rect2(0, 0, 320, 32)
 
 [node name="Map" type="Sprite2D" parent="." node_paths=PackedStringArray("path_overlay_viewport")]
 z_index = -1
 texture_filter = 1
 texture_repeat = 1
 material = SubResource("ShaderMaterial_lhngl")
-position = Vector2(240, 180)
+position = Vector2(320, 180)
 scale = Vector2(0.46875, 0.351563)
 texture = ExtResource("12_kltya")
 script = ExtResource("4_s71t4")
@@ -382,9 +383,9 @@ finish_auto_speed_px = 200.0
 [node name="LeaderBoard" type="Control" parent="."]
 layout_mode = 3
 anchors_preset = 0
-offset_left = 11.0
+offset_left = 91.0
 offset_top = 61.0
-offset_right = 466.0
+offset_right = 546.0
 offset_bottom = 214.0
 theme = SubResource("Theme_gt3je")
 script = ExtResource("22_ee4r6")
@@ -404,10 +405,10 @@ highlight_seconds = 0.0
 [node name="Minimap" type="Control" parent="."]
 layout_mode = 3
 anchors_preset = 0
-offset_left = 1.0
-offset_top = 269.0
-offset_right = 96.0
-offset_bottom = 360.0
+offset_left = 6.0
+offset_top = 261.0
+offset_right = 101.0
+offset_bottom = 352.0
 script = ExtResource("24_3pmx8")
 path_provider = NodePath("../SubViewport/PathOverlay2D")
 racers_root = NodePath("../Sprite Handler/Racers")
@@ -488,9 +489,9 @@ layout_mode = 2
 
 [node name="BottomRight" type="MarginContainer" parent="RaceHUD"]
 layout_mode = 0
-offset_left = 368.0
+offset_left = 531.0
 offset_top = 206.0
-offset_right = 472.0
+offset_right = 635.0
 offset_bottom = 354.0
 
 [node name="Vbox" type="VBoxContainer" parent="RaceHUD/BottomRight"]

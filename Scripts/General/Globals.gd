@@ -1,7 +1,7 @@
 # Globals.gd
 extends Node
 
-var screenSize: Vector2 = Vector2(480, 360)
+var screenSize: Vector2 = Vector2(640, 360)
 
 enum RoadType { VOID, ROAD, GRAVEL, OFF_ROAD, WALL, SINK }
 

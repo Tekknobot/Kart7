@@ -35,14 +35,14 @@ var _player_freeze_frames := 0
 @export var sheet_hframes: int  = 12
 
 var DEFAULT_POINTS: PackedVector2Array = PackedVector2Array([
-	Vector2(920, 584),
-	Vector2(950, 607),
-	Vector2(920, 631),
-	Vector2(950, 655),
-	Vector2(920, 679),
-	Vector2(950, 703),
-	Vector2(920, 727),
-	Vector2(950, 751)
+	Vector2(922, 584),
+	Vector2(952, 607),
+	Vector2(922, 631),
+	Vector2(952, 655),
+	Vector2(922, 679),
+	Vector2(952, 703),
+	Vector2(922, 727),
+	Vector2(952, 751)
 ])
 
 func _apply_character_selection() -> void:

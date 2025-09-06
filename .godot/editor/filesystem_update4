@@ -15,3 +15,5 @@ res://Scenes/opponent.tscn
 res://Scenes/CountdownUI.tscn
 res://Scenes/PauseMenu.tscn
 res://Scenes/music_manager.tscn
+res://Scripts/On Screen Elements/SpriteHandler.gd
+res://Scripts/General/Game.gd
