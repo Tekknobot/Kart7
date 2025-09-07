@@ -15,6 +15,12 @@ class_name RaceHUD
 @export var place_lbl: Label
 @export var speed_lbl: Label
 @export var last_lbl: Label
+
+@export var fps_lbl: Label
+
+@export var fps_update_interval: float = 0.25  # seconds between updates (0.25 = 4×/sec)
+var _fps_t := 0.0
+
 # NEW: separate gap labels
 @export var ahead_lbl: Label
 @export var behind_lbl: Label
@@ -104,6 +110,13 @@ func _process(delta: float) -> void:
 	# Lazy bind until both are ready
 	if _rm == null or _player == null or not _bound_once:
 		_bind_if_needed()
+
+	# --- FPS label update ---
+	_fps_t += delta
+	if _fps_t >= fps_update_interval:
+		_fps_t = 0.0
+		if fps_lbl:
+			fps_lbl.text = "FPS %d" % int(round(Engine.get_frames_per_second()))
 
 	_timer += delta
 	if _timer >= _update_dt:
@@ -322,6 +335,7 @@ func _apply_fonts() -> void:
 	_apply_font_to(last_lbl,  last_font,  last_size)
 	_apply_font_to(ahead_lbl,  best_font,  best_size)
 	_apply_font_to(behind_lbl,  best_font,  best_size)
+	_apply_font_to(fps_lbl,  best_font,  best_size)
 	
 func _apply_font_to(label: Label, f: Font, sz: int) -> void:
 	if label == null: return

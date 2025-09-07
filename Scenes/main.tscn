@@ -60,6 +60,7 @@ opponent_scene = ExtResource("16_v2nl5")
 
 [node name="StarryNight" parent="." instance=ExtResource("25_u50mg")]
 z_index = -4096
+position = Vector2(0, -121)
 amount = 5000
 
 [node name="Background Elements" type="Node2D" parent="." node_paths=PackedStringArray("_skyLine", "_treeLine")]
@@ -368,7 +369,7 @@ skid_width_px = 1.0
 skid_min_segment_px = 1.0
 skid_fade_seconds = 2.5
 skid_color_drift = Color(0, 0, 0, 0.294118)
-skid_color_offroad = Color(0.470588, 0, 0, 0.247059)
+skid_color_offroad = Color(0.62356, 0.62356, 0.62356, 0.247059)
 rear_axle_back_px = 0.0
 
 [node name="RaceManager" type="Node2D" parent="."]
@@ -427,7 +428,7 @@ pixel_dots = false
 dot_square_size = 2
 player_square_size = 2
 
-[node name="RaceHUD" type="Control" parent="." node_paths=PackedStringArray("time_lbl", "lap_lbl", "place_lbl", "speed_lbl", "last_lbl", "ahead_lbl", "behind_lbl")]
+[node name="RaceHUD" type="Control" parent="." node_paths=PackedStringArray("time_lbl", "lap_lbl", "place_lbl", "speed_lbl", "last_lbl", "fps_lbl", "ahead_lbl", "behind_lbl")]
 z_index = 4096
 layout_mode = 3
 anchors_preset = 15
@@ -445,6 +446,7 @@ lap_lbl = NodePath("TopLeft/Vbox/Lap")
 place_lbl = NodePath("BottomRight/Vbox/Place")
 speed_lbl = NodePath("BottomRight/Vbox/Speed")
 last_lbl = NodePath("BottomRight/Vbox/LapTime")
+fps_lbl = NodePath("TopRight/Vbox/FPS")
 ahead_lbl = NodePath("BottomRight/Vbox/Ahead")
 behind_lbl = NodePath("BottomRight/Vbox/Behind")
 nitro_bar_path = NodePath("BottomRight/Vbox/NitroBar")
@@ -486,6 +488,22 @@ layout_mode = 2
 
 [node name="Lap" type="Label" parent="RaceHUD/TopLeft/Vbox"]
 layout_mode = 2
+
+[node name="TopRight" type="MarginContainer" parent="RaceHUD"]
+layout_mode = 0
+offset_left = 517.0
+offset_right = 628.0
+offset_bottom = 80.0
+
+[node name="Vbox" type="VBoxContainer" parent="RaceHUD/TopRight"]
+layout_mode = 2
+
+[node name="FPS" type="Label" parent="RaceHUD/TopRight/Vbox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 0, 1)
+theme_override_fonts/font = ExtResource("28_ueoa1")
+theme_override_font_sizes/font_size = 32
+horizontal_alignment = 2
 
 [node name="BottomRight" type="MarginContainer" parent="RaceHUD"]
 layout_mode = 0

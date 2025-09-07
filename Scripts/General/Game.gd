@@ -45,6 +45,15 @@ var DEFAULT_POINTS: PackedVector2Array = PackedVector2Array([
 	Vector2(952, 751)
 ])
 
+func _input(event):
+	if event.is_action_pressed("ui_fullscreen"):
+		if DisplayServer.window_get_mode() != DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN:
+			# Exact 4K fullscreen; change if you prefer 1920x1080.
+			DisplayServer.window_set_size(Vector2i(3840, 2160))
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN)
+		else:
+			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+
 func _apply_character_selection() -> void:
 	_ensure_roster_spawned()
 

@@ -115,6 +115,7 @@ layout_mode = 2
 racer_name = &"Rogue"
 
 [node name="Back" type="Button" parent="Center/VBox"]
+visible = false
 layout_mode = 2
 theme_override_fonts/font = ExtResource("3_8da4y")
 theme_override_font_sizes/font_size = 16

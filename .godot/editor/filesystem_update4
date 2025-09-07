@@ -17,3 +17,5 @@ res://Scenes/PauseMenu.tscn
 res://Scenes/music_manager.tscn
 res://Scripts/On Screen Elements/SpriteHandler.gd
 res://Scripts/General/Game.gd
+res://Scripts/ScreenScaler.gd
+res://Scripts/RaceHUD.gd
