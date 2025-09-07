@@ -195,6 +195,14 @@ var _award_spin_dir := 1             # +1 = right-first, -1 = left-first
 const AWARD_SPIN_ROTATIONS := 3.0   # exactly two full 360s
 var _award_spin_elapsed := 0.0
 
+var _nitro_was_active := false
+var can_nitro: = false
+
+const NITRO_ENGAGE_FRAC := 0.12     # engage when ≥ 12%
+const NITRO_DISENGAGE_FRAC := 0.06  # stay on until < 6% (prevents chatter)
+
+var _nitro_active_runtime := false   # true only while nitro is actually on
+
 var DEFAULT_POINTS: PackedVector2Array = PackedVector2Array([
 	Vector2(920, 584),
 	Vector2(950, 607),
@@ -563,40 +571,51 @@ func Update(mapForward : Vector3) -> void:
 	if _turbo_timer > 0.0:
 		_turbo_timer = max(0.0, _turbo_timer - dt)
 
-	# === Nitro: hold/tap → only active with enough gauge; shader only while active ===
+	# === Nitro (hold/tap) — no-repeat SFX + hysteresis ===
 	var nitro_down := Input.is_action_pressed("Nitro")
 	var nitro_tap  := Input.is_action_just_pressed("Nitro")
 
-	# Tap cancels latch
+	# Tap cancels latch (your existing behavior)
 	if _nitro_latched and nitro_tap:
 		_nitro_latched = false
 
-	# NEW: block Nitro while drifting (spins were already blocked)
 	var nitro_blocked := _is_drifting or _is_spinning
+	var requesting := (_nitro_latched or nitro_down) and not nitro_blocked
 
-	var want_request := (_nitro_latched or nitro_down) and not nitro_blocked
+	# State machine: engage/disengage with hysteresis (prevents re-triggering)
+	if _nitro_active_runtime:
+		if (not requesting) or (_nitro_charge <= NITRO_DISENGAGE_FRAC):
+			_nitro_active_runtime = false
+	else:
+		if requesting and (_nitro_charge >= NITRO_ENGAGE_FRAC):
+			_nitro_active_runtime = true
+
+	# One-shot SFX on the rising edge only
+	if _nitro_active_runtime and not _nitro_was_active:
+		if _sfx and _sfx.has_method("play_nitro_start"):
+			_sfx.play_nitro_start()
+		elif _sfx and _sfx.has_method("play_boost"):
+			_sfx.play_boost()
+
+	# Drain/refill rules: NEVER refill while the player is still requesting
 	var drain_rate  = 1.0 / max(0.001, NITRO_CAPACITY_S)
 	var refill_rate = 1.0 / max(0.001, NITRO_REFILL_S)
 
-	# Engage only if gauge ≥ threshold AND not blocked
-	var can_nitro := want_request and (_nitro_charge >= NITRO_MIN_ACTIVATE_FRAC)
-
-	if can_nitro:
-		# drain and show shader
+	if _nitro_active_runtime:
 		_nitro_charge = max(0.0, _nitro_charge - drain_rate * dt)
-		_nitro_timer  = 1.0  # visual ON while active
 	else:
-		# stop visuals
-		_nitro_timer  = 0.0
-		# keep latch only if the button is still held
-		if not nitro_down:
-			_nitro_latched = false
-
-		# Pause gauge while blocked; otherwise refill as usual
-		if not nitro_blocked:
+		if (not requesting) and (not nitro_blocked):
 			_nitro_charge = min(1.0, _nitro_charge + refill_rate * dt)
-		# (if blocked, do nothing → no drain, no refill)
-		
+
+	# Drive visuals
+	if _nitro_active_runtime:
+		_nitro_timer = 1.0
+	else:
+		_nitro_timer = 0.0
+
+	# Remember for next frame
+	_nitro_was_active = _nitro_active_runtime
+
 	_apply_nitro_fx(mapForward)
 	_push_nitro_hud()
 
@@ -735,17 +754,13 @@ func _handle_hop_and_drift(input_vec : Vector2) -> void:
 	var moving_fast := _movementSpeed >= DRIFT_MIN_SPEED
 	var steer_abs = abs(input_vec.x)
 	var steer_sign = sign(input_vec.x)
-
-	_sfx.play_hop()
 	
 	# Nitro: HOLD keeps effect alive (timer is maintained in Update); first press arms drift
 	if nitro_just and not _is_drifting:
 		_drift_arm_timer = DRIFT_ARM_WINDOW
 		if _sfx != null:
-			if _sfx.has_method("play_boost"):
-				_sfx.play_boost()
-			elif _sfx.has_method("play_hop"):
-				_sfx.play_hop()  # fallback sound if you want
+			if _sfx.has_method("play_drift"):
+				_sfx.play_drift()
 
 	# Only kick the shader if we actually have enough gauge to run nitro
 	if nitro_down and _nitro_charge >= NITRO_MIN_ACTIVATE_FRAC:

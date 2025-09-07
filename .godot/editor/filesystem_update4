@@ -19,3 +19,4 @@ res://Scripts/On Screen Elements/SpriteHandler.gd
 res://Scripts/General/Game.gd
 res://Scripts/ScreenScaler.gd
 res://Scripts/RaceHUD.gd
+res://Scripts/World Elements/Racers/Player.gd
