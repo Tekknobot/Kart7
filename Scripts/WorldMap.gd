@@ -1,384 +1,310 @@
 extends Node2D
+class_name WorldMap
 
-@export_group("Map")
-@export var map_texture: Texture2D                # drop your world PNG here
-@export var marker_radius_px: float = 6.0
-@export var marker_color: Color = Color(1, 0.8, 0.25, 1.0)
-@export var marker_color_player: Color = Color(0.35, 1.0, 0.55, 1.0) # highlight color
+@export var html_path: String = "res://amCharts.pixelMap.html"
+@export var map_size: Vector2i = Vector2i(1920, 960)
+@export var pixel_size: int = 5
+@export var pixel_color: Color = Color(129.0/255.0, 129.0/255.0, 129.0/255.0, 1.0)
+@export var background_color: Color = Color(80.0/255.0, 80.0/255.0, 80.0/255.0, 1.0)
+
+@export var camera_path: NodePath
+@export var camera_smoothing_speed: float = 5.0
+@export var enable_camera_limits: bool = true
+
+@export var marker_color: Color = Color(1.0, 0.35, 0.35, 1.0)
+@export var marker_radius: float = 8.0
+
+# --- City label styling ---
+@export var show_city_dots: bool = true
+@export var city_dot_radius: float = 3.0
+@export var city_dot_color: Color = Color(1.0, 0.9, 0.3, 1.0)
+
 @export var show_city_labels: bool = true
+@export var label_font: Font
+@export var label_font_size: int = 16
+@export var label_color: Color = Color(1, 1, 1, 1)
+@export var city_label_offset: Vector2 = Vector2(8, -8)
 
-@export_group("Camera")
-@export var pan_speed_px_s: float = 900.0
-@export var accel: float = 10.0
-@export var friction: float = 7.0
-@export var zoom_min: float = 0.40
-@export var zoom_max: float = 1.25
-@export var zoom_step: float = 0.10
+# --- Zoom controls ---
+@export var zoom_min: float = 0.5
+@export var zoom_max: float = 4.0
+@export var zoom_step: float = 0.2     # multiplicative (1.0 +/- zoom_step)
+@export var zoom_lerp_speed: float = 8.0
 
-@export_group("Integration")
-@export var start_intro_on_select: bool = true   # A/Enter → TrackIntro, then race
-@export var default_track_scene: String = "res://Scenes/main.tscn" # fallback per city
+# --- City cycle options ---
+@export var cycle_jumps_camera: bool = false
+@export var start_on_city_index: int = 0
 
-@export var _map: Sprite2D
-@export var _cam: Camera2D
-@export var _markers_root: Node2D
-@export var _hint: Label
+var _marker_pos := Vector2.ZERO
+var _map_sprite: Sprite2D = null
+var _camera: Camera2D = null
 
-@export_group("City Label Style")
-@export var city_font: Font
-@export var city_font_size: int = 14
-@export var city_outline_size: int = 2
-@export var city_outline_color: Color = Color(0,0,0,0.85)
-@export var city_text_color: Color = Color(1,1,1,0.95)
+var _target_zoom: float = 1.0
 
-@export_group("Geo Mapping")
-@export var auto_fit_lonlat_rect: bool = true
-@export var lonlat_rect_px: Rect2i = Rect2i(0, 56, 854, 427)  # for PixelWorldMap_All_Countries_ClearBG_1x.png
+# City data → computed at runtime into _cities with .pos
+const CITY_DATA := [
+	{"name":"New York", "lon":-74.0060, "lat":40.7128},
+	{"name":"Los Angeles", "lon":-118.2437, "lat":34.0522},
+	{"name":"Mexico City", "lon":-99.1332, "lat":19.4326},
+	{"name":"Sao Paulo", "lon":-46.6333, "lat":-23.5505},
+	{"name":"Buenos Aires", "lon":-58.3816, "lat":-34.6037},
+	{"name":"London", "lon":-0.1276, "lat":51.5074},
+	{"name":"Paris", "lon":2.3522, "lat":48.8566},
+	{"name":"Madrid", "lon":-3.7038, "lat":40.4168},
+	{"name":"Cairo", "lon":31.2357, "lat":30.0444},
+	{"name":"Lagos", "lon":3.3792, "lat":6.5244},
+	{"name":"Moscow", "lon":37.6173, "lat":55.7558},
+	{"name":"Istanbul", "lon":28.9784, "lat":41.0082},
+	{"name":"Dubai", "lon":55.2708, "lat":25.2048},
+	{"name":"Mumbai", "lon":72.8777, "lat":19.0760},
+	{"name":"Singapore", "lon":103.8198, "lat":1.3521},
+	{"name":"Beijing", "lon":116.4074, "lat":39.9042},
+	{"name":"Seoul", "lon":126.9780, "lat":37.5665},
+	{"name":"Tokyo", "lon":139.6917, "lat":35.6895},
+	{"name":"Sydney", "lon":151.2093, "lat":-33.8688},
+	{"name":"Toronto", "lon":-79.3832, "lat":43.6532},
+]
 
-var _cam_vel: Vector2 = Vector2.ZERO
-var _cities := []   # filled with dictionaries {name, country, lat, lon, scene, node}
+var _cities: Array = []           # each = {"name": String, "lon": float, "lat": float, "pos": Vector2}
+var _city_index: int = 0
 
 func _ready() -> void:
-	# Basic input actions (safe if they already exist)
-	_ensure_actions()
-
-	# Setup map sprite
-	if map_texture == null:
-		push_error("WorldMap: map_texture not set.")
-		return
-	_map.texture = map_texture
-	_map.centered = false
-	_map.position = Vector2.ZERO
-
-	_ensure_lonlat_rect()   # <<< add this
-
-	# Camera initial zoom and limits
-	_cam.zoom = Vector2.ONE
-	_update_camera_limits()
-
-	# Build city list + markers
-	_build_cities()
-	_place_markers_from_latlon()
-
-	# UI hint
-	if _hint:
-		_hint.text = "Move: Left Stick / D-Pad   Zoom: LB/RB or Q/E   Select: A / Enter   Back: B / Esc"
-		_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-
+	_camera = _resolve_camera()
+	_setup_camera()
+	_build_map_texture_from_html()
+	_init_cities()
+	_city_index = clamp(start_on_city_index, 0, max(CITY_DATA.size() - 1, 0))
+	if CITY_DATA.size() > 0:
+		_goto_city(_city_index, true)
+	_target_zoom = 1.0
 	set_process(true)
-	set_process_input(true)
+	queue_redraw()
 
-func _process(dt: float) -> void:
-	# Panning (keyboard actions; stick handled in _input for smoothness)
-	var axis := Input.get_vector("map_left","map_right","map_up","map_down")
-	var wish := axis * pan_speed_px_s
-	_cam_vel = _cam_vel.move_toward(wish, accel * dt)
-	_cam.position += _cam_vel * dt
+func _process(delta: float) -> void:
+	if _camera != null:
+		# follow marker (Camera2D smoothing handles the ease)
+		var target_global := to_global(_marker_pos)
+		_camera.global_position = target_global
 
-	# friction if no input
-	if axis == Vector2.ZERO:
-		_cam_vel = _cam_vel.move_toward(Vector2.ZERO, friction * dt)
+		# smooth zoom to target
+		var curr := _camera.zoom.x
+		if abs(curr - _target_zoom) > 0.0001:
+			var t := zoom_lerp_speed * delta
+			if t > 1.0:
+				t = 1.0
+			var new_zoom = lerp(curr, _target_zoom, t)
+			_camera.zoom = Vector2(new_zoom, new_zoom)
 
-	# Clamp inside map
-	_clamp_camera_to_map()
+func _unhandled_input(event: InputEvent) -> void:
+	# D-pad / arrow keys → cycle cities
+	if event.is_action_pressed("ui_right") or event.is_action_pressed("ui_down"):
+		_next_city()
+	if event.is_action_pressed("ui_left") or event.is_action_pressed("ui_up"):
+		_prev_city()
 
-	# Highlight nearest city to camera center
-	_highlight_nearest_to_camera()
+	# Zoom keys
+	if event is InputEventKey and event.pressed and event.echo == false:
+		var k := (event as InputEventKey).keycode
+		if k == Key.KEY_EQUAL:
+			_zoom_in()
+		if k == Key.KEY_MINUS:
+			_zoom_out()
 
-func _input(event: InputEvent) -> void:
-	# Analog stick panning
-	if event is InputEventJoypadMotion:
-		var lx := Input.get_action_strength("map_right") - Input.get_action_strength("map_left")
-		var ly := Input.get_action_strength("map_down") - Input.get_action_strength("map_up")
-		var stick := Vector2(lx, ly)
-		if stick.length_squared() > 0.0001:
-			var wish := stick.normalized() * pan_speed_px_s
-			_cam_vel = _cam_vel.move_toward(wish, accel * get_process_delta_time())
+	# Mouse wheel zoom
+	if event is InputEventMouseButton and event.pressed and event.is_echo() == false:
+		var b := (event as InputEventMouseButton).button_index
+		if b == MOUSE_BUTTON_WHEEL_UP:
+			_zoom_in()
+		if b == MOUSE_BUTTON_WHEEL_DOWN:
+			_zoom_out()
 
-	# Zoom
-	if event.is_action_pressed("map_zoom_in"):
-		_cam.zoom = Vector2.ONE * clamp(_cam.zoom.x - zoom_step, zoom_min, zoom_max)
-		_update_camera_limits(); _clamp_camera_to_map()
-		var vp := get_viewport(); if vp != null: vp.set_input_as_handled()
-	elif event.is_action_pressed("map_zoom_out"):
-		_cam.zoom = Vector2.ONE * clamp(_cam.zoom.x + zoom_step, zoom_min, zoom_max)
-		_update_camera_limits(); _clamp_camera_to_map()
-		var vp2 := get_viewport(); if vp2 != null: vp2.set_input_as_handled()
+func _draw() -> void:
+	# marker
+	draw_circle(_marker_pos, marker_radius, marker_color)
+	var cross := 6.0
+	draw_line(_marker_pos - Vector2(cross, 0), _marker_pos + Vector2(cross, 0), marker_color, 2.0)
+	draw_line(_marker_pos - Vector2(0, cross), _marker_pos + Vector2(0, cross), marker_color, 2.0)
 
-	# Select nearest city (A / Enter)
-	if event.is_action_pressed("ui_accept"):
-		_select_nearest_city()
-		var vp3 := get_viewport(); if vp3 != null: vp3.set_input_as_handled()
+	# cities (dots + labels)
+	var font: Font = label_font
+	if font == null:
+		font = ThemeDB.fallback_font
 
-	# Back (B / Esc)
-	if event.is_action_pressed("ui_cancel"):
-		get_tree().change_scene_to_file("res://Scenes/Title.tscn")
-		var vp4 := get_viewport(); if vp4 != null: vp4.set_input_as_handled()
+	if _cities.size() > 0:
+		var i := 0
+		while i < _cities.size():
+			var c: Dictionary = _cities[i]
+			var p: Vector2 = c["pos"]
+			if show_city_dots:
+				draw_circle(p, city_dot_radius, city_dot_color)
 
-# ---------- Camera helpers ----------
+			if show_city_labels:
+				var text = c["name"]
+				var pos := p + city_label_offset
+				draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, label_font_size, label_color)
+			i += 1
 
-func _update_camera_limits() -> void:
-	var tex_size := map_texture.get_size()
-	# Camera2D limits refer to world coords; we clamp manually in _clamp_camera_to_map
-	# so we just ensure limits are wide enough.
-	_cam.limit_left = 0
-	_cam.limit_top = 0
-	_cam.limit_right = int(tex_size.x)
-	_cam.limit_bottom = int(tex_size.y)
+# --- Public API --------------------------------------------------------------
 
-func _clamp_camera_to_map() -> void:
-	var tex := map_texture.get_size()
-	var vw := get_viewport_rect().size / _cam.zoom   # world size visible
-	var half := vw * 0.5
+func set_marker_lonlat(lon: float, lat: float, jump_camera: bool = false) -> void:
+	_marker_pos = _lonlat_to_xy(lon, lat)
+	queue_redraw()
+	if jump_camera:
+		if _camera != null:
+			_camera.reset_smoothing()
+			_camera.global_position = to_global(_marker_pos)
 
-	var minp := half
-	var maxp := Vector2(tex.x, tex.y) - half
-	# If map smaller than viewport on either axis, keep camera centered on that axis
-	if minp.x > maxp.x:
-		_cam.position.x = tex.x * 0.5
-	else:
-		_cam.position.x = clamp(_cam.position.x, minp.x, maxp.x)
-	if minp.y > maxp.y:
-		_cam.position.y = tex.y * 0.5
-	else:
-		_cam.position.y = clamp(_cam.position.y, minp.y, maxp.y)
+func set_marker_xy(p: Vector2, jump_camera: bool = false) -> void:
+	_marker_pos = p
+	queue_redraw()
+	if jump_camera:
+		if _camera != null:
+			_camera.reset_smoothing()
+			_camera.global_position = to_global(_marker_pos)
 
-# ---------- City markers ----------
+# --- Internals ---------------------------------------------------------------
 
-func _build_cities() -> void:
-	_cities = [
-		{"name":"New York",     "country":"USA",          "lat":40.7128,   "lon":-74.0060,  "scene": default_track_scene},
-		{"name":"Los Angeles",  "country":"USA",          "lat":34.0522,   "lon":-118.2437, "scene": default_track_scene},
-		{"name":"Mexico City",  "country":"Mexico",       "lat":19.4326,   "lon":-99.1332,  "scene": default_track_scene},
-		{"name":"Sao Paulo",    "country":"Brazil",       "lat":-23.5505,  "lon":-46.6333,  "scene": default_track_scene},
-		{"name":"London",       "country":"UK",           "lat":51.5074,   "lon":-0.1278,   "scene": default_track_scene},
-		{"name":"Paris",        "country":"France",       "lat":48.8566,   "lon":2.3522,    "scene": default_track_scene},
-		{"name":"Berlin",       "country":"Germany",      "lat":52.52,     "lon":13.405,    "scene": default_track_scene},
-		{"name":"Rome",         "country":"Italy",        "lat":41.9028,   "lon":12.4964,   "scene": default_track_scene},
-		{"name":"Moscow",       "country":"Russia",       "lat":55.7558,   "lon":37.6173,   "scene": default_track_scene},
-		{"name":"Cairo",        "country":"Egypt",        "lat":30.0444,   "lon":31.2357,   "scene": default_track_scene},
-		{"name":"Istanbul",     "country":"Türkiye",      "lat":41.0082,   "lon":28.9784,   "scene": default_track_scene},
-		{"name":"Dubai",        "country":"UAE",          "lat":25.2048,   "lon":55.2708,   "scene": default_track_scene},
-		{"name":"Mumbai",       "country":"India",        "lat":19.0760,   "lon":72.8777,   "scene": default_track_scene},
-		{"name":"Beijing",      "country":"China",        "lat":39.9042,   "lon":116.4074,  "scene": default_track_scene},
-		{"name":"Seoul",        "country":"Korea",        "lat":37.5665,   "lon":126.9780,  "scene": default_track_scene},
-		{"name":"Tokyo",        "country":"Japan",        "lat":35.6762,   "lon":139.6503,  "scene": default_track_scene},
-		{"name":"Singapore",    "country":"Singapore",    "lat":1.3521,    "lon":103.8198,  "scene": default_track_scene},
-		{"name":"Sydney",       "country":"Australia",    "lat":-33.8688,  "lon":151.2093,  "scene": default_track_scene},
-		{"name":"Johannesburg", "country":"South Africa", "lat":-26.2041,  "lon":28.0473,   "scene": default_track_scene},
-		{"name":"Toronto",      "country":"Canada",       "lat":43.6532,   "lon":-79.3832,  "scene": default_track_scene},
-	]
+func _resolve_camera() -> Camera2D:
+	if camera_path == NodePath():
+		return null
+	var n := get_node_or_null(camera_path)
+	if n == null:
+		return null
+	if n is Camera2D:
+		return n
+	return null
 
-func _place_markers_from_latlon() -> void:
-	# Clear
-	for c in _markers_root.get_children():
-		c.queue_free()
+func _setup_camera() -> void:
+	if _camera == null:
+		return
+	_camera.position_smoothing_enabled = true
+	_camera.position_smoothing_speed = camera_smoothing_speed
+	if enable_camera_limits:
+		_apply_camera_limits()
 
-	var r := lonlat_rect_px
-	var rx := float(r.position.x)
-	var ry := float(r.position.y)
-	var rw := float(r.size.x)
-	var rh := float(r.size.y)
+func _apply_camera_limits() -> void:
+	if _camera == null:
+		return
+	var top_left: Vector2 = to_global(Vector2.ZERO)
+	var bottom_right: Vector2 = to_global(Vector2(map_size))
+	var min_x = min(top_left.x, bottom_right.x)
+	var max_x = max(top_left.x, bottom_right.x)
+	var min_y = min(top_left.y, bottom_right.y)
+	var max_y = max(top_left.y, bottom_right.y)
+	_camera.limit_left = int(min_x)
+	_camera.limit_right = int(max_x)
+	_camera.limit_top = int(min_y)
+	_camera.limit_bottom = int(max_y)
 
-	for i in range(_cities.size()):
-		var d: Dictionary = _cities[i]
-		var lon := float(d["lon"])   # [-180, +180]
-		var lat := float(d["lat"])   # [-90, +90]
+func _build_map_texture_from_html() -> void:
+	var img := Image.create(map_size.x, map_size.y, false, Image.FORMAT_RGBA8)
+	img.fill(background_color)
 
-		var u := (lon + 180.0) / 360.0   # 0..1 across the rect width
-		var v := (90.0 - lat) / 180.0    # 0..1 down the rect height
+	var count := 0
+	var file_exists := FileAccess.file_exists(html_path)
+	if file_exists:
+		var f := FileAccess.open(html_path, FileAccess.READ)
+		if f != null:
+			var txt := f.get_as_text()
+			var re := RegEx.new()
+			re.compile("\\\"longitude\\\"\\s*:\\s*([-\\d\\.]+)\\s*,\\s*\\\"latitude\\\"\\s*:\\s*([-\\d\\.]+)")
+			var matches := re.search_all(txt)
+			for m in matches:
+				var lon := m.get_string(1).to_float()
+				var lat := m.get_string(2).to_float()
+				var p := _lonlat_to_xy(lon, lat)
+				_blit_pixel(img, p, pixel_size, pixel_color)
+				count += 1
 
-		var px := Vector2(rx + u * rw, ry + v * rh)
+	if _map_sprite == null:
+		_map_sprite = Sprite2D.new()
+		_map_sprite.centered = false
+		add_child(_map_sprite)
+		_map_sprite.z_index = -1
 
-		var node := Node2D.new()
-		node.position = px
-		node.set_meta("idx", i)
-		_markers_root.add_child(node)
+	var tex := ImageTexture.create_from_image(img)
+	_map_sprite.texture = tex
 
-		var dot := ColorRect.new()
-		dot.color = marker_color
-		dot.size = Vector2(marker_radius_px * 2.0, marker_radius_px * 2.0)
-		dot.position = -dot.size * 0.5
-		dot.name = "Dot"
-		dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		node.add_child(dot)
+	if _marker_pos == Vector2.ZERO:
+		_marker_pos = _lonlat_to_xy(0.0, 0.0)
+		queue_redraw()
 
-		if show_city_labels:
-			var lab := Label.new()
-			lab.text = String(d["name"])
-			# Apply your font settings
-			var ls := LabelSettings.new()
-			ls.font = city_font          # may be null; that’s fine
-			ls.font_size = city_font_size
-			ls.font_color = city_text_color
-			ls.outline_size = city_outline_size
-			ls.outline_color = city_outline_color
-			lab.label_settings = ls
-			lab.position = Vector2(8, -18)
-			lab.name = "Label"
-			node.add_child(lab)
+func _blit_pixel(img: Image, center: Vector2, size_px: int, col: Color) -> void:
+	var half := float(size_px) * 0.5
+	var start_x := int(round(center.x - half))
+	var start_y := int(round(center.y - half))
+	var end_x := start_x + size_px
+	var end_y := start_y + size_px
+	var x := start_x
+	while x < end_x:
+		var y := start_y
+		while y < end_y:
+			if x >= 0 and y >= 0 and x < map_size.x and y < map_size.y:
+				img.set_pixel(x, y, col)
+			y += 1
+		x += 1
 
-		d["node"] = node
-		_cities[i] = d
+func _lonlat_to_xy(lon: float, lat: float) -> Vector2:
+	var x := (lon + 180.0) / 360.0 * float(map_size.x)
+	var y := (90.0 - lat) / 180.0 * float(map_size.y)
+	return Vector2(x, y)
 
-# ---------- Selection / Highlight ----------
+# --- Cities / cycling --------------------------------------------------------
 
-func _nearest_city_to(pos_world: Vector2) -> int:
-	var best_i := -1
-	var best_d2 := 1e12
-	for i in range(_cities.size()):
-		var d: Dictionary = _cities[i]
-		var n = d.get("node", null)
-		if n == null: continue
-		var node := n as Node2D
-		var d2 := node.position.distance_squared_to(pos_world)
-		if d2 < best_d2:
-			best_d2 = d2
-			best_i = i
-	return best_i
+func _init_cities() -> void:
+	_cities.clear()
+	var i := 0
+	while i < CITY_DATA.size():
+		var c = CITY_DATA[i]
+		var p := _lonlat_to_xy(c["lon"], c["lat"])
+		_cities.append({
+			"name": c["name"],
+			"lon": c["lon"],
+			"lat": c["lat"],
+			"pos": p
+		})
+		i += 1
+	queue_redraw()
 
-func _highlight_nearest_to_camera() -> void:
-	var center := _cam.get_screen_center_position()
-	var idx := _nearest_city_to(center)
-	for i in range(_cities.size()):
-		var d: Dictionary = _cities[i]
-		var node := d.get("node", null) as Node2D
-		if node == null: continue
-		var dot := node.get_node("Dot") as ColorRect
-		if i == idx:
-			dot.color = marker_color_player
-			dot.size = Vector2(marker_radius_px * 2.3, marker_radius_px * 2.3)
-		else:
-			dot.color = marker_color
-			dot.size = Vector2(marker_radius_px * 2.0, marker_radius_px * 2.0)
-		dot.position = -dot.size * 0.5
+func _goto_city(idx: int, jump: bool) -> void:
+	if _cities.size() == 0:
+		return
+	_city_index = clamp(idx, 0, _cities.size() - 1)
+	var c: Dictionary = _cities[_city_index]
+	set_marker_xy(c["pos"], jump)
 
-func _select_nearest_city() -> void:
-	var center := _cam.get_screen_center_position()
-	var idx := _nearest_city_to(center)
+func _next_city() -> void:
+	if _cities.size() == 0:
+		return
+	var idx := _city_index + 1
+	if idx >= _cities.size():
+		idx = 0
+	_goto_city(idx, cycle_jumps_camera)
+
+func _prev_city() -> void:
+	if _cities.size() == 0:
+		return
+	var idx := _city_index - 1
 	if idx < 0:
+		idx = _cities.size() - 1
+	_goto_city(idx, cycle_jumps_camera)
+
+# --- Zoom helpers ------------------------------------------------------------
+
+func _zoom_in() -> void:
+	_set_target_zoom(false)
+
+func _zoom_out() -> void:
+	_set_target_zoom(true)
+
+func _set_target_zoom(zoom_out: bool) -> void:
+	if _camera == null:
 		return
-
-	var d: Dictionary = _cities[idx]
-
-	# Build image path (no ternary)
-	var image_path := ""
-	if map_texture != null:
-		var rp := String(map_texture.resource_path)
-		if rp != "":
-			image_path = rp
-
-	var info := {
-		"name": String(d.get("name","")),
-		"location": String(d.get("country","")),
-		"length_km": 0.0,
-		"laps": 5,
-		"blurb": "City race in " + String(d.get("name","")),
-		"record": "",
-		"image": image_path
-	}
-
-	if Engine.has_singleton("MidnightGrandPrix"):
-		var gp = MidnightGrandPrix
-		var path := String(d.get("scene",""))
-		if path == "" and default_track_scene != "":
-			path = default_track_scene
-
-		var list := PackedStringArray()
-		for c in _cities:
-			var sp := String(c.get("scene",""))
-			if sp == "":
-				sp = default_track_scene
-			list.append(sp)
-		gp.tracks = list
-
-		if gp.has_method("set_track_meta_for_scene"):
-			gp.set_track_meta_for_scene(path, info)
-
-		if start_intro_on_select:
-			gp.show_intro = true
-		gp.start_gp(idx)
+	var z := _target_zoom
+	var step := 1.0 + zoom_step
+	if zoom_out:
+		z = z * step
 	else:
-		var direct := String(d.get("scene",""))
-		if direct != "":
-			get_tree().change_scene_to_file(direct)
-		elif default_track_scene != "":
-			get_tree().change_scene_to_file(default_track_scene)
-
-	# mark input handled (since we’re a Node2D, no accept_event())
-	var vp := get_viewport()
-	if vp != null:
-		vp.set_input_as_handled()
-
-# ---------- Utility ----------
-
-func _ensure_actions() -> void:
-	if not InputMap.has_action("map_left"):  InputMap.add_action("map_left")
-	if not InputMap.has_action("map_right"): InputMap.add_action("map_right")
-	if not InputMap.has_action("map_up"):    InputMap.add_action("map_up")
-	if not InputMap.has_action("map_down"):  InputMap.add_action("map_down")
-	if not InputMap.has_action("map_zoom_in"):  InputMap.add_action("map_zoom_in")
-	if not InputMap.has_action("map_zoom_out"): InputMap.add_action("map_zoom_out")
-	if not InputMap.has_action("ui_accept"): InputMap.add_action("ui_accept")
-	if not InputMap.has_action("ui_cancel"): InputMap.add_action("ui_cancel")
-
-	# Default bindings (won’t duplicate on hot-reload)
-	var keys = {
-		"map_left":[Key.KEY_A, Key.KEY_LEFT],
-		"map_right":[Key.KEY_D, Key.KEY_RIGHT],
-		"map_up":[Key.KEY_W, Key.KEY_UP],
-		"map_down":[Key.KEY_S, Key.KEY_DOWN],
-		"map_zoom_in":[Key.KEY_Q],
-		"map_zoom_out":[Key.KEY_E]
-	}
-	for act in keys.keys():
-		for k in keys[act]:
-			var ev := InputEventKey.new()
-			ev.keycode = k
-			InputMap.action_add_event(act, ev)
-
-	# Gamepad: Left stick + D-Pad
-	for act_btn in [
-		["map_left",  JOY_BUTTON_DPAD_LEFT],
-		["map_right", JOY_BUTTON_DPAD_RIGHT],
-		["map_up",    JOY_BUTTON_DPAD_UP],
-		["map_down",  JOY_BUTTON_DPAD_DOWN],
-	]:
-		var jb := InputEventJoypadButton.new()
-		jb.button_index = act_btn[1]
-		InputMap.action_add_event(StringName(act_btn[0]), jb)
-
-	# Zoom on shoulders
-	var jb_in := InputEventJoypadButton.new();  jb_in.button_index = JOY_BUTTON_LEFT_SHOULDER
-	var jb_out := InputEventJoypadButton.new(); jb_out.button_index = JOY_BUTTON_RIGHT_SHOULDER
-	InputMap.action_add_event("map_zoom_in", jb_in)
-	InputMap.action_add_event("map_zoom_out", jb_out)
-
-	# Accept/Cancel on A/B
-	var jA := InputEventJoypadButton.new(); jA.button_index = JOY_BUTTON_A
-	var jB := InputEventJoypadButton.new(); jB.button_index = JOY_BUTTON_B
-	InputMap.action_add_event("ui_accept", jA)
-	InputMap.action_add_event("ui_cancel", jB)
-
-func _compute_default_lonlat_rect() -> Rect2i:
-	var w := int(map_texture.get_width())
-	var h := int(map_texture.get_height())
-	if w <= 0 or h <= 0:
-		return Rect2i(0,0,0,0)
-
-	# Find the largest 2:1 rectangle inside the PNG (equirectangular area)
-	var aspect := float(w) / float(h)
-	if aspect >= 2.0:
-		var target_w := int(2.0 * float(h))
-		var x := (w - target_w) / 2
-		return Rect2i(x, 0, target_w, h)   # letterboxed left/right
-	else:
-		var target_h := int(float(w) / 2.0)
-		var y := (h - target_h) / 2
-		return Rect2i(0, y, w, target_h)   # letterboxed top/bottom
-
-func _ensure_lonlat_rect() -> void:
-	if not auto_fit_lonlat_rect:
-		return
-	if lonlat_rect_px.size.x <= 0 or lonlat_rect_px.size.y <= 0:
-		lonlat_rect_px = _compute_default_lonlat_rect()
+		z = z / step
+	z = clamp(z, zoom_min, zoom_max)
+	_target_zoom = z
