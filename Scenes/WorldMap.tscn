@@ -1,0 +1,37 @@
+[gd_scene load_steps=4 format=3 uid="uid://dvj546krba1wg"]
+
+[ext_resource type="Script" uid="uid://d4ctmix5rqgps" path="res://Scripts/WorldMap.gd" id="1_h0vor"]
+[ext_resource type="Texture2D" uid="uid://bnerd5homquxp" path="res://Textures/Double C's Pixel World Map/1x Size/All_1x/PixelWorldMap_All_Countries_ClearBG_1x.png" id="2_lgebn"]
+[ext_resource type="FontFile" uid="uid://buw362wjb8o8d" path="res://Fonts/magofonts/mago2.ttf" id="3_5wnfc"]
+
+[node name="WorldMap" type="Node2D" node_paths=PackedStringArray("_map", "_cam", "_markers_root", "_hint")]
+script = ExtResource("1_h0vor")
+map_texture = ExtResource("2_lgebn")
+marker_radius_px = 1.0
+_map = NodePath("Map")
+_cam = NodePath("Camera2D")
+_markers_root = NodePath("Markers")
+_hint = NodePath("Markers/UI/Hint")
+city_font = ExtResource("3_5wnfc")
+city_font_size = 16
+city_text_color = Color(1, 1, 0, 0.94902)
+
+[node name="Map" type="Sprite2D" parent="."]
+
+[node name="Camera2D" type="Camera2D" parent="."]
+
+[node name="Markers" type="Node2D" parent="."]
+
+[node name="UI" type="CanvasLayer" parent="Markers"]
+
+[node name="Hint" type="Label" parent="Markers/UI"]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -20.0
+offset_top = -23.0
+offset_right = 20.0
+grow_horizontal = 2
+grow_vertical = 0

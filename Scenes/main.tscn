@@ -379,7 +379,7 @@ pseudo3d_node = NodePath("../Map")
 path_overlay_node = NodePath("../SubViewport/PathOverlay2D")
 racers_root = NodePath("../Sprite Handler/Racers")
 force_player_on_top = false
-total_laps = 4
+total_laps = 0
 finish_auto_speed_px = 200.0
 
 [node name="LeaderBoard" type="Control" parent="."]
