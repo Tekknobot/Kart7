@@ -88,6 +88,7 @@ theme_override_font_sizes/font_size = 16
 text = "Start Racing"
 
 [node name="Trials" type="Button" parent="VBox"]
+visible = false
 custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 theme_override_fonts/font = ExtResource("4_3eqdi")

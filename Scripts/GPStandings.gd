@@ -7,6 +7,8 @@ extends Control
 @export var btn: Button
 
 func _ready() -> void:
+	_ensure_input_map() # make sure gamepad bindings exist (Windows/XInput)
+
 	var gp = MidnightGrandPrix
 	var race_no = gp.current_index + 1
 	var total = gp.tracks.size()
@@ -35,7 +37,10 @@ func _ready() -> void:
 		_add_row(r, is_player)
 
 	# Button text + make it controller-friendly
-	btn.text = ("Continue" if gp.current_index + 1 < total else "Finish")
+	if gp.current_index + 1 < total:
+		btn.text = "Continue"
+	else:
+		btn.text = "Finish"
 	btn.focus_mode = Control.FOCUS_ALL
 	btn.grab_focus()
 
@@ -45,21 +50,73 @@ func _ready() -> void:
 
 	RenderingServer.set_default_clear_color(Color(0,0,0))
 
+func _ensure_input_map() -> void:
+	# Ensure standard UI actions exist with sensible deadzones
+	_ensure_action("ui_accept", 0.25)
+	_ensure_action("ui_cancel", 0.25)
+	_ensure_action("ui_up", 0.25)
+	_ensure_action("ui_down", 0.25)
+	_ensure_action("ui_left", 0.25)
+	_ensure_action("ui_right", 0.25)
+
+	# Buttons (XInput on Windows): A/B + D-pad
+	_bind_joy_button_if_missing("ui_accept", JOY_BUTTON_A)
+	_bind_joy_button_if_missing("ui_cancel", JOY_BUTTON_B)
+	_bind_joy_button_if_missing("ui_up", JOY_BUTTON_DPAD_UP)
+	_bind_joy_button_if_missing("ui_down", JOY_BUTTON_DPAD_DOWN)
+	_bind_joy_button_if_missing("ui_left", JOY_BUTTON_DPAD_LEFT)
+	_bind_joy_button_if_missing("ui_right", JOY_BUTTON_DPAD_RIGHT)
+
+	# Left stick half-axes (so either D-pad or stick works)
+	_bind_joy_axis_if_missing("ui_up", JOY_AXIS_LEFT_Y, -1.0)
+	_bind_joy_axis_if_missing("ui_down", JOY_AXIS_LEFT_Y, 1.0)
+	_bind_joy_axis_if_missing("ui_left", JOY_AXIS_LEFT_X, -1.0)
+	_bind_joy_axis_if_missing("ui_right", JOY_AXIS_LEFT_X, 1.0)
+
+func _ensure_action(action: StringName, deadzone: float) -> void:
+	if not InputMap.has_action(action):
+		InputMap.add_action(action)
+	InputMap.action_set_deadzone(action, deadzone)
+
+func _bind_joy_button_if_missing(action: StringName, button_index: int) -> void:
+	var events := InputMap.action_get_events(action)
+	var i := 0
+	var found := false
+	while i < events.size():
+		var e := events[i]
+		if e is InputEventJoypadButton:
+			var jb := e as InputEventJoypadButton
+			if jb.button_index == button_index:
+				found = true
+		i += 1
+	if not found:
+		var ev := InputEventJoypadButton.new()
+		ev.button_index = button_index
+		InputMap.action_add_event(action, ev)
+
+func _bind_joy_axis_if_missing(action: StringName, axis: int, axis_value: float) -> void:
+	var events := InputMap.action_get_events(action)
+	var i := 0
+	var found := false
+	while i < events.size():
+		var e := events[i]
+		if e is InputEventJoypadMotion:
+			var jm := e as InputEventJoypadMotion
+			var same_dir := (jm.axis_value > 0.0 and axis_value > 0.0) or (jm.axis_value < 0.0 and axis_value < 0.0)
+			if jm.axis == axis and same_dir:
+				found = true
+		i += 1
+	if not found:
+		var ev := InputEventJoypadMotion.new()
+		ev.axis = axis
+		ev.axis_value = axis_value
+		InputMap.action_add_event(action, ev)
+
 func _unhandled_input(event: InputEvent) -> void:
 	# Enter/Space/A if mapped to ui_accept in your project
 	if event.is_action_pressed("ui_accept"):
 		btn.emit_signal("pressed")
-		var vp := get_viewport()
-		if vp != null: vp.set_input_as_handled()
 		return
-
-	# Explicit gamepad A (aka "south" button) — works even if ui_accept isn't mapped
-	if event is InputEventJoypadButton and event.is_pressed():
-		var jb := event as InputEventJoypadButton
-		if jb.button_index == JOY_BUTTON_A:  # SDL "south" button (A / Cross)
-			btn.emit_signal("pressed")
-			var vp2 := get_viewport()
-			if vp2 != null: vp2.set_input_as_handled()
 
 func _add_header_col(text: String, minw: int) -> void:
 	var l := Label.new()
