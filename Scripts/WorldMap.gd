@@ -92,6 +92,111 @@ const CITY_DATA := [
 	{"name":"Toronto", "lon":-79.3832, "lat":43.6532},
 ]
 
+var _rng := RandomNumberGenerator.new()
+
+const CITY_FACTS := {
+	"New York": [
+		"Central Park is larger than Monaco.",
+		"The Statue of Liberty was a gift from France in 1886.",
+		"Times Square is nicknamed the Crossroads of the World."
+	],
+	"Los Angeles": [
+		"The Hollywood sign originally read Hollywoodland in 1923.",
+		"The Walk of Fame has more than 2,700 stars.",
+		"Griffith Observatory watches over the city and the sign."
+	],
+	"Mexico City": [
+		"The city stands on the ruins of the Aztec capital Tenochtitlan.",
+		"Its elevation is about 2,240 meters above sea level.",
+		"The Zócalo is among the world’s largest public squares."
+	],
+	"Sao Paulo": [
+		"It is the largest city in the Southern Hemisphere.",
+		"Avenida Paulista is a major cultural and financial corridor.",
+		"The city is often nicknamed Sampa."
+	],
+	"Buenos Aires": [
+		"The tango originated here in the late 19th century.",
+		"The Obelisk on 9 de Julio Avenue is a city icon.",
+		"It’s nicknamed the Paris of South America."
+	],
+	"London": [
+		"The Underground opened in 1863, the world’s first subway.",
+		"The Thames Barrier helps protect the city from flooding.",
+		"The Shard is the tallest building in the UK."
+	],
+	"Paris": [
+		"The Louvre is the world’s most-visited museum.",
+		"The Eiffel Tower was built for the 1889 Exposition Universelle.",
+		"Paris is nicknamed La Ville Lumière—the City of Light."
+	],
+	"Madrid": [
+		"Puerta del Sol marks Kilometer Zero of Spain’s roads.",
+		"El Retiro and the Prado area form a UNESCO Landscape of Light.",
+		"Plaza Mayor dates to the early 1600s."
+	],
+	"Cairo": [
+		"The Great Pyramids and the Sphinx are just outside the city.",
+		"The Nile River flows north through Cairo.",
+		"It’s nicknamed the City of a Thousand Minarets."
+	],
+	"Lagos": [
+		"Nigeria’s largest city spreads around Lagos Lagoon.",
+		"It’s a powerhouse for Nollywood and Afrobeats.",
+		"Victoria Island is a major business district."
+	],
+	"Moscow": [
+		"The Kremlin and Red Square are UNESCO World Heritage Sites.",
+		"Moscow Metro stations are famed for palatial designs.",
+		"The city stands on the Moskva River."
+	],
+	"Istanbul": [
+		"It spans Europe and Asia across the Bosphorus.",
+		"Hagia Sophia has been cathedral, mosque, museum, and mosque again.",
+		"The Grand Bazaar is among the oldest covered markets."
+	],
+	"Dubai": [
+		"Burj Khalifa rises 828 meters, the world’s tallest building.",
+		"Palm Jumeirah is an artificial island shaped like a palm tree.",
+		"Dubai Mall is among the largest shopping centers globally."
+	],
+	"Mumbai": [
+		"It’s home to Bollywood, India’s film industry hub.",
+		"The Gateway of India was completed in 1924.",
+		"The city was officially renamed from Bombay in 1995."
+	],
+	"Singapore": [
+		"It’s a city-state at the tip of the Malay Peninsula.",
+		"Known as the Garden City for its greenery.",
+		"Changi Airport frequently tops global rankings."
+	],
+	"Beijing": [
+		"The Forbidden City anchors the historic center.",
+		"It hosted the Summer 2008 and Winter 2022 Olympics.",
+		"The Temple of Heaven is a UNESCO site."
+	],
+	"Seoul": [
+		"The Hangang River runs through the city.",
+		"Gyeongbokgung Palace dates to 1395.",
+		"Its subway is among the world’s busiest."
+	],
+	"Tokyo": [
+		"Shibuya Crossing is one of the busiest on earth.",
+		"Tokyo Skytree stands 634 meters tall.",
+		"Greater Tokyo is among the world’s largest metro areas."
+	],
+	"Sydney": [
+		"The Opera House opened in 1973 and is UNESCO-listed.",
+		"The Harbour Bridge is nicknamed the Coathanger.",
+		"Bondi Beach is one of Australia’s most famous beaches."
+	],
+	"Toronto": [
+		"The CN Tower was the tallest freestanding structure from 1976 to 2007.",
+		"The PATH is a 30+ km underground walkway network.",
+		"St. Lawrence Market is a celebrated 19th-century food hall."
+	],
+}
+
 var _cities: Array = []     # each = {"name": String, "lon": float, "lat": float, "pos": Vector2}
 var _city_index: int = 0
 
@@ -113,6 +218,16 @@ func _ready() -> void:
 	_target_zoom = 1.0
 	set_process(true)
 	queue_redraw()
+	
+	_rng.randomize()
+
+func _pick_city_fact(name: String) -> String:
+	if CITY_FACTS.has(name):
+		var arr: Array = CITY_FACTS[name]
+		if arr.size() > 0:
+			var idx := _rng.randi_range(0, arr.size() - 1)
+			return String(arr[idx])
+	return ""
 
 func _process(delta: float) -> void:
 	if _camera != null:
@@ -451,12 +566,68 @@ func _current_pulse_scale() -> float:
 # --- UI helpers --------------------------------------------------------------
 
 func _update_ui_for_city(c: Dictionary) -> void:
+	# Build strings
+	var name_str := String(c["name"])
+	var lat := float(c["lat"])
+	var lon := float(c["lon"])
+	var fact := _pick_city_fact(name_str)
+
+	var ll_plain := "Lat: " + str(round(lat * 100.0) / 100.0) + "   Lon: " + str(round(lon * 100.0) / 100.0)
+	var ll_colored := "[color=#FFD166]" + ll_plain + "[/color]"  # gold coords
+	var info_bbcode := ll_colored
+	if fact != "":
+		info_bbcode = fact + "\n" + ll_colored
+
+	# --- Title (Label or RichTextLabel; with fallbacks) ---
 	if _title != null:
-		_title.text = String(c["name"])
-	if _info != null:
-		var lat := float(c["lat"])
-		var lon := float(c["lon"])
-		_info.text = "Lat: " + str(round(lat * 100.0) / 100.0) + "   Lon: " + str(round(lon * 100.0) / 100.0)
+		_title.text = name_str
+	else:
+		var tnode := get_node_or_null(title_label_path)
+		if tnode == null:
+			tnode = get_node_or_null("CanvasLayer/Control/Title")
+		if tnode != null:
+			tnode.set("text", name_str)
+
+	# --- Info (Label or RichTextLabel; with fallbacks) ---
+	var inode: Node = _info
+	if inode == null:
+		inode = get_node_or_null(info_label_path)
+		if inode == null:
+			inode = get_node_or_null("CanvasLayer/Control/Info")
+
+	if inode == null:
+		return
+
+	# RichTextLabel path → outline + colored Lat/Lon via BBCode
+	if inode is RichTextLabel:
+		var r := inode as RichTextLabel
+		r.bbcode_enabled = true
+		# theme overrides for outline and base color
+		r.add_theme_color_override("default_color", ui_color)
+		r.add_theme_color_override("outline_color", ui_outline_color)
+		r.add_theme_constant_override("outline_size", ui_outline_px)
+		r.bbcode_text = info_bbcode
+		r.fit_content = true
+	# Label path → outline via LabelSettings (Labels can't color substrings)
+	elif inode is Label:
+		var lbl := inode as Label
+		if lbl.label_settings == null:
+			lbl.label_settings = LabelSettings.new()
+		var s := lbl.label_settings
+		if ui_font != null:
+			s.font = ui_font
+		s.font_size = ui_font_size
+		s.font_color = ui_color
+		s.outline_size = ui_outline_px
+		s.outline_color = ui_outline_color
+		s.shadow_color = ui_shadow_color
+		s.shadow_offset = ui_shadow_offset
+
+		lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var info_plain := ll_plain
+		if fact != "":
+			info_plain = fact + "\n" + ll_plain
+		lbl.text = info_plain
 
 func _pulse_ui_label(lbl: Label) -> void:
 	if lbl == null:
