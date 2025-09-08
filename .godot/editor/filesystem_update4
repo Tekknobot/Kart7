@@ -20,3 +20,13 @@ res://Scripts/General/Game.gd
 res://Scripts/ScreenScaler.gd
 res://Scripts/RaceHUD.gd
 res://Scripts/World Elements/Racers/Player.gd
+res://Scripts/GrandPrix.gd
+res://Scripts/RaceManager.gd
+res://Scripts/MidnightGrandPrix.gd
+res://Scenes/standings.tscn
+res://Scripts/GPStandings.gd
+res://Scripts/World Elements/Racers/Opponent.gd
+res://Scripts/RacerButton.gd
+res://Scripts/PostRaceController.gd
+res://Scripts/CharacterSelect.gd
+res://Scenes/Main.tscn

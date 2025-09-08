@@ -25,6 +25,7 @@ boot_splash/minimum_display_time=1000
 Globals="*res://Scripts/General/Globals.gd"
 FullscreenWeb="*res://Scripts/FullscreenWeb.gd"
 ScreenScaler="*res://Scripts/ScreenScaler.gd"
+MidnightGrandPrix="*res://Scripts/MidnightGrandPrix.gd"
 
 [display]
 

@@ -1,50 +1,50 @@
 [gd_scene load_steps=34 format=3 uid="uid://d2glnv32t8md1"]
 
-[ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_emb0w"]
-[ext_resource type="Script" uid="uid://cex362lk6utnk" path="res://Scripts/On Screen Elements/BackgroundEffects.gd" id="2_330he"]
-[ext_resource type="Texture2D" uid="uid://b7ri4tesomgep" path="res://Temp/Background Color_Black.png" id="3_fevyy"]
-[ext_resource type="Shader" uid="uid://hpt6elsw8vyg" path="res://Scripts/Shaders/ModeSeven.gdshader" id="3_okd74"]
-[ext_resource type="Texture2D" uid="uid://dc7jsgl2xv1da" path="res://Textures/Tracks/Skyline.png" id="4_3pmx8"]
-[ext_resource type="Script" uid="uid://4oyj7tns2kqe" path="res://Scripts/World Elements/Pseudo3D.gd" id="4_s71t4"]
-[ext_resource type="Texture2D" uid="uid://cqfw8jfuvds0q" path="res://Textures/Tracks/Buildings.png" id="5_3pmx8"]
-[ext_resource type="Script" uid="uid://dhfy5381d720i" path="res://Scripts/General/Collision.gd" id="6_q57ja"]
-[ext_resource type="Script" uid="uid://5uqme7h2yul3" path="res://Scripts/On Screen Elements/SpriteHandler.gd" id="7_wmybs"]
-[ext_resource type="Script" uid="uid://crr8fhlnitj4a" path="res://Scripts/World Elements/Hazard.gd" id="11_gfs62"]
-[ext_resource type="Texture2D" uid="uid://baswq6uaio1tg" path="res://Textures/Tracks/Grass/Grass_Tile_02.png" id="11_hpc6h"]
-[ext_resource type="Texture2D" uid="uid://cuhl0bp0xfw80" path="res://Textures/Tracks/My Tracks/Track_02.png" id="12_kltya"]
-[ext_resource type="Script" uid="uid://bomqe0y8c30wy" path="res://Scripts/General/AnimationHandler.gd" id="13_6hxns"]
-[ext_resource type="Texture2D" uid="uid://bkmti72i7af1q" path="res://Textures/Tracks/My Tracks/Track_02_Road.png" id="15_hpc6h"]
-[ext_resource type="PackedScene" uid="uid://4y14qyh1accq" path="res://Scenes/player.tscn" id="15_jut3y"]
-[ext_resource type="Texture2D" uid="uid://d1nvgl514d4vw" path="res://Textures/Hazards/Orange_Pipes.png" id="16_t3snl"]
-[ext_resource type="PackedScene" uid="uid://ctt3p16uxh0dd" path="res://Scenes/opponent.tscn" id="16_v2nl5"]
-[ext_resource type="Script" uid="uid://15qg36alnh4" path="res://Scripts/RaceManager.gd" id="21_ee4r6"]
-[ext_resource type="Script" uid="uid://bkg7bm4cb65tt" path="res://Scripts/AI/PathOverlay2D.gd" id="21_pdsj5"]
-[ext_resource type="Script" uid="uid://cnmmx8tldt4vt" path="res://Scripts/LeaderBoard.gd" id="22_ee4r6"]
-[ext_resource type="FontFile" uid="uid://csnhk3q4gx0" path="res://Fonts/magofonts/mago1.ttf" id="23_gt3je"]
-[ext_resource type="FontFile" uid="uid://buw362wjb8o8d" path="res://Fonts/magofonts/mago2.ttf" id="23_u50mg"]
-[ext_resource type="Script" uid="uid://dtnsya35gcocj" path="res://Scripts/Minimap.gd" id="24_3pmx8"]
-[ext_resource type="PackedScene" uid="uid://bm1g128j70kea" path="res://Textures/VFX/StarNight.tscn" id="25_u50mg"]
-[ext_resource type="Script" uid="uid://dcfngv7oaf2c8" path="res://Scripts/RaceHUD.gd" id="26_cbgmd"]
-[ext_resource type="FontFile" uid="uid://dgugahs6bc7so" path="res://Fonts/magofonts/mago3.ttf" id="28_ueoa1"]
-[ext_resource type="PackedScene" uid="uid://7sye74odmhah" path="res://Scenes/CountdownUI.tscn" id="29_6vcvc"]
-[ext_resource type="PackedScene" uid="uid://dleafvawfqsd3" path="res://Scenes/PauseMenu.tscn" id="33_e08e2"]
-[ext_resource type="Script" uid="uid://c7rugtwfllds7" path="res://Scripts/SkidsOnTrackFromMinimap.gd" id="37_jwpg7"]
-[ext_resource type="Script" uid="uid://dcb4blo4uiyti" path="res://Scripts/PostRaceController.gd" id="39_8cuat"]
-[ext_resource type="Script" uid="uid://phcpocpluv50" path="res://Scripts/Transition.gd" id="39_536cc"]
+[ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_xvtyr"]
+[ext_resource type="PackedScene" uid="uid://4y14qyh1accq" path="res://Scenes/player.tscn" id="2_u7mjy"]
+[ext_resource type="PackedScene" uid="uid://ctt3p16uxh0dd" path="res://Scenes/opponent.tscn" id="3_4yxf6"]
+[ext_resource type="PackedScene" uid="uid://dleafvawfqsd3" path="res://Scenes/PauseMenu.tscn" id="4_qta6b"]
+[ext_resource type="PackedScene" uid="uid://bm1g128j70kea" path="res://Textures/VFX/StarNight.tscn" id="5_x3rx7"]
+[ext_resource type="Script" uid="uid://cex362lk6utnk" path="res://Scripts/On Screen Elements/BackgroundEffects.gd" id="6_6heos"]
+[ext_resource type="Texture2D" uid="uid://b7ri4tesomgep" path="res://Temp/Background Color_Black.png" id="7_vvnwx"]
+[ext_resource type="Texture2D" uid="uid://dc7jsgl2xv1da" path="res://Textures/Tracks/Skyline.png" id="8_btbly"]
+[ext_resource type="Texture2D" uid="uid://cqfw8jfuvds0q" path="res://Textures/Tracks/Buildings.png" id="9_vs04g"]
+[ext_resource type="Shader" uid="uid://hpt6elsw8vyg" path="res://Scripts/Shaders/ModeSeven.gdshader" id="10_6ehlx"]
+[ext_resource type="Texture2D" uid="uid://baswq6uaio1tg" path="res://Textures/Tracks/Grass/Grass_Tile_02.png" id="11_utia5"]
+[ext_resource type="Texture2D" uid="uid://cuhl0bp0xfw80" path="res://Textures/Tracks/My Tracks/Track_02.png" id="12_f7hdo"]
+[ext_resource type="Script" uid="uid://4oyj7tns2kqe" path="res://Scripts/World Elements/Pseudo3D.gd" id="13_clvyn"]
+[ext_resource type="Script" uid="uid://dhfy5381d720i" path="res://Scripts/General/Collision.gd" id="14_d8m2u"]
+[ext_resource type="Texture2D" uid="uid://bkmti72i7af1q" path="res://Textures/Tracks/My Tracks/Track_02_Road.png" id="15_5psol"]
+[ext_resource type="Script" uid="uid://5uqme7h2yul3" path="res://Scripts/On Screen Elements/SpriteHandler.gd" id="16_m4llh"]
+[ext_resource type="Texture2D" uid="uid://d1nvgl514d4vw" path="res://Textures/Hazards/Orange_Pipes.png" id="17_lac6x"]
+[ext_resource type="Script" uid="uid://crr8fhlnitj4a" path="res://Scripts/World Elements/Hazard.gd" id="18_hpjjw"]
+[ext_resource type="Script" uid="uid://bomqe0y8c30wy" path="res://Scripts/General/AnimationHandler.gd" id="19_off7b"]
+[ext_resource type="Script" uid="uid://bkg7bm4cb65tt" path="res://Scripts/AI/PathOverlay2D.gd" id="20_lfh1j"]
+[ext_resource type="Script" uid="uid://15qg36alnh4" path="res://Scripts/RaceManager.gd" id="21_7sj7i"]
+[ext_resource type="FontFile" uid="uid://csnhk3q4gx0" path="res://Fonts/magofonts/mago1.ttf" id="22_semxg"]
+[ext_resource type="Script" uid="uid://cnmmx8tldt4vt" path="res://Scripts/LeaderBoard.gd" id="23_ep8v8"]
+[ext_resource type="Script" uid="uid://dtnsya35gcocj" path="res://Scripts/Minimap.gd" id="24_3133c"]
+[ext_resource type="Script" uid="uid://dcfngv7oaf2c8" path="res://Scripts/RaceHUD.gd" id="25_js5gh"]
+[ext_resource type="FontFile" uid="uid://dgugahs6bc7so" path="res://Fonts/magofonts/mago3.ttf" id="26_vvjo1"]
+[ext_resource type="FontFile" uid="uid://buw362wjb8o8d" path="res://Fonts/magofonts/mago2.ttf" id="27_yisvs"]
+[ext_resource type="PackedScene" uid="uid://7sye74odmhah" path="res://Scenes/CountdownUI.tscn" id="28_rgw24"]
+[ext_resource type="Script" uid="uid://dcb4blo4uiyti" path="res://Scripts/PostRaceController.gd" id="29_5gwyn"]
+[ext_resource type="Script" uid="uid://c7rugtwfllds7" path="res://Scripts/SkidsOnTrackFromMinimap.gd" id="30_r6gtk"]
+[ext_resource type="Script" uid="uid://phcpocpluv50" path="res://Scripts/Transition.gd" id="31_81ldr"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_lhngl"]
-shader = ExtResource("3_okd74")
-shader_parameter/trackTexture = ExtResource("12_kltya")
-shader_parameter/grassTexture = ExtResource("11_hpc6h")
+shader = ExtResource("10_6ehlx")
+shader_parameter/trackTexture = ExtResource("12_f7hdo")
+shader_parameter/grassTexture = ExtResource("11_utia5")
 shader_parameter/mapMatrix = Basis(1, 0, 0, 0, 1, 0, 0, 0, 1)
 shader_parameter/overlay_strength = 1.0
 
 [sub_resource type="Theme" id="Theme_gt3je"]
-default_font = ExtResource("23_gt3je")
+default_font = ExtResource("22_semxg")
 default_font_size = 16
 
 [node name="Main" type="Node2D" node_paths=PackedStringArray("_map", "_collision", "_spriteHandler", "_animationHandler", "_backgroundElements", "_raceManager")]
-script = ExtResource("1_emb0w")
+script = ExtResource("1_xvtyr")
 _map = NodePath("Map")
 _collision = NodePath("Map/Collision Handler")
 _spriteHandler = NodePath("Sprite Handler")
@@ -53,19 +53,19 @@ _backgroundElements = NodePath("Background Elements")
 _raceManager = NodePath("RaceManager")
 racers_root_path = NodePath("Sprite Handler/Racers")
 spawn_points_path = NodePath("SubViewport/PathOverlay2D")
-player_scene = ExtResource("15_jut3y")
-opponent_scene = ExtResource("16_v2nl5")
+player_scene = ExtResource("2_u7mjy")
+opponent_scene = ExtResource("3_4yxf6")
 
-[node name="PauseMenu" parent="." instance=ExtResource("33_e08e2")]
+[node name="PauseMenu" parent="." instance=ExtResource("4_qta6b")]
 
-[node name="StarryNight" parent="." instance=ExtResource("25_u50mg")]
+[node name="StarryNight" parent="." instance=ExtResource("5_x3rx7")]
 z_index = -4096
 position = Vector2(0, -121)
 amount = 5000
 
 [node name="Background Elements" type="Node2D" parent="." node_paths=PackedStringArray("_skyLine", "_treeLine")]
 position = Vector2(80, 0)
-script = ExtResource("2_330he")
+script = ExtResource("6_6heos")
 _skyLine = NodePath("Sky Line")
 _treeLine = NodePath("Tree Line")
 dawn_sky_color = Color(1, 0.768246, 0.709611, 1)
@@ -75,14 +75,14 @@ day_tree_color = Color(0.298743, 0.59482, 0.897929, 1)
 z_index = -1
 position = Vector2(240, 180)
 scale = Vector2(20, 11.25)
-texture = ExtResource("3_fevyy")
+texture = ExtResource("7_vvnwx")
 
 [node name="Sky Line" type="Sprite2D" parent="Background Elements"]
 texture_filter = 1
 texture_repeat = 2
 position = Vector2(-81, 48)
 scale = Vector2(2, 2)
-texture = ExtResource("4_3pmx8")
+texture = ExtResource("8_btbly")
 centered = false
 region_enabled = true
 region_rect = Rect2(0, 0, 320, 32)
@@ -92,7 +92,7 @@ texture_filter = 1
 texture_repeat = 2
 position = Vector2(-80, 48)
 scale = Vector2(2, 2)
-texture = ExtResource("5_3pmx8")
+texture = ExtResource("9_vs04g")
 centered = false
 region_enabled = true
 region_rect = Rect2(0, 0, 320, 32)
@@ -104,8 +104,8 @@ texture_repeat = 1
 material = SubResource("ShaderMaterial_lhngl")
 position = Vector2(320, 180)
 scale = Vector2(0.46875, 0.351563)
-texture = ExtResource("12_kltya")
-script = ExtResource("4_s71t4")
+texture = ExtResource("12_f7hdo")
+script = ExtResource("13_clvyn")
 _mapStartRotationAngle = Vector2(4.9, 6.25)
 _mapMaxRotationSpeed = 1.5
 _mapAccelRotationSpeed = 2.0
@@ -121,13 +121,13 @@ intro_spin_duration = 4.0
 intro_spin_zoom_k = 0.0
 
 [node name="Collision Handler" type="Node" parent="Map"]
-script = ExtResource("6_q57ja")
-_collisionMap = ExtResource("15_hpc6h")
+script = ExtResource("14_d8m2u")
+_collisionMap = ExtResource("15_5psol")
 _wallColor = Color(0.4, 0.4, 0.4, 1)
 _roadTypeColors = Array[Color]([Color(0, 0, 0, 1), Color(1, 1, 1, 1), Color(0.8, 0.8, 0.8, 1), Color(0.603922, 0.603922, 0.603922, 1), Color(0.4, 0.4, 0.4, 1), Color(0.2, 0.2, 0.2, 1)])
 
 [node name="Sprite Handler" type="Node2D" parent="." node_paths=PackedStringArray("_hazards", "_opponents")]
-script = ExtResource("7_wmybs")
+script = ExtResource("16_m4llh")
 _hazards = [NodePath("Hazards/Bridge/Green Pipe"), NodePath("Hazards/Bridge/Green Pipe2"), NodePath("Hazards/Bridge/Green Pipe3"), NodePath("Hazards/Bridge/Green Pipe4"), NodePath("Hazards/Shortcut/Green Pipe"), NodePath("Hazards/Shortcut/Green Pipe2"), NodePath("Hazards/Shortcut/Green Pipe3"), NodePath("Hazards/Shortcut/Green Pipe4"), NodePath("Hazards/Lake/Green Pipe"), NodePath("Hazards/Lake/Green Pipe2"), NodePath("Hazards/Lake/Green Pipe3"), NodePath("Hazards/Lake/Green Pipe4"), NodePath("Hazards/Last Turn/Green Pipe"), NodePath("Hazards/Last Turn/Green Pipe2"), NodePath("Hazards/Last Turn/Green Pipe3"), NodePath("Hazards/Last Turn/Green Pipe4")]
 _opponents = [null, null, null, null, null, null, null]
 path_overlay_node = NodePath("../SubViewport/PathOverlay2D")
@@ -170,10 +170,10 @@ visible = false
 [node name="Green Pipe" type="Sprite2D" parent="Sprite Handler/Hazards/Bridge" node_paths=PackedStringArray("_spriteGFX")]
 texture_filter = 1
 scale = Vector2(3, 3)
-texture = ExtResource("16_t3snl")
+texture = ExtResource("17_lac6x")
 region_enabled = true
 region_rect = Rect2(0, 0, 24, 32)
-script = ExtResource("11_gfs62")
+script = ExtResource("18_hpjjw")
 _totalDetailStates = 11
 _spriteGFX = NodePath(".")
 _mapPosition = Vector3(400, 0, 64)
@@ -181,10 +181,10 @@ _mapPosition = Vector3(400, 0, 64)
 [node name="Green Pipe2" type="Sprite2D" parent="Sprite Handler/Hazards/Bridge" node_paths=PackedStringArray("_spriteGFX")]
 texture_filter = 1
 scale = Vector2(3, 3)
-texture = ExtResource("16_t3snl")
+texture = ExtResource("17_lac6x")
 region_enabled = true
 region_rect = Rect2(0, 0, 24, 32)
-script = ExtResource("11_gfs62")
+script = ExtResource("18_hpjjw")
 _totalDetailStates = 11
 _spriteGFX = NodePath(".")
 _mapPosition = Vector3(400, 0, 144)
@@ -192,10 +192,10 @@ _mapPosition = Vector3(400, 0, 144)
 [node name="Green Pipe3" type="Sprite2D" parent="Sprite Handler/Hazards/Bridge" node_paths=PackedStringArray("_spriteGFX")]
 texture_filter = 1
 scale = Vector2(3, 3)
-texture = ExtResource("16_t3snl")
+texture = ExtResource("17_lac6x")
 region_enabled = true
 region_rect = Rect2(0, 0, 24, 32)
-script = ExtResource("11_gfs62")
+script = ExtResource("18_hpjjw")
 _totalDetailStates = 11
 _spriteGFX = NodePath(".")
 _mapPosition = Vector3(616, 0, 64)
@@ -203,10 +203,10 @@ _mapPosition = Vector3(616, 0, 64)
 [node name="Green Pipe4" type="Sprite2D" parent="Sprite Handler/Hazards/Bridge" node_paths=PackedStringArray("_spriteGFX")]
 texture_filter = 1
 scale = Vector2(3, 3)
-texture = ExtResource("16_t3snl")
+texture = ExtResource("17_lac6x")
 region_enabled = true
 region_rect = Rect2(0, 0, 24, 32)
-script = ExtResource("11_gfs62")
+script = ExtResource("18_hpjjw")
 _totalDetailStates = 11
 _spriteGFX = NodePath(".")
 _mapPosition = Vector3(616, 0, 144)
@@ -216,10 +216,10 @@ _mapPosition = Vector3(616, 0, 144)
 [node name="Green Pipe" type="Sprite2D" parent="Sprite Handler/Hazards/Shortcut" node_paths=PackedStringArray("_spriteGFX")]
 texture_filter = 1
 scale = Vector2(3, 3)
-texture = ExtResource("16_t3snl")
+texture = ExtResource("17_lac6x")
 region_enabled = true
 region_rect = Rect2(0, 0, 24, 32)
-script = ExtResource("11_gfs62")
+script = ExtResource("18_hpjjw")
 _totalDetailStates = 11
 _spriteGFX = NodePath(".")
 _mapPosition = Vector3(744, 0, 416)
@@ -227,10 +227,10 @@ _mapPosition = Vector3(744, 0, 416)
 [node name="Green Pipe2" type="Sprite2D" parent="Sprite Handler/Hazards/Shortcut" node_paths=PackedStringArray("_spriteGFX")]
 texture_filter = 1
 scale = Vector2(3, 3)
-texture = ExtResource("16_t3snl")
+texture = ExtResource("17_lac6x")
 region_enabled = true
 region_rect = Rect2(0, 0, 24, 32)
-script = ExtResource("11_gfs62")
+script = ExtResource("18_hpjjw")
 _totalDetailStates = 11
 _spriteGFX = NodePath(".")
 _mapPosition = Vector3(744, 0, 552)
@@ -238,10 +238,10 @@ _mapPosition = Vector3(744, 0, 552)
 [node name="Green Pipe3" type="Sprite2D" parent="Sprite Handler/Hazards/Shortcut" node_paths=PackedStringArray("_spriteGFX")]
 texture_filter = 1
 scale = Vector2(3, 3)
-texture = ExtResource("16_t3snl")
+texture = ExtResource("17_lac6x")
 region_enabled = true
 region_rect = Rect2(0, 0, 24, 32)
-script = ExtResource("11_gfs62")
+script = ExtResource("18_hpjjw")
 _totalDetailStates = 11
 _spriteGFX = NodePath(".")
 _mapPosition = Vector3(848, 0, 464)
@@ -249,10 +249,10 @@ _mapPosition = Vector3(848, 0, 464)
 [node name="Green Pipe4" type="Sprite2D" parent="Sprite Handler/Hazards/Shortcut" node_paths=PackedStringArray("_spriteGFX")]
 texture_filter = 1
 scale = Vector2(3, 3)
-texture = ExtResource("16_t3snl")
+texture = ExtResource("17_lac6x")
 region_enabled = true
 region_rect = Rect2(0, 0, 24, 32)
-script = ExtResource("11_gfs62")
+script = ExtResource("18_hpjjw")
 _totalDetailStates = 11
 _spriteGFX = NodePath(".")
 _mapPosition = Vector3(848, 0, 528)
@@ -262,10 +262,10 @@ _mapPosition = Vector3(848, 0, 528)
 [node name="Green Pipe" type="Sprite2D" parent="Sprite Handler/Hazards/Lake" node_paths=PackedStringArray("_spriteGFX")]
 texture_filter = 1
 scale = Vector2(3, 3)
-texture = ExtResource("16_t3snl")
+texture = ExtResource("17_lac6x")
 region_enabled = true
 region_rect = Rect2(0, 0, 24, 32)
-script = ExtResource("11_gfs62")
+script = ExtResource("18_hpjjw")
 _totalDetailStates = 11
 _spriteGFX = NodePath(".")
 _mapPosition = Vector3(552, 0, 336)
@@ -273,10 +273,10 @@ _mapPosition = Vector3(552, 0, 336)
 [node name="Green Pipe2" type="Sprite2D" parent="Sprite Handler/Hazards/Lake" node_paths=PackedStringArray("_spriteGFX")]
 texture_filter = 1
 scale = Vector2(3, 3)
-texture = ExtResource("16_t3snl")
+texture = ExtResource("17_lac6x")
 region_enabled = true
 region_rect = Rect2(0, 0, 24, 32)
-script = ExtResource("11_gfs62")
+script = ExtResource("18_hpjjw")
 _totalDetailStates = 11
 _spriteGFX = NodePath(".")
 _mapPosition = Vector3(464, 0, 432)
@@ -284,10 +284,10 @@ _mapPosition = Vector3(464, 0, 432)
 [node name="Green Pipe3" type="Sprite2D" parent="Sprite Handler/Hazards/Lake" node_paths=PackedStringArray("_spriteGFX")]
 texture_filter = 1
 scale = Vector2(3, 3)
-texture = ExtResource("16_t3snl")
+texture = ExtResource("17_lac6x")
 region_enabled = true
 region_rect = Rect2(0, 0, 24, 32)
-script = ExtResource("11_gfs62")
+script = ExtResource("18_hpjjw")
 _totalDetailStates = 11
 _spriteGFX = NodePath(".")
 _mapPosition = Vector3(464, 0, 304)
@@ -295,10 +295,10 @@ _mapPosition = Vector3(464, 0, 304)
 [node name="Green Pipe4" type="Sprite2D" parent="Sprite Handler/Hazards/Lake" node_paths=PackedStringArray("_spriteGFX")]
 texture_filter = 1
 scale = Vector2(3, 3)
-texture = ExtResource("16_t3snl")
+texture = ExtResource("17_lac6x")
 region_enabled = true
 region_rect = Rect2(0, 0, 24, 32)
-script = ExtResource("11_gfs62")
+script = ExtResource("18_hpjjw")
 _totalDetailStates = 11
 _spriteGFX = NodePath(".")
 _mapPosition = Vector3(336, 0, 336)
@@ -308,10 +308,10 @@ _mapPosition = Vector3(336, 0, 336)
 [node name="Green Pipe" type="Sprite2D" parent="Sprite Handler/Hazards/Last Turn" node_paths=PackedStringArray("_spriteGFX")]
 texture_filter = 1
 scale = Vector2(3, 3)
-texture = ExtResource("16_t3snl")
+texture = ExtResource("17_lac6x")
 region_enabled = true
 region_rect = Rect2(0, 0, 24, 32)
-script = ExtResource("11_gfs62")
+script = ExtResource("18_hpjjw")
 _totalDetailStates = 11
 _spriteGFX = NodePath(".")
 _mapPosition = Vector3(216, 0, 1008)
@@ -319,10 +319,10 @@ _mapPosition = Vector3(216, 0, 1008)
 [node name="Green Pipe2" type="Sprite2D" parent="Sprite Handler/Hazards/Last Turn" node_paths=PackedStringArray("_spriteGFX")]
 texture_filter = 1
 scale = Vector2(3, 3)
-texture = ExtResource("16_t3snl")
+texture = ExtResource("17_lac6x")
 region_enabled = true
 region_rect = Rect2(0, 0, 24, 32)
-script = ExtResource("11_gfs62")
+script = ExtResource("18_hpjjw")
 _totalDetailStates = 11
 _spriteGFX = NodePath(".")
 _mapPosition = Vector3(136, 0, 976)
@@ -330,10 +330,10 @@ _mapPosition = Vector3(136, 0, 976)
 [node name="Green Pipe3" type="Sprite2D" parent="Sprite Handler/Hazards/Last Turn" node_paths=PackedStringArray("_spriteGFX")]
 texture_filter = 1
 scale = Vector2(3, 3)
-texture = ExtResource("16_t3snl")
+texture = ExtResource("17_lac6x")
 region_enabled = true
 region_rect = Rect2(0, 0, 24, 32)
-script = ExtResource("11_gfs62")
+script = ExtResource("18_hpjjw")
 _totalDetailStates = 11
 _spriteGFX = NodePath(".")
 _mapPosition = Vector3(88, 0, 904)
@@ -341,16 +341,16 @@ _mapPosition = Vector3(88, 0, 904)
 [node name="Green Pipe4" type="Sprite2D" parent="Sprite Handler/Hazards/Last Turn" node_paths=PackedStringArray("_spriteGFX")]
 texture_filter = 1
 scale = Vector2(3, 3)
-texture = ExtResource("16_t3snl")
+texture = ExtResource("17_lac6x")
 region_enabled = true
 region_rect = Rect2(0, 0, 24, 32)
-script = ExtResource("11_gfs62")
+script = ExtResource("18_hpjjw")
 _totalDetailStates = 11
 _spriteGFX = NodePath(".")
 _mapPosition = Vector3(64, 0, 816)
 
 [node name="Animation Handler" type="Node" parent="Sprite Handler" node_paths=PackedStringArray("_specialWheelEffect")]
-script = ExtResource("13_6hxns")
+script = ExtResource("19_off7b")
 _roadRoughness = 0
 _specialWheelEffect = [null, null]
 
@@ -359,7 +359,7 @@ transparent_bg = true
 size = Vector2i(1024, 1024)
 
 [node name="PathOverlay2D" type="Node2D" parent="SubViewport"]
-script = ExtResource("21_pdsj5")
+script = ExtResource("20_lfh1j")
 line_width = 0.5
 color = Color(0, 0, 0, 0.901961)
 points = PackedVector2Array(919, 583, 919, 100, 76, 100, 76, 174, 792, 600, 792, 710, 81, 710, 81, 950, 841, 950, 919, 950)
@@ -373,7 +373,7 @@ skid_color_offroad = Color(0.62356, 0.62356, 0.62356, 0.247059)
 rear_axle_back_px = 0.0
 
 [node name="RaceManager" type="Node2D" parent="."]
-script = ExtResource("21_ee4r6")
+script = ExtResource("21_7sj7i")
 pseudo3d_node = NodePath("../Map")
 path_overlay_node = NodePath("../SubViewport/PathOverlay2D")
 racers_root = NodePath("../Sprite Handler/Racers")
@@ -389,7 +389,7 @@ offset_top = 61.0
 offset_right = 546.0
 offset_bottom = 214.0
 theme = SubResource("Theme_gt3je")
-script = ExtResource("22_ee4r6")
+script = ExtResource("23_ep8v8")
 race_manager_path = NodePath("../RaceManager")
 row_height = 16
 animate_time = 0.0
@@ -410,7 +410,7 @@ offset_left = 6.0
 offset_top = 261.0
 offset_right = 101.0
 offset_bottom = 352.0
-script = ExtResource("24_3pmx8")
+script = ExtResource("24_3133c")
 path_provider = NodePath("../SubViewport/PathOverlay2D")
 racers_root = NodePath("../Sprite Handler/Racers")
 path_width = 2
@@ -436,7 +436,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("26_cbgmd")
+script = ExtResource("25_js5gh")
 race_manager_path = NodePath("../RaceManager")
 total_laps = 4
 show_kmh = true
@@ -450,20 +450,20 @@ fps_lbl = NodePath("TopRight/Vbox/FPS")
 ahead_lbl = NodePath("BottomRight/Vbox/Ahead")
 behind_lbl = NodePath("BottomRight/Vbox/Behind")
 nitro_bar_path = NodePath("BottomRight/Vbox/NitroBar")
-default_font = ExtResource("23_gt3je")
+default_font = ExtResource("22_semxg")
 default_size = 16
 outline_size = 8
-time_font = ExtResource("23_gt3je")
+time_font = ExtResource("22_semxg")
 time_size = 16
-lap_font = ExtResource("23_gt3je")
+lap_font = ExtResource("22_semxg")
 lap_size = 16
-place_font = ExtResource("28_ueoa1")
+place_font = ExtResource("26_vvjo1")
 place_size = 64
-speed_font = ExtResource("23_u50mg")
+speed_font = ExtResource("27_yisvs")
 speed_size = 32
-last_font = ExtResource("23_gt3je")
+last_font = ExtResource("22_semxg")
 last_size = 16
-best_font = ExtResource("23_gt3je")
+best_font = ExtResource("22_semxg")
 best_size = 16
 place_gain_color = Color(1, 1, 1, 1)
 place_loss_color = Color(0.937255, 0.32549, 0.313726, 1)
@@ -480,7 +480,7 @@ layout_mode = 2
 [node name="Name" type="Label" parent="RaceHUD/TopLeft/Vbox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 0, 1)
-theme_override_fonts/font = ExtResource("28_ueoa1")
+theme_override_fonts/font = ExtResource("26_vvjo1")
 theme_override_font_sizes/font_size = 32
 
 [node name="Time" type="Label" parent="RaceHUD/TopLeft/Vbox"]
@@ -501,7 +501,7 @@ layout_mode = 2
 [node name="FPS" type="Label" parent="RaceHUD/TopRight/Vbox"]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 0, 1)
-theme_override_fonts/font = ExtResource("28_ueoa1")
+theme_override_fonts/font = ExtResource("26_vvjo1")
 theme_override_font_sizes/font_size = 32
 horizontal_alignment = 2
 
@@ -538,7 +538,7 @@ theme_override_colors/font_color = Color(0, 1, 0, 1)
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0, 0, 1)
 
-[node name="CountdownUI" parent="." instance=ExtResource("29_6vcvc")]
+[node name="CountdownUI" parent="." instance=ExtResource("28_rgw24")]
 z_index = 4000
 pseudo3d_path = NodePath("../Map")
 go_volume_db = 0.0
@@ -546,14 +546,14 @@ auto_create_players = false
 delay = 1
 
 [node name="PostRaceController" type="Node2D" parent="."]
-script = ExtResource("39_8cuat")
+script = ExtResource("29_5gwyn")
 race_manager_path = NodePath("../RaceManager")
 leaderboard_path = NodePath("../LeaderBoard")
 delay_seconds = 3.0
 fader_path = NodePath("../Transition")
 
 [node name="SkidsOnTrackFromMinimap" type="Node2D" parent="."]
-script = ExtResource("37_jwpg7")
+script = ExtResource("30_r6gtk")
 minimap_node = NodePath("../Minimap")
 path_overlay_node = NodePath("../SubViewport/PathOverlay2D")
 racers_group = "opponent"
@@ -574,4 +574,4 @@ offset_bottom = 361.0
 grow_horizontal = 2
 grow_vertical = 2
 color = Color(0, 0, 0, 1)
-script = ExtResource("39_536cc")
+script = ExtResource("31_81ldr")

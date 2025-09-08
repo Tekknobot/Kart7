@@ -455,8 +455,10 @@ func Update() -> void:
 		if _progress.has(pid) and bool(_progress[pid].get("finished", false)):
 			_race_over = true
 			var results := board.duplicate(true)
+
+			# Let any in-race UI react (optional)
 			emit_signal("race_finished", results)
-			
+					
 	# signature/debug (muted)
 	var sig_parts := []
 	for i in range(board.size()):

@@ -1,0 +1,90 @@
+[gd_scene load_steps=7 format=3 uid="uid://rrrltnp6f10a"]
+
+[ext_resource type="Script" uid="uid://c4muu1g0r4rdd" path="res://Scripts/GPStandings.gd" id="1_8lwx2"]
+[ext_resource type="Shader" uid="uid://de3h13uhlsk7r" path="res://Scripts/Shaders/FinishFlag.gdshader" id="2_ckkbb"]
+[ext_resource type="Script" uid="uid://0p4etiyothhl" path="res://Scripts/FinishFlagFader.gd" id="3_7hjr8"]
+[ext_resource type="FontFile" uid="uid://csnhk3q4gx0" path="res://Fonts/magofonts/mago1.ttf" id="6_6c0ue"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_3eqdi"]
+shader = ExtResource("2_ckkbb")
+shader_parameter/light_color = Color(1, 1, 1, 0.0823529)
+shader_parameter/dark_color = Color(0.05, 0.05, 0.05, 1)
+shader_parameter/tiles = Vector2(8, 8)
+shader_parameter/angle_deg = 0.0
+shader_parameter/fade = 0.0
+shader_parameter/fade_soft = 0.08
+shader_parameter/opacity = 1.0
+shader_parameter/wave_amp_uv = 0.003
+shader_parameter/wave_len_uv = 2.0
+shader_parameter/wave_speed_hz = 3.8e-07
+shader_parameter/ripple_amp_uv = 0.009
+shader_parameter/ripple_len_uv = 0.18
+shader_parameter/ripple_speed_hz = 6.0
+shader_parameter/pin_left = 0.85
+shader_parameter/pin_width_uv = 0.15
+shader_parameter/light_strength = 0.35
+shader_parameter/light_dir = Vector2(0.35, -0.8)
+
+[sub_resource type="Theme" id="Theme_8lwx2"]
+default_font = ExtResource("6_6c0ue")
+default_font_size = 16
+
+[node name="Standings" type="Control" node_paths=PackedStringArray("lb_title", "lb_next", "header", "rows", "btn")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_8lwx2")
+lb_title = NodePath("Root/Title")
+lb_next = NodePath("Root/Next")
+header = NodePath("Root/Headers")
+rows = NodePath("Root/Rows")
+btn = NodePath("Root/Button")
+
+[node name="FinishFlag_1" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_3eqdi")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.06, 0.06, 0.08, 1)
+script = ExtResource("3_7hjr8")
+auto_start = false
+
+[node name="Root" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 42.0
+offset_top = 45.0
+offset_right = -34.0
+offset_bottom = -45.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = SubResource("Theme_8lwx2")
+
+[node name="Title" type="Label" parent="Root"]
+layout_mode = 2
+
+[node name="Next" type="Label" parent="Root"]
+layout_mode = 2
+
+[node name="Headers" type="HBoxContainer" parent="Root"]
+layout_mode = 2
+
+[node name="Rows" type="VBoxContainer" parent="Root"]
+layout_mode = 2
+
+[node name="Empty" type="Label" parent="Root"]
+layout_mode = 2
+
+[node name="Button" type="Button" parent="Root"]
+layout_mode = 2
+theme_override_fonts/font = ExtResource("6_6c0ue")
+theme_override_font_sizes/font_size = 16
+text = "Continue"

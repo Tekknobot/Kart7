@@ -245,5 +245,5 @@ func set_tint_color(c: Color) -> void:
 	tint_color = c
 	_apply_tint_to_shader()
 
-func _on_pressed() -> void:
+func _on_pressed() -> void:	
 	pass

@@ -1,6 +1,6 @@
 extends Control
 
-@export_file("*.tscn") var main_scene_path  := "res://Scenes/main.tscn"
+@export_file("*.tscn") var main_scene_path  := "res://Scenes/Main.tscn"
 @export_file("*.tscn") var title_scene_path := "res://Scenes/Title.tscn"
 
 @onready var grid: GridContainer   = $"Center/VBox/Grid"
@@ -48,6 +48,14 @@ func _ready() -> void:
 func _on_racer_pressed(name: String) -> void:
 	if Globals.has_method("set_selected_racer"):
 		Globals.set_selected_racer(name)
+
+		var list := PackedStringArray()
+		for i in range(20):
+			list.append("res://Scenes/main.tscn")  # <- your main scene path
+		MidnightGrandPrix.tracks = list
+		MidnightGrandPrix.grid_size = 8            # 8 racers total
+		MidnightGrandPrix.start_gp(0)
+				
 	await _fade_to_scene(main_scene_path)
 
 func _back() -> void:

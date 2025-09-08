@@ -207,6 +207,7 @@ var _drift_sign: float = 0.0      # +1 left turn, -1 right turn
 var _last_fwd: Vector2 = Vector2.RIGHT
 var _curv_ema: float = 0.0
 
+@export var skid_parent_path: NodePath
 
 func _bname(n: Node) -> String:
 	return (n.name if n != null and "name" in n else str(n.get_instance_id()))
@@ -291,6 +292,8 @@ func ApplySpawnFromPathIndex(idx: int, lane_px: float = 0.0) -> void:
 		_maxMovementSpeed = max_speed_override
 
 	_spawn_locked = true
+	
+	call_deferred("_ensure_skid_painter_for_me")
 
 # ---------------- convenience ----------------
 func _path_node() -> Node:
@@ -1636,22 +1639,40 @@ func _ensure_wheel_anchors() -> void:
 		rte.add_child(rw)
 
 func _ensure_skid_painter_for_me() -> void:
-	# Find the overlay SubViewport (adjust name if yours differs)
-	var root := get_tree().root
-	var svp := root.find_child("SubViewport", true, false)
-	if svp == null:
+	# If somehow called too early, reschedule
+	if get_tree() == null:
+		call_deferred("_ensure_skid_painter_for_me")
+		return
+
+	# Pick a parent for the painter
+	var parent: Node = null
+	if skid_parent_path != NodePath():
+		parent = get_node_or_null(skid_parent_path)
+
+	# Fallback: search for a SubViewport in the current scene
+	if parent == null:
+		var root := get_tree().get_root()
+		parent = root.find_child("SubViewport", true, false)  # adjust the name to your overlay if needed
+
+	if parent == null:
 		push_warning("Skids: SubViewport not found; cannot attach painter.")
 		return
 
-	var node_name := "Skids_%s" % name
-	if svp.has_node(node_name):
-		return
+	# Unique name per opponent to avoid clashes (instance_id keeps it unique)
+	var node_name := "Skids_%s_%d" % [name, get_instance_id()]
+	if parent.get_node_or_null(node_name) != null:
+		return  # already attached
 
 	# Create painter
+	var script := load("res://Scripts/SkidMarkPainter2D.gd")
+	if script == null:
+		push_warning("Skids: painter script missing.")
+		return
+
 	var painter := Node2D.new()
 	painter.name = node_name
-	painter.set_script(load("res://Scripts/SkidMarkPainter2D.gd"))
-	svp.add_child(painter)
+	painter.set_script(script)
+	parent.add_child(painter)
 
 	# Wire dependencies
 	var p3d := _p3d_node()
@@ -1659,15 +1680,15 @@ func _ensure_skid_painter_for_me() -> void:
 		push_warning("Skids: pseudo3d_ref not set; painter may not draw.")
 	else:
 		painter.set("pseudo3d_path", painter.get_path_to(p3d))
-	painter.set("player_path", painter.get_path_to(self))
+	painter.set("player_path", painter.get_path_to(self))  # if your script expects a different prop name, change it
 
-	# Sensible defaults (match your overlay look)
+	# Defaults
 	painter.set("width_px", 0.6)
 	painter.set("min_segment_px", 1.0)
 	painter.set("draw_while_drifting", true)
 	painter.set("draw_while_offroad", true)
 
-	# Quick visibility sanity
+	# Sanity log
 	var lw := get_node_or_null(^"Road Type Effects/LeftWheel")
 	var rw := get_node_or_null(^"Road Type Effects/RightWheel")
 	prints("[Skids] Attached painter for", name, "LW?", lw != null, "RW?", rw != null)

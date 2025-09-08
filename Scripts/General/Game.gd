@@ -205,6 +205,8 @@ func _ready() -> void:
 	if (_map as Sprite2D).texture == null:
 		push_error("World: _map Sprite2D has no texture.")
 		return
+		
+	call_deferred("_finalize_ai_grid_spawn")	
 
 func _await_roster_and_boot() -> void:
 	var racers_root := get_node_or_null(^"Sprite Handler/Racers")
@@ -319,9 +321,10 @@ func _setup_after_roster() -> void:
 
 # Wait a couple frames so path points / overlay are pushed, then place AI.
 func _finalize_ai_grid_spawn() -> void:
-	await get_tree().process_frame
-	await get_tree().process_frame
-
+	if get_tree() == null or not is_inside_tree():
+		call_deferred("_finalize_ai_grid_spawn")
+		return
+		
 	_place_grid_player_last()
 
 	if _map != null and _map.has_method("SetOpponentsFromGroup"):
