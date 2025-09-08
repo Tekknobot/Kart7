@@ -43,6 +43,8 @@ func _ready() -> void:
 	set_process_unhandled_input(true)
 	btn.pressed.connect(_on_continue)
 
+	RenderingServer.set_default_clear_color(Color(0,0,0))
+
 func _unhandled_input(event: InputEvent) -> void:
 	# Enter/Space/A if mapped to ui_accept in your project
 	if event.is_action_pressed("ui_accept"):
