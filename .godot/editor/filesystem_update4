@@ -17,3 +17,4 @@ res://Scenes/standings.tscn
 res://Scripts/World Elements/Pseudo3D.gd
 res://Scripts/WorldMap.gd
 res://Scenes/WorldMap.tscn
+res://Scripts/CharacterSelect.gd

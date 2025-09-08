@@ -250,15 +250,20 @@ func _process(delta: float) -> void:
 		queue_redraw()
 
 func _unhandled_input(event: InputEvent) -> void:
+	# Enter / A button → go to main scene
+	if event.is_action_pressed("ui_accept"):
+		_go_to_main_scene()
+		return
+
+	# D-pad / arrow keys → cycle cities
 	if event.is_action_pressed("ui_right") or event.is_action_pressed("ui_down"):
 		_next_city()
-		get_viewport().set_input_as_handled()
 		return
 	if event.is_action_pressed("ui_left") or event.is_action_pressed("ui_up"):
 		_prev_city()
-		get_viewport().set_input_as_handled()
 		return
 
+	# Zoom keys
 	if event is InputEventKey and event.pressed and event.echo == false:
 		var k := (event as InputEventKey).keycode
 		if k == Key.KEY_EQUAL:
@@ -270,6 +275,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			return
 
+	# Mouse wheel zoom
 	if event is InputEventMouseButton and event.pressed and event.is_echo() == false:
 		var b := (event as InputEventMouseButton).button_index
 		if b == MOUSE_BUTTON_WHEEL_UP:
@@ -280,6 +286,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			_zoom_out()
 			get_viewport().set_input_as_handled()
 			return
+
+func _go_to_main_scene() -> void:
+	var tree := get_tree()
+	if tree != null:
+		tree.change_scene_to_file("res://Scenes/main.tscn")
 
 func _draw() -> void:
 	# marker

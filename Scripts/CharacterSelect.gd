@@ -53,7 +53,7 @@ func _on_racer_pressed(name: String) -> void:
 
 		var list := PackedStringArray()
 		for i in range(20):
-			list.append("res://Scenes/main.tscn")  # <- your main scene path
+			list.append("res://Scenes/WorldMap.tscn")  # <- your main scene path
 		MidnightGrandPrix.tracks = list
 		MidnightGrandPrix.grid_size = 8            # 8 racers total
 		MidnightGrandPrix.start_gp(0)
