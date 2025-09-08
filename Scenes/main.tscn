@@ -70,6 +70,7 @@ _skyLine = NodePath("Sky Line")
 _treeLine = NodePath("Tree Line")
 dawn_sky_color = Color(1, 0.768246, 0.709611, 1)
 day_tree_color = Color(0.298743, 0.59482, 0.897929, 1)
+night_clear_chance = 0.6
 
 [node name="Background" type="Sprite2D" parent="Background Elements"]
 z_index = -1
@@ -428,7 +429,7 @@ pixel_dots = false
 dot_square_size = 2
 player_square_size = 2
 
-[node name="RaceHUD" type="Control" parent="." node_paths=PackedStringArray("time_lbl", "lap_lbl", "place_lbl", "speed_lbl", "last_lbl", "fps_lbl", "ahead_lbl", "behind_lbl")]
+[node name="RaceHUD" type="Control" parent="." node_paths=PackedStringArray("time_lbl", "lap_lbl", "place_lbl", "speed_lbl", "last_lbl", "name_lbl", "fps_lbl", "ahead_lbl", "behind_lbl")]
 z_index = 4096
 layout_mode = 3
 anchors_preset = 15
@@ -446,6 +447,10 @@ lap_lbl = NodePath("TopLeft/Vbox/Lap")
 place_lbl = NodePath("BottomRight/Vbox/Place")
 speed_lbl = NodePath("BottomRight/Vbox/Speed")
 last_lbl = NodePath("BottomRight/Vbox/LapTime")
+name_lbl = NodePath("TopLeft/Vbox/Name")
+name_font = ExtResource("26_vvjo1")
+name_size = 32
+name_outline_size = 8
 fps_lbl = NodePath("TopRight/Vbox/FPS")
 ahead_lbl = NodePath("BottomRight/Vbox/Ahead")
 behind_lbl = NodePath("BottomRight/Vbox/Behind")

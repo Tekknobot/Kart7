@@ -14,35 +14,43 @@ const TIME_SUNSET := 2
 @export var sky_strength:  float = 1.0    # 0..1
 @export var tree_strength: float = 1.0    # 0..1
 
-# --- Dawn palette (soft pink/amber sky, warmer trees)
-@export var dawn_sky_color:  Color = Color(1.00, 0.80, 0.92, 1.0)
-@export var dawn_tree_color: Color = Color(1.00, 0.60, 0.50, 1.0)
-
-# --- Day palette (blue sky, green trees)
-@export var day_sky_color:   Color = Color(0.60, 0.80, 1.00, 1.0)
-@export var day_tree_color:  Color = Color(0.48, 0.78, 0.46, 1.0)
-
-# --- Sunset palette (warm orange sky, deeper orange/red trees)
+# --- Palettes ---
+@export var dawn_sky_color:    Color = Color(1.00, 0.80, 0.92, 1.0)
+@export var dawn_tree_color:   Color = Color(1.00, 0.60, 0.50, 1.0)
+@export var day_sky_color:     Color = Color(0.60, 0.80, 1.00, 1.0)
+@export var day_tree_color:    Color = Color(0.48, 0.78, 0.46, 1.0)
 @export var sunset_sky_color:  Color = Color(1.00, 0.64, 0.35, 1.0)
 @export var sunset_tree_color: Color = Color(0.95, 0.45, 0.25, 1.0)
 
+# --- Time-of-day randomization weights ---
 @export var randomize_time_of_day_on_setup := true
 @export var weight_dawn: float = 1.0
 @export var weight_day: float = 1.0
 @export var weight_sunset: float = 1.0
-var _rng := RandomNumberGenerator.new()
 
-@export var auto_setup_on_ready := true
+# --- Clear color behavior ---
+@export var match_clear_color_to_sky := true
+@export var night_clear_enabled := true                        # turn the feature on/off
+@export var night_clear_chance: float = 0.25                   # chance (0..1) to use a night tint
+@export var reroll_night_on_time_change := true                # re-roll when time-of-day changes
+@export var night_clear_color: Color = Color(0.06, 0.08, 0.12, 1.0)  # deep navy
+@export var night_tint_strength: float = 1.0                   # 0..1, 1 = full night color
+
+var _rng := RandomNumberGenerator.new()
 var _booted := false
+var _use_night_clear := false
 
 func _ready() -> void:
 	if auto_setup_on_ready and not _booted:
 		Setup()
 
+@export var auto_setup_on_ready := true
+
 func Setup():
 	_rng.randomize()
 	if randomize_time_of_day_on_setup:
 		_roll_time_of_day()
+	_roll_night_clear()              # <<< roll night chance once at setup
 	_apply_time_of_day_modulate()
 	_booted = true
 
@@ -78,13 +86,28 @@ func _apply_time_of_day_modulate() -> void:
 		sky_target  = sunset_sky_color
 		tree_target = sunset_tree_color
 
+	var sky_mix  := _blend_color(Color(1,1,1,1), sky_target,  clamp(sky_strength,  0.0, 1.0))
+	var tree_mix := _blend_color(Color(1,1,1,1), tree_target, clamp(tree_strength, 0.0, 1.0))
+
 	if _skyLine != null:
-		_skyLine.modulate = _blend_color(Color(1,1,1,1), sky_target, clamp(sky_strength, 0.0, 1.0))
+		_skyLine.modulate = sky_mix
 	if _treeLine != null:
-		_treeLine.modulate = _blend_color(Color(1,1,1,1), tree_target, clamp(tree_strength, 0.0, 1.0))
+		_treeLine.modulate = tree_mix
+
+	# Match the engine clear color to sky, optionally with a randomized night tint
+	if match_clear_color_to_sky:
+		var cc := Color(sky_mix.r, sky_mix.g, sky_mix.b, 1.0) # alpha ignored
+		if _use_night_clear:
+			var t = clamp(night_tint_strength, 0.0, 1.0)
+			cc = Color(
+				lerp(cc.r, night_clear_color.r, t),
+				lerp(cc.g, night_clear_color.g, t),
+				lerp(cc.b, night_clear_color.b, t),
+				1.0
+			)
+		RenderingServer.set_default_clear_color(cc)
 
 func _blend_color(base: Color, tint: Color, t: float) -> Color:
-	# linear blend without ternaries
 	var tt := t
 	if tt < 0.0:
 		tt = 0.0
@@ -97,9 +120,11 @@ func _blend_color(base: Color, tint: Color, t: float) -> Color:
 		lerp(base.a, tint.a, tt)
 	)
 
-# --- Optional helpers to switch modes from code/UI ---
+# --- Time-of-day controls ---
 func SetTimeOfDay(mode: int) -> void:
 	time_of_day = mode
+	if reroll_night_on_time_change:
+		_roll_night_clear()
 	_apply_time_of_day_modulate()
 
 func NextTimeOfDay() -> void:
@@ -107,18 +132,24 @@ func NextTimeOfDay() -> void:
 		time_of_day = TIME_DAWN
 	else:
 		time_of_day += 1
+	if reroll_night_on_time_change:
+		_roll_night_clear()
 	_apply_time_of_day_modulate()
 
+func RerollTimeOfDay() -> void:
+	_roll_time_of_day()
+	if reroll_night_on_time_change:
+		_roll_night_clear()
+	_apply_time_of_day_modulate()
+
+# --- Random rolls ---
 func _roll_time_of_day() -> void:
 	var wd = max(0.0, weight_dawn)
 	var wy = max(0.0, weight_day)
 	var ws = max(0.0, weight_sunset)
 	var total = wd + wy + ws
 	if total <= 0.0:
-		wd = 1.0
-		wy = 1.0
-		ws = 1.0
-		total = 3.0
+		wd = 1.0; wy = 1.0; ws = 1.0; total = 3.0
 
 	var r = _rng.randf() * total
 	if r < wd:
@@ -130,7 +161,10 @@ func _roll_time_of_day() -> void:
 		else:
 			time_of_day = TIME_SUNSET
 
-# optional: call this any time you want to re-roll during play
-func RerollTimeOfDay() -> void:
-	_roll_time_of_day()
-	_apply_time_of_day_modulate()
+func _roll_night_clear() -> void:
+	if not night_clear_enabled:
+		_use_night_clear = false
+		return
+	var p = clamp(night_clear_chance, 0.0, 1.0)
+	var r := _rng.randf()
+	_use_night_clear = (r < p)

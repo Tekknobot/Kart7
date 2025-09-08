@@ -16,6 +16,16 @@ class_name RaceHUD
 @export var speed_lbl: Label
 @export var last_lbl: Label
 
+# ---- PLAYER NAME LABEL ----
+@export var name_lbl: Label
+
+@export_group("Player Name (optional)")
+@export var name_font: Font
+@export var name_size: int = -1
+@export var name_outline_size: int = 2
+@export var name_outline_color: Color = Color(0, 0, 0, 0.85)
+@export var name_use_racer_color: bool = true
+
 @export var fps_lbl: Label
 
 @export var fps_update_interval: float = 0.25  # seconds between updates (0.25 = 4×/sec)
@@ -92,6 +102,14 @@ func _ready() -> void:
 	if behind_lbl:
 		behind_lbl.text = "BEHIND --"
 		behind_lbl.modulate = place_loss_color
+
+	if name_lbl:
+		var pname := String(Globals.selected_racer) if "selected_racer" in Globals else "PLAYER"
+		name_lbl.text = pname
+
+		# Optional: color name to racer color
+		if name_use_racer_color and "get_racer_color" in Globals:
+			name_lbl.add_theme_color_override("font_color", Globals.get_racer_color(pname))
 
 	add_to_group("race_hud")
 
@@ -319,23 +337,29 @@ func _ordinal_big(n: int) -> String:
 	return "%d%s" % [n, suf]
 
 func _apply_fonts() -> void:
-	# global outline for readability (SMK vibe)
-	var labels := [time_lbl, lap_lbl, place_lbl, speed_lbl, last_lbl, ahead_lbl, behind_lbl]
+	# global outline for readability
+	var labels := [time_lbl, lap_lbl, place_lbl, speed_lbl, last_lbl, ahead_lbl, behind_lbl, fps_lbl, name_lbl]
 	for l in labels:
 		if l == null: continue
 		if outline_size > 0:
 			l.add_theme_color_override("font_outline_color", outline_color)
 			l.add_theme_constant_override("outline_size", outline_size)
 
-	# per-label font + size (falls back to default_* if blank / -1)
+	# per-label font + size
 	_apply_font_to(time_lbl,  time_font,  time_size)
 	_apply_font_to(lap_lbl,   lap_font,   lap_size)
 	_apply_font_to(place_lbl, place_font, place_size)
 	_apply_font_to(speed_lbl, speed_font, speed_size)
 	_apply_font_to(last_lbl,  last_font,  last_size)
-	_apply_font_to(ahead_lbl,  best_font,  best_size)
-	_apply_font_to(behind_lbl,  best_font,  best_size)
-	_apply_font_to(fps_lbl,  best_font,  best_size)
+	_apply_font_to(ahead_lbl, best_font,  best_size)
+	_apply_font_to(behind_lbl,best_font,  best_size)
+	_apply_font_to(fps_lbl,   best_font,  best_size)
+	_apply_font_to(name_lbl,  name_font,  name_size)
+
+	# (optional) stronger outline just for the name, if you want it thicker/darker
+	if name_lbl and name_outline_size > 0:
+		name_lbl.add_theme_color_override("font_outline_color", name_outline_color)
+		name_lbl.add_theme_constant_override("outline_size", name_outline_size)
 	
 func _apply_font_to(label: Label, f: Font, sz: int) -> void:
 	if label == null: return

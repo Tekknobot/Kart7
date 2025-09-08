@@ -44,6 +44,8 @@ func _ready() -> void:
 		back_btn.pressed.connect(_back)
 
 	_focus_first_racer()
+	
+	RenderingServer.set_default_clear_color(Color(0,0,0))
 
 func _on_racer_pressed(name: String) -> void:
 	if Globals.has_method("set_selected_racer"):

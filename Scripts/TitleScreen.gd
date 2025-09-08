@@ -23,6 +23,8 @@ func _ready() -> void:
 	_pulse(subtitle, 1.06, 0.6)
 	_connect_focus_pop(start_btn)
 	_connect_focus_pop(quit_btn)
+	
+	RenderingServer.set_default_clear_color(Color(0,0,0))
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventJoypadButton and event.pressed:

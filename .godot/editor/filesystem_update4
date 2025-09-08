@@ -30,3 +30,6 @@ res://Scripts/RacerButton.gd
 res://Scripts/PostRaceController.gd
 res://Scripts/CharacterSelect.gd
 res://Scenes/Main.tscn
+res://Scripts/On Screen Elements/BackgroundEffects.gd
+res://Scripts/TitleScreen.gd
+res://Textures/VFX/StarNight.tscn
