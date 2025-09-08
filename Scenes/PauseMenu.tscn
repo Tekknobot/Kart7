@@ -74,16 +74,16 @@ text = "Main Menu"
 layout_mode = 0
 offset_left = 9.0
 offset_top = 243.0
-offset_right = 148.0
+offset_right = 205.0
 offset_bottom = 356.0
 theme_override_fonts/normal_font = ExtResource("3_ey1tb")
 theme_override_font_sizes/normal_font_size = 16
 bbcode_enabled = true
 text = "CONTROLS:
 
-[color=#4CAF50]A[/color] or [color=#42A5F5]X[/color]  Accelerate
+[color=#4CAF50]A[/color] to Accelerate
 [color=#FFC107]D-Pad ← →[/color]  Steer
 [color=#FF7043]RB[/color] + steer = Drift
-[color=#FF7043]RB[/color] (hold, straight) =  Nitro
+[color=#FF7043]RB[/color] (hold while steady) = Nitro
 [color=#42A5F5]LB[/color] Rear View
 "
