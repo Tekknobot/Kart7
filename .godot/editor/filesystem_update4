@@ -33,3 +33,9 @@ res://Scenes/Main.tscn
 res://Scripts/On Screen Elements/BackgroundEffects.gd
 res://Scripts/TitleScreen.gd
 res://Textures/VFX/StarNight.tscn
+res://Scenes/Standings.tscn
+res://Scripts/PauseMenuOverlay.gd
+res://Scenes/TrackIntro.tscn
+res://Scripts/TrackIntro.gd
+res://Scenes/Title.tscn
+res://Scripts/World Elements/Pseudo3D.gd

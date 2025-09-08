@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://rrrltnp6f10a"]
+[gd_scene load_steps=7 format=3 uid="uid://0y3iyxwp21gl"]
 
 [ext_resource type="Script" uid="uid://c4muu1g0r4rdd" path="res://Scripts/GPStandings.gd" id="1_8lwx2"]
 [ext_resource type="Shader" uid="uid://de3h13uhlsk7r" path="res://Scripts/Shaders/FinishFlag.gdshader" id="2_ckkbb"]
