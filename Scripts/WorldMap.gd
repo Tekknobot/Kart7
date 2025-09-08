@@ -33,7 +33,7 @@ extends Node2D
 
 @export_group("Geo Mapping")
 @export var auto_fit_lonlat_rect: bool = true
-@export var lonlat_rect_px: Rect2i = Rect2i(0, 0, 0, 0)  # full equirectangular area inside the PNG
+@export var lonlat_rect_px: Rect2i = Rect2i(0, 56, 854, 427)  # for PixelWorldMap_All_Countries_ClearBG_1x.png
 
 var _cam_vel: Vector2 = Vector2.ZERO
 var _cities := []   # filled with dictionaries {name, country, lat, lon, scene, node}
@@ -170,7 +170,7 @@ func _build_cities() -> void:
 	]
 
 func _place_markers_from_latlon() -> void:
-	# Clear previous
+	# Clear
 	for c in _markers_root.get_children():
 		c.queue_free()
 
@@ -182,14 +182,12 @@ func _place_markers_from_latlon() -> void:
 
 	for i in range(_cities.size()):
 		var d: Dictionary = _cities[i]
-		var lon := float(d["lon"])
-		var lat := float(d["lat"])
+		var lon := float(d["lon"])   # [-180, +180]
+		var lat := float(d["lat"])   # [-90, +90]
 
-		# Equirectangular: lon∈[-180,180] → u∈[0,1],  lat∈[-90,90] → v∈[0,1]
-		var u := (lon + 180.0) / 360.0
-		var v := (90.0 - lat) / 180.0
+		var u := (lon + 180.0) / 360.0   # 0..1 across the rect width
+		var v := (90.0 - lat) / 180.0    # 0..1 down the rect height
 
-		# Scale into the chosen rect inside the PNG
 		var px := Vector2(rx + u * rw, ry + v * rh)
 
 		var node := Node2D.new()

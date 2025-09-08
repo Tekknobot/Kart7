@@ -8,6 +8,8 @@
 script = ExtResource("1_h0vor")
 map_texture = ExtResource("2_lgebn")
 marker_radius_px = 1.0
+pan_speed_px_s = 5000.0
+accel = 90.0
 _map = NodePath("Map")
 _cam = NodePath("Camera2D")
 _markers_root = NodePath("Markers")
