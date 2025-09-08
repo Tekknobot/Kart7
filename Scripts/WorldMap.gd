@@ -14,7 +14,7 @@ class_name WorldMap
 @export var marker_color: Color = Color(1.0, 0.35, 0.35, 1.0)
 @export var marker_radius: float = 8.0
 
-# --- City label styling ---
+# --- City label styling (map) ---
 @export var show_city_dots: bool = true
 @export var city_dot_radius: float = 3.0
 @export var city_dot_color: Color = Color(1.0, 0.9, 0.3, 1.0)
@@ -23,25 +23,52 @@ class_name WorldMap
 @export var label_font: Font
 @export var label_font_size: int = 16
 @export var label_color: Color = Color(1, 1, 1, 1)
+@export var map_label_outline_px: int = 2
+@export var map_label_outline_color: Color = Color(0, 0, 0, 0.85)
 @export var city_label_offset: Vector2 = Vector2(8, -8)
+
+# Selected city emphasis (map)
+@export var selected_label_color: Color = Color(1.0, 0.95, 0.5, 1.0)
+@export var selected_label_outline_px: int = 3
+@export var selected_label_outline_color: Color = Color(0, 0, 0, 1.0)
+@export var selected_ring_color: Color = Color(1.0, 0.85, 0.3, 1.0)
+@export var selected_city_dot_radius: float = 5.0
+@export var pulse_scale: float = 1.35
+@export var pulse_time: float = 0.35
 
 # --- Zoom controls ---
 @export var zoom_min: float = 0.5
 @export var zoom_max: float = 4.0
-@export var zoom_step: float = 0.2     # multiplicative (1.0 +/- zoom_step)
+@export var zoom_step: float = 0.2
 @export var zoom_lerp_speed: float = 8.0
 
 # --- City cycle options ---
 @export var cycle_jumps_camera: bool = false
 @export var start_on_city_index: int = 0
 
+# --- UI (Title / Info) ---
+@export var title_label_path: NodePath
+@export var info_label_path: NodePath
+@export var ui_font: Font
+@export var ui_font_size: int = 36
+@export var ui_color: Color = Color(1, 1, 1, 1)
+@export var ui_outline_px: int = 6
+@export var ui_outline_color: Color = Color(0, 0, 0, 0.9)
+@export var ui_shadow_offset: Vector2 = Vector2(2, 2)
+@export var ui_shadow_color: Color = Color(0, 0, 0, 0.45)
+@export var ui_pulse_scale: float = 1.1
+@export var ui_pulse_time: float = 0.25
+@export var ui_flash_color: Color = Color(1.0, 0.85, 0.2, 1.0)
+
 var _marker_pos := Vector2.ZERO
 var _map_sprite: Sprite2D = null
 var _camera: Camera2D = null
+var _title: Label = null
+var _info: Label = null
 
 var _target_zoom: float = 1.0
+var _pulse_t: float = 0.0
 
-# City data → computed at runtime into _cities with .pos
 const CITY_DATA := [
 	{"name":"New York", "lon":-74.0060, "lat":40.7128},
 	{"name":"Los Angeles", "lon":-118.2437, "lat":34.0522},
@@ -65,28 +92,33 @@ const CITY_DATA := [
 	{"name":"Toronto", "lon":-79.3832, "lat":43.6532},
 ]
 
-var _cities: Array = []           # each = {"name": String, "lon": float, "lat": float, "pos": Vector2}
+var _cities: Array = []     # each = {"name": String, "lon": float, "lat": float, "pos": Vector2}
 var _city_index: int = 0
 
 func _ready() -> void:
 	_camera = _resolve_camera()
+	_title = _resolve_label(title_label_path)
+	_info = _resolve_label(info_label_path)
+	_style_ui_label(_title)
+	_style_ui_label(_info)
+
 	_setup_camera()
 	_build_map_texture_from_html()
 	_init_cities()
+
 	_city_index = clamp(start_on_city_index, 0, max(CITY_DATA.size() - 1, 0))
 	if CITY_DATA.size() > 0:
 		_goto_city(_city_index, true)
+
 	_target_zoom = 1.0
 	set_process(true)
 	queue_redraw()
 
 func _process(delta: float) -> void:
 	if _camera != null:
-		# follow marker (Camera2D smoothing handles the ease)
 		var target_global := to_global(_marker_pos)
 		_camera.global_position = target_global
 
-		# smooth zoom to target
 		var curr := _camera.zoom.x
 		if abs(curr - _target_zoom) > 0.0001:
 			var t := zoom_lerp_speed * delta
@@ -95,28 +127,44 @@ func _process(delta: float) -> void:
 			var new_zoom = lerp(curr, _target_zoom, t)
 			_camera.zoom = Vector2(new_zoom, new_zoom)
 
+	# selected-city pulse timer
+	if _pulse_t < pulse_time:
+		_pulse_t += delta
+		if _pulse_t > pulse_time:
+			_pulse_t = pulse_time
+		queue_redraw()
+
 func _unhandled_input(event: InputEvent) -> void:
-	# D-pad / arrow keys → cycle cities
 	if event.is_action_pressed("ui_right") or event.is_action_pressed("ui_down"):
 		_next_city()
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed("ui_left") or event.is_action_pressed("ui_up"):
 		_prev_city()
+		get_viewport().set_input_as_handled()
+		return
 
-	# Zoom keys
 	if event is InputEventKey and event.pressed and event.echo == false:
 		var k := (event as InputEventKey).keycode
 		if k == Key.KEY_EQUAL:
 			_zoom_in()
+			get_viewport().set_input_as_handled()
+			return
 		if k == Key.KEY_MINUS:
 			_zoom_out()
+			get_viewport().set_input_as_handled()
+			return
 
-	# Mouse wheel zoom
 	if event is InputEventMouseButton and event.pressed and event.is_echo() == false:
 		var b := (event as InputEventMouseButton).button_index
 		if b == MOUSE_BUTTON_WHEEL_UP:
 			_zoom_in()
+			get_viewport().set_input_as_handled()
+			return
 		if b == MOUSE_BUTTON_WHEEL_DOWN:
 			_zoom_out()
+			get_viewport().set_input_as_handled()
+			return
 
 func _draw() -> void:
 	# marker
@@ -125,7 +173,7 @@ func _draw() -> void:
 	draw_line(_marker_pos - Vector2(cross, 0), _marker_pos + Vector2(cross, 0), marker_color, 2.0)
 	draw_line(_marker_pos - Vector2(0, cross), _marker_pos + Vector2(0, cross), marker_color, 2.0)
 
-	# cities (dots + labels)
+	# cities (dots + labels) with outline and selection pulse
 	var font: Font = label_font
 	if font == null:
 		font = ThemeDB.fallback_font
@@ -135,13 +183,34 @@ func _draw() -> void:
 		while i < _cities.size():
 			var c: Dictionary = _cities[i]
 			var p: Vector2 = c["pos"]
+
+			var is_selected := i == _city_index
+			var size_px := label_font_size
+			var lbl_color := label_color
+			var outline_px := map_label_outline_px
+			var outline_col := map_label_outline_color
+			var dot_r := city_dot_radius
+			var ring_r := dot_r * 2.4
+			var ring_col := selected_ring_color
+
+			if is_selected:
+				var s := _current_pulse_scale()
+				size_px = int(round(float(label_font_size) * s))
+				lbl_color = selected_label_color
+				outline_px = selected_label_outline_px
+				outline_col = selected_label_outline_color
+				dot_r = selected_city_dot_radius * s
+				ring_r = (dot_r + 2.0) * 1.6
+
 			if show_city_dots:
-				draw_circle(p, city_dot_radius, city_dot_color)
+				if is_selected:
+					draw_arc(p, ring_r, 0.0, TAU, 24, ring_col, 2.0)
+				draw_circle(p, dot_r, city_dot_color)
 
 			if show_city_labels:
 				var text = c["name"]
 				var pos := p + city_label_offset
-				draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, label_font_size, label_color)
+				_draw_text_with_outline(font, pos, text, size_px, lbl_color, outline_px, outline_col)
 			i += 1
 
 # --- Public API --------------------------------------------------------------
@@ -174,13 +243,32 @@ func _resolve_camera() -> Camera2D:
 		return n
 	return null
 
-func _setup_camera() -> void:
-	if _camera == null:
+func _resolve_label(path: NodePath) -> Label:
+	if path == NodePath():
+		return null
+	var n := get_node_or_null(path)
+	if n == null:
+		return null
+	if n is Label:
+		return n
+	return null
+
+func _style_ui_label(lbl: Label) -> void:
+	if lbl == null:
 		return
-	_camera.position_smoothing_enabled = true
-	_camera.position_smoothing_speed = camera_smoothing_speed
-	if enable_camera_limits:
-		_apply_camera_limits()
+	if lbl.label_settings == null:
+		lbl.label_settings = LabelSettings.new()
+	var s := lbl.label_settings
+	if ui_font != null:
+		s.font = ui_font
+	s.font_size = ui_font_size
+	s.font_color = ui_color
+	s.outline_size = ui_outline_px
+	s.outline_color = ui_outline_color
+	s.shadow_color = ui_shadow_color
+	s.shadow_offset = ui_shadow_offset
+	# prep pivot so scale pulses from center
+	lbl.pivot_offset = lbl.size * 0.5
 
 func _apply_camera_limits() -> void:
 	if _camera == null:
@@ -196,11 +284,18 @@ func _apply_camera_limits() -> void:
 	_camera.limit_top = int(min_y)
 	_camera.limit_bottom = int(max_y)
 
+func _setup_camera() -> void:
+	if _camera == null:
+		return
+	_camera.position_smoothing_enabled = true
+	_camera.position_smoothing_speed = camera_smoothing_speed
+	if enable_camera_limits:
+		_apply_camera_limits()
+
 func _build_map_texture_from_html() -> void:
 	var img := Image.create(map_size.x, map_size.y, false, Image.FORMAT_RGBA8)
 	img.fill(background_color)
 
-	var count := 0
 	var file_exists := FileAccess.file_exists(html_path)
 	if file_exists:
 		var f := FileAccess.open(html_path, FileAccess.READ)
@@ -209,12 +304,14 @@ func _build_map_texture_from_html() -> void:
 			var re := RegEx.new()
 			re.compile("\\\"longitude\\\"\\s*:\\s*([-\\d\\.]+)\\s*,\\s*\\\"latitude\\\"\\s*:\\s*([-\\d\\.]+)")
 			var matches := re.search_all(txt)
-			for m in matches:
+			var i := 0
+			while i < matches.size():
+				var m := matches[i]
 				var lon := m.get_string(1).to_float()
 				var lat := m.get_string(2).to_float()
 				var p := _lonlat_to_xy(lon, lat)
 				_blit_pixel(img, p, pixel_size, pixel_color)
-				count += 1
+				i += 1
 
 	if _map_sprite == null:
 		_map_sprite = Sprite2D.new()
@@ -273,6 +370,15 @@ func _goto_city(idx: int, jump: bool) -> void:
 	var c: Dictionary = _cities[_city_index]
 	set_marker_xy(c["pos"], jump)
 
+	# UI text + pulse
+	_update_ui_for_city(c)
+	_pulse_ui_label(_title)
+	_pulse_ui_label(_info)
+
+	# restart map pulse
+	_pulse_t = 0.0
+	queue_redraw()
+
 func _next_city() -> void:
 	if _cities.size() == 0:
 		return
@@ -308,3 +414,58 @@ func _set_target_zoom(zoom_out: bool) -> void:
 		z = z / step
 	z = clamp(z, zoom_min, zoom_max)
 	_target_zoom = z
+
+# --- Drawing helpers ---------------------------------------------------------
+
+func _draw_text_with_outline(font: Font, pos: Vector2, text: String, font_size: int, color: Color, outline_px: int, outline_color: Color) -> void:
+	# simple shadow for readability
+	var has_shadow := ui_shadow_offset != Vector2.ZERO
+	if has_shadow:
+		draw_string(font, pos + ui_shadow_offset, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, ui_shadow_color)
+
+	# outline (draw around center)
+	if outline_px > 0:
+		var dx := -outline_px
+		while dx <= outline_px:
+			var dy := -outline_px
+			while dy <= outline_px:
+				if dx != 0 or dy != 0:
+					draw_string(font, pos + Vector2(dx, dy), text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, outline_color)
+				dy += 1
+			dx += 1
+
+	# fill
+	draw_string(font, pos, text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size, color)
+
+func _current_pulse_scale() -> float:
+	if pulse_time <= 0.0:
+		return 1.0
+	var t := _pulse_t / pulse_time
+	if t > 1.0:
+		t = 1.0
+	# easeOutQuad
+	var ease := 1.0 - (1.0 - t) * (1.0 - t)
+	var s := 1.0 + (pulse_scale - 1.0) * (1.0 - ease)
+	return s
+
+# --- UI helpers --------------------------------------------------------------
+
+func _update_ui_for_city(c: Dictionary) -> void:
+	if _title != null:
+		_title.text = String(c["name"])
+	if _info != null:
+		var lat := float(c["lat"])
+		var lon := float(c["lon"])
+		_info.text = "Lat: " + str(round(lat * 100.0) / 100.0) + "   Lon: " + str(round(lon * 100.0) / 100.0)
+
+func _pulse_ui_label(lbl: Label) -> void:
+	if lbl == null:
+		return
+	lbl.pivot_offset = lbl.size * 0.5
+	var base_col := lbl.modulate
+	lbl.modulate = ui_flash_color
+	var tw1 := create_tween()
+	tw1.tween_property(lbl, "scale", Vector2(ui_pulse_scale, ui_pulse_scale), ui_pulse_time * 0.5)
+	tw1.tween_property(lbl, "scale", Vector2.ONE, ui_pulse_time * 0.5)
+	var tw2 := create_tween()
+	tw2.tween_property(lbl, "modulate", base_col, ui_pulse_time)
