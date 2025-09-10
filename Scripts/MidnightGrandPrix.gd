@@ -27,6 +27,7 @@ signal gp_standings_ready(index:int)
 signal gp_finished(winner_uid:String)
 
 var last_city_name: String = ""
+var last_race_was_replay: bool = false
 
 func _ready() -> void:
 	# Never force-start on boot unless you explicitly flip auto_start.
@@ -55,12 +56,36 @@ func start_gp(start_at := 0) -> void:
 	emit_signal("gp_started", current_index)
 	_load_current_race()
 
-
 func on_race_finished(board: Array, navigate: bool = true) -> void:
 	if not active:
 		return
 
-	_award_points(board)
+	# Decide if this was a replay (city already completed)
+	last_race_was_replay = false
+	if _current_race_city != "":
+		if completed_cities.has(_current_race_city):
+			last_race_was_replay = true
+		else:
+			completed_cities.append(_current_race_city)  # first time only
+			last_city_name = _current_race_city
+			_save(false)
+
+	# Points handling
+	last_gain.clear()
+	if last_race_was_replay:
+		# replay: no points, no stats update
+		for i in range(min(board.size(), grid_size)):
+			var entry = board[i]
+			var node: Node = entry["node"]
+			var uid := _uid_for(node)
+			var name := _display_name_for(node)
+			uid_display[uid] = uid_display.get(uid, name)
+			last_gain[uid] = 0
+		# keep totals, wins/podiums/best_ms unchanged
+	else:
+		# real race: award as normal
+		_award_points(board)
+
 	last_race_index = current_index
 
 	var p = board[0]["node"].get_tree().get_first_node_in_group("player")
@@ -69,16 +94,8 @@ func on_race_finished(board: Array, navigate: bool = true) -> void:
 
 	emit_signal("gp_standings_ready", current_index)
 
-	# mark the just-raced city as completed (no double-count)
-	if _current_race_city != "" and not completed_cities.has(_current_race_city):
-		completed_cities.append(_current_race_city)
-		_save(false)
-
-	if _current_race_city != "":
-		last_city_name = _current_race_city
-
 	if navigate:
-		_show_standings()  # does call_deferred -> change_scene_to_file(standings_scene)
+		_show_standings()
 
 func continue_from_standings() -> void:
 	var last_index := -1
@@ -87,7 +104,14 @@ func continue_from_standings() -> void:
 	else:
 		last_index = race_count - 1
 
-	# Finished GP → save, deactivate, then go to map
+	# If that race was a replay, do NOT increment or finish—just go back to map
+	if last_race_was_replay:
+		last_race_was_replay = false
+		_save(false)
+		_go_to_world_map()
+		return
+
+	# Normal flow (counting race)
 	if current_index >= last_index:
 		emit_signal("gp_finished", _leader_uid())
 		active = false
@@ -95,7 +119,6 @@ func continue_from_standings() -> void:
 		_go_to_world_map()
 		return
 
-	# Not finished → advance index, save, then go to map
 	current_index += 1
 	_save(false)
 	_go_to_world_map()
@@ -176,7 +199,7 @@ func _leader_uid() -> String:
 	return best
 
 func _load_current_race() -> void:
-	# record selected city when entering a race
+	# record the selected city at race-entry time
 	_current_race_city = ""
 	var glb := get_node_or_null("/root/Globals")
 	if glb != null:
@@ -187,7 +210,6 @@ func _load_current_race() -> void:
 			if v != null:
 				_current_race_city = String(v)
 
-	
 	# record the selected city at race-entry time
 	_current_race_city = ""
 	if glb != null:
@@ -231,6 +253,10 @@ func _save(finished: bool) -> void:
 	cfg.set_value("gp","player_uid", player_uid)
 	cfg.set_value("gp","completed_cities", completed_cities)
 	cfg.set_value("gp","last_city_name", last_city_name)
+	cfg.set_value("gp","completed_cities", completed_cities)
+	cfg.set_value("gp","last_city_name", last_city_name)
+	cfg.set_value("gp","last_race_was_replay", last_race_was_replay)
+	
 	cfg.save(SAVE_PATH)
 
 func load_save() -> bool:
@@ -245,8 +271,18 @@ func load_save() -> bool:
 	grid_size = int(cfg.get_value("gp","grid", grid_size))
 	player_uid = String(cfg.get_value("gp","player_uid",""))
 	last_city_name = String(cfg.get_value("gp","last_city_name", ""))
-	
+
 	var cc = cfg.get_value("gp","completed_cities", PackedStringArray())
+	if cc is PackedStringArray:
+		completed_cities = cc
+	elif cc is Array:
+		completed_cities = PackedStringArray(cc)
+	else:
+		completed_cities = PackedStringArray()
+
+	last_city_name = String(cfg.get_value("gp","last_city_name", ""))
+	last_race_was_replay = bool(cfg.get_value("gp","last_race_was_replay", false))
+
 	if cc is PackedStringArray:
 		completed_cities = cc
 	elif cc is Array:

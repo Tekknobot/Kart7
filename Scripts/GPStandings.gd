@@ -7,20 +7,28 @@ extends Control
 @export var btn: Button
 
 func _ready() -> void:
-	_ensure_input_map() # make sure gamepad bindings exist (Windows/XInput)
+	_ensure_input_map()
 
 	var gp = MidnightGrandPrix
-	var race_no = gp.current_index + 1
 	var total = gp.race_count
-	lb_title.text = "Grand Prix Standings — Race %d / %d" % [race_no, total]
 
-	# Next track label
-	if gp.current_index + 1 < total:
-		lb_next.text = "Next: " + _nice_track_name(gp.world_map_scene)
+	# Use the race that JUST finished, not whatever current_index happens to be.
+	var race_no = gp.current_index + 1
+	if gp.last_race_index >= 0:
+		race_no = gp.last_race_index + 1
+
+	# Title + "next" text depend on whether this was a replay
+	if gp.last_race_was_replay:
+		lb_title.text = "Grand Prix Standings — Replay: Race %d / %d (no points)" % [race_no, total]
+		lb_next.text = "Return to map"
 	else:
-		lb_next.text = "Final results"
+		lb_title.text = "Grand Prix Standings — Race %d / %d" % [race_no, total]
+		if gp.current_index + 1 < total:
+			lb_next.text = "Next: " + _nice_track_name(gp.world_map_scene)
+		else:
+			lb_next.text = "Final results"
 
-	# Build header labels
+	# Build header
 	_add_header_col("Pos", 40)
 	_add_header_col("Racer", 220)
 	_add_header_col("Pts", 60)
@@ -28,7 +36,7 @@ func _ready() -> void:
 	_add_header_col("Wins", 60)
 	_add_header_col("Best Lap", 120)
 
-	# Populate rows — highlight ONLY the player row by name match
+	# Rows (highlight only player)
 	var data: Array = gp.standings_rows()
 	var player_name_sn: StringName = Globals.selected_racer
 	for r: Dictionary in data:
@@ -36,15 +44,18 @@ func _ready() -> void:
 		var is_player: bool = StringName(row_name) == player_name_sn
 		_add_row(r, is_player)
 
-	# Button text + make it controller-friendly
-	if gp.current_index + 1 < total:
-		btn.text = "Continue"
+	# Button label: for a replay we’re just heading back to the map
+	if gp.last_race_was_replay:
+		btn.text = "Back to Map"
 	else:
-		btn.text = "Finish"
+		if gp.current_index + 1 < total:
+			btn.text = "Continue"
+		else:
+			btn.text = "Finish"
+
 	btn.focus_mode = Control.FOCUS_ALL
 	btn.grab_focus()
 
-	# Listen for A/Enter via unhandled input
 	set_process_unhandled_input(true)
 	btn.pressed.connect(_on_continue)
 
