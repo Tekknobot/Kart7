@@ -68,11 +68,8 @@ position = Vector2(80, 0)
 script = ExtResource("6_6heos")
 _skyLine = NodePath("Sky Line")
 _treeLine = NodePath("Tree Line")
-dawn_sky_color = Color(0.299994, 0.422631, 0.752593, 1)
 dawn_tree_color = Color(0.515495, 0.615132, 0.917415, 1)
-day_sky_color = Color(7.70092e-07, 0.471357, 0.794991, 1)
 day_tree_color = Color(0.357682, 0.634844, 0.924233, 1)
-sunset_sky_color = Color(0.135413, 0.413011, 0.673149, 1)
 sunset_tree_color = Color(0.269072, 0.576876, 0.881599, 1)
 
 [node name="Background" type="Sprite2D" parent="Background Elements"]

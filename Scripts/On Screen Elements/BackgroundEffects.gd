@@ -51,6 +51,11 @@ func _ready() -> void:
 @export var skyline_map: Dictionary = {}                    # optional overrides: { "Tokyo": "res://custom/tokyo.webp" }
 @export var default_skyline: Texture2D                      # fallback if not found
 
+@export var treeline_folder: String = "res://Textures/Tracks/Treelines/"  # where your treeline .pngs live
+@export var treeline_ext: String = ".png"                                  # .png, .webp, etc.
+@export var treeline_map: Dictionary = {}                                   # optional overrides: { "Tokyo": "res://custom/trees_tokyo.webp" or Texture2D }
+@export var default_treeline: Texture2D                                     # fallback if not found
+
 func Setup():
 	_rng.randomize()
 	if randomize_time_of_day_on_setup:
@@ -79,6 +84,7 @@ func MoveBackgroundElements(element : Sprite2D, mapRotation : float) -> void:
 # --- Modulation --------------------------------------------------------------
 
 func _apply_time_of_day_modulate() -> void:
+	# Compute targets (still used for clear color only)
 	var sky_target := day_sky_color
 	var tree_target := day_tree_color
 
@@ -92,17 +98,19 @@ func _apply_time_of_day_modulate() -> void:
 		sky_target  = sunset_sky_color
 		tree_target = sunset_tree_color
 
+	# Mix only for the *engine clear color*, not for sprite tinting
 	var sky_mix  := _blend_color(Color(1,1,1,1), sky_target,  clamp(sky_strength,  0.0, 1.0))
 	var tree_mix := _blend_color(Color(1,1,1,1), tree_target, clamp(tree_strength, 0.0, 1.0))
 
+	# --- Do NOT tint sprites anymore; keep them unaffected ---
 	if _skyLine != null:
-		_skyLine.modulate = sky_mix
+		_skyLine.modulate = Color(1,1,1,1)   # reset to identity
 	if _treeLine != null:
-		_treeLine.modulate = tree_mix
+		_treeLine.modulate = Color(1,1,1,1)  # reset to identity
 
-	# Match the engine clear color to sky, optionally with a randomized night tint
+	# You can keep the clear color tied to time-of-day (optional)
 	if match_clear_color_to_sky:
-		var cc := Color(sky_mix.r, sky_mix.g, sky_mix.b, 1.0) # alpha ignored
+		var cc := Color(sky_mix.r, sky_mix.g, sky_mix.b, 1.0)
 		if _use_night_clear:
 			var t = clamp(night_tint_strength, 0.0, 1.0)
 			cc = Color(
@@ -187,7 +195,43 @@ func _apply_city_from_globals() -> void:
 		if val != null:
 			name = String(val)
 	if name != "":
-		SetCitySkylineByName(name)
+		SetCityAssetsByName(name)   # <<< set both skyline + treeline
+
+func SetCityAssetsByName(name: String) -> void:
+	SetCitySkylineByName(name)
+	SetCityTreeLineByName(name)
+
+func SetCityTreeLineByName(name: String) -> void:
+	if _treeLine == null:
+		return
+	var tex := _resolve_treeline_texture(name)
+	if tex != null:
+		_treeLine.texture = tex
+
+func _resolve_treeline_texture(name: String) -> Texture2D:
+	# explicit override via dictionary (Texture2D or String path)
+	if treeline_map.has(name):
+		var v = treeline_map[name]
+		if v is Texture2D:
+			return v
+		if v is String:
+			if ResourceLoader.exists(v):
+				var t := load(v)
+				if t is Texture2D:
+					return t
+
+	# convention: <treeline_folder>/<slug><treeline_ext>
+	var folder := treeline_folder
+	if not folder.ends_with("/"):
+		folder += "/"
+	var slug := _slugify_city(name)
+	var path := folder + slug + treeline_ext
+	if ResourceLoader.exists(path):
+		var t2 := load(path)
+		if t2 is Texture2D:
+			return t2
+
+	return default_treeline
 
 func SetCitySkylineByName(name: String) -> void:
 	if _skyLine == null:
