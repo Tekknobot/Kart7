@@ -1,4 +1,4 @@
-res://Scenes/main.tscn
+res://Scenes/Main.tscn
 res://Scripts/Shaders/ModeSeven.gdshader
 res://Scripts/Shaders/FinishFlag.gdshader
 res://Scripts/Shaders/GasDistort.gdshader
@@ -7,27 +7,10 @@ res://Scripts/Shaders/Tunnel.gdshader
 res://Scripts/Shaders/NitroPulse.gdshader
 res://Scripts/Shaders/OpponentNitroPulse.gdshader
 res://Scripts/Shaders/WindPixel2D.gdshader
+res://Scenes/Title.tscn
 res://Scenes/CharacterSelect.tscn
-res://Scenes/RacerButton.tscn
 res://Scenes/player.tscn
 res://Scenes/opponent.tscn
-res://Scenes/PauseMenu.tscn
-res://Scenes/music_manager.tscn
 res://Scenes/standings.tscn
-res://Scripts/World Elements/Pseudo3D.gd
-res://Scripts/WorldMap.gd
 res://Scenes/WorldMap.tscn
-res://Scripts/CharacterSelect.gd
-res://Scenes/Title.tscn
-res://Scripts/GPStandings.gd
 res://Textures/VFX/StarNight.tscn
-res://Scripts/On Screen Elements/BackgroundEffects.gd
-res://Scripts/General/Globals.gd
-res://Scripts/MidnightGrandPrix.gd
-res://Scenes/title.tscn
-res://Scripts/PostRaceController.gd
-res://Scripts/TitleScreen.gd
-res://Scripts/PauseMenuOverlay.gd
-res://Scripts/Transition.gd
-res://Scripts/General/Game.gd
-res://Scenes/Main.tscn

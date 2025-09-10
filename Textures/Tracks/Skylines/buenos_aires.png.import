@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://1pbelmcu6u6x"
-path="res://.godot/imported/los_angeles.png-85cafeccaa7761d0478178685b65f17d.ctex"
+uid="uid://d4anxssrubbll"
+path="res://.godot/imported/buenos_aires.png-be39c18ccf7193f2a0b1d273f3e64f31.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Textures/Tracks/Treelines/los_angeles.png"
-dest_files=["res://.godot/imported/los_angeles.png-85cafeccaa7761d0478178685b65f17d.ctex"]
+source_file="res://Textures/Tracks/Skylines/buenos_aires.png"
+dest_files=["res://.godot/imported/buenos_aires.png-be39c18ccf7193f2a0b1d273f3e64f31.ctex"]
 
 [params]
 
