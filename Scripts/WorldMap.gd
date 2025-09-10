@@ -71,37 +71,34 @@ var _info: Label = null
 var _target_zoom: float = 1.0
 var _pulse_t: float = 0.0
 
+var _rng := RandomNumberGenerator.new()
+
 const CITY_DATA := [
-	{"name":"New York", "lon":-74.0060, "lat":40.7128},
 	{"name":"Los Angeles", "lon":-118.2437, "lat":34.0522},
+	{"name":"Banff", "lon":-115.5708, "lat":51.1784},                 # Banff town, Alberta
 	{"name":"Mexico City", "lon":-99.1332, "lat":19.4326},
-	{"name":"Sao Paulo", "lon":-46.6333, "lat":-23.5505},
+	{"name":"Keystone", "lon":-96.2775, "lat":36.1287},               # Keystone State Park (OK) coords
+	{"name":"Toronto", "lon":-79.3832, "lat":43.6532},
+	{"name":"New York", "lon":-74.0060, "lat":40.7128},
 	{"name":"Buenos Aires", "lon":-58.3816, "lat":-34.6037},
+	{"name":"Sao Paulo", "lon":-46.6333, "lat":-23.5505},
+	{"name":"Madrid", "lon":-3.7038, "lat":40.4168},
 	{"name":"London", "lon":-0.1276, "lat":51.5074},
 	{"name":"Paris", "lon":2.3522, "lat":48.8566},
-	{"name":"Madrid", "lon":-3.7038, "lat":40.4168},
-	{"name":"Cairo", "lon":31.2357, "lat":30.0444},
 	{"name":"Lagos", "lon":3.3792, "lat":6.5244},
-	{"name":"Moscow", "lon":37.6173, "lat":55.7558},
 	{"name":"Istanbul", "lon":28.9784, "lat":41.0082},
+	{"name":"Cairo", "lon":31.2357, "lat":30.0444},
+	{"name":"Moscow", "lon":37.6173, "lat":55.7558},
 	{"name":"Dubai", "lon":55.2708, "lat":25.2048},
 	{"name":"Mumbai", "lon":72.8777, "lat":19.0760},
+	{"name":"Taj Mahal", "lon":78.0421, "lat":27.1751},               # Agra, India
+	{"name":"Nuwara Eliya", "lon":80.7891, "lat":6.9497},             # Sri Lanka highlands
 	{"name":"Singapore", "lon":103.8198, "lat":1.3521},
 	{"name":"Beijing", "lon":116.4074, "lat":39.9042},
 	{"name":"Seoul", "lon":126.9780, "lat":37.5665},
 	{"name":"Tokyo", "lon":139.6917, "lat":35.6895},
 	{"name":"Sydney", "lon":151.2093, "lat":-33.8688},
-	{"name":"Toronto", "lon":-79.3832, "lat":43.6532},
-	{"name":"Babylon", "lon":44.4200, "lat":32.5364},                  # ruins near Hillah, Iraq
-	{"name":"Aurora Borealis", "lon":18.9553, "lat":69.6492}, # prime viewing hub in Norway
-	{"name":"Taj Mahal", "lon":78.0421, "lat":27.1751},               # Agra, India
-	{"name":"Giza", "lon":31.1342, "lat":29.9792},                    # Great Pyramid area, Egypt
-	{"name":"Nuwara Eliya", "lon":80.7891, "lat":6.9497},             # Sri Lanka highlands
-	{"name":"Keystone", "lon":-96.2775, "lat":36.1287}, # Keystone State Park (OK) coords
-	{"name":"Banff", "lon":-115.5708, "lat":51.1784},                 # Banff town, Alberta	
 ]
-
-var _rng := RandomNumberGenerator.new()
 
 const CITY_FACTS := {
 	"New York": [
@@ -143,11 +140,6 @@ const CITY_FACTS := {
 		"Puerta del Sol marks Kilometer Zero of Spain’s roads.",
 		"El Retiro and the Prado area form a UNESCO Landscape of Light.",
 		"Plaza Mayor dates to the early 1600s."
-	],
-	"Cairo": [
-		"The Great Pyramids and the Sphinx are just outside the city.",
-		"The Nile River flows north through Cairo.",
-		"It’s nicknamed the City of a Thousand Minarets."
 	],
 	"Lagos": [
 		"Nigeria’s largest city spreads around Lagos Lagoon.",
@@ -204,25 +196,10 @@ const CITY_FACTS := {
 		"The PATH is a 30+ km underground walkway network.",
 		"St. Lawrence Market is a celebrated 19th-century food hall."
 	],
-	"Babylon": [
-		"Ancient Mesopotamian city on the Euphrates near today’s Hillah, Iraq.",
-		"The Ishtar Gate was Babylon’s grand entrance; parts are reconstructed in Berlin’s Pergamon Museum.",
-		"Recognized as a UNESCO World Heritage Site in 2019."
-	],
-	"Aurora Borealis": [
-		"Tromsø lies under the auroral oval, so displays are frequent from roughly September to March.",
-		"Peak activity often clusters around the equinoxes due to geomagnetic conditions.",
-		"Auroras form when charged solar particles hit Earth’s magnetic field and upper atmosphere."
-	],
 	"Taj Mahal": [
 		"A white-marble mausoleum built by Shah Jahan for Mumtaz Mahal (construction ~1632–1653).",
 		"It sits on the Yamuna River and appears to change color with the light.",
 		"Listed as a UNESCO World Heritage Site in 1983."
-	],
-	"Giza": [
-		"The Giza Plateau hosts the Great Pyramid of Khufu, plus Khafre and Menkaure.",
-		"The Great Sphinx stands nearby, carved from a single limestone outcrop.",
-		"The Great Pyramid is the last surviving Wonder of the Ancient World."
 	],
 	"Nuwara Eliya": [
 		"Tea-country hill town nicknamed ‘Little England’ for its cool climate and colonial-era villas.",
