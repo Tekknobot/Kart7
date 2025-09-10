@@ -23,3 +23,11 @@ res://Scripts/GPStandings.gd
 res://Textures/VFX/StarNight.tscn
 res://Scripts/On Screen Elements/BackgroundEffects.gd
 res://Scripts/General/Globals.gd
+res://Scripts/MidnightGrandPrix.gd
+res://Scenes/title.tscn
+res://Scripts/PostRaceController.gd
+res://Scripts/TitleScreen.gd
+res://Scripts/PauseMenuOverlay.gd
+res://Scripts/Transition.gd
+res://Scripts/General/Game.gd
+res://Scenes/Main.tscn

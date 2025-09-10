@@ -2,7 +2,7 @@ extends Control
 class_name PauseMenu
 
 @export_file("*.tscn")
-var main_menu_scene: String = "res://Scenes/title.tscn"
+var main_menu_scene: String = "res://Scenes/Title.tscn"
 
 @export var pause_action: String = "Pause"      # must exist in Project > Input Map
 @export var resume_btn: Button

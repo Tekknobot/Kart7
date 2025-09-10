@@ -2,6 +2,7 @@ extends Control
 
 @export_file("*.tscn") var main_scene_path  := "res://Scenes/Main.tscn"
 @export_file("*.tscn") var title_scene_path := "res://Scenes/Title.tscn"
+@export_file("*.tscn") var worldmap_scene_path := "res://Scenes/WorldMap.tscn"
 
 @onready var grid: GridContainer   = $"Center/VBox/Grid"
 @onready var back_btn: Button      = $"Center/VBox/Back"
@@ -53,12 +54,11 @@ func _on_racer_pressed(name: String) -> void:
 
 		var list := PackedStringArray()
 		for i in range(20):
-			list.append("res://Scenes/WorldMap.tscn")  # <- your main scene path
+			list.append("res://Scenes/Main.tscn")  # <- your main scene path
 		MidnightGrandPrix.tracks = list
 		MidnightGrandPrix.grid_size = 8            # 8 racers total
-		MidnightGrandPrix.start_gp(0)
 				
-	await _fade_to_scene(main_scene_path)
+	await _fade_to_scene(worldmap_scene_path)
 
 func _back() -> void:
 	await _fade_to_scene(title_scene_path)

@@ -7,8 +7,8 @@
 [ext_resource type="PackedScene" uid="uid://bm1g128j70kea" path="res://Textures/VFX/StarNight.tscn" id="5_x3rx7"]
 [ext_resource type="Script" uid="uid://cex362lk6utnk" path="res://Scripts/On Screen Elements/BackgroundEffects.gd" id="6_6heos"]
 [ext_resource type="Texture2D" uid="uid://b7ri4tesomgep" path="res://Temp/Background Color_Black.png" id="7_vvnwx"]
-[ext_resource type="Texture2D" uid="uid://eeap17h4pmqt" path="res://Textures/Tracks/Skylines/newyork.png" id="9_hpc6h"]
-[ext_resource type="Texture2D" uid="uid://dd1wpy3roc8w6" path="res://Textures/Tracks/My Tracks/Buildings.png" id="9_kltya"]
+[ext_resource type="Texture2D" uid="uid://eeap17h4pmqt" path="res://Textures/Tracks/Skylines/newyork.png" id="8_btbly"]
+[ext_resource type="Texture2D" uid="uid://dd1wpy3roc8w6" path="res://Textures/Tracks/My Tracks/Buildings.png" id="9_vs04g"]
 [ext_resource type="Shader" uid="uid://hpt6elsw8vyg" path="res://Scripts/Shaders/ModeSeven.gdshader" id="10_6ehlx"]
 [ext_resource type="Texture2D" uid="uid://baswq6uaio1tg" path="res://Textures/Tracks/Grass/Grass_Tile_02.png" id="11_utia5"]
 [ext_resource type="Texture2D" uid="uid://cuhl0bp0xfw80" path="res://Textures/Tracks/My Tracks/Track_02.png" id="12_f7hdo"]
@@ -86,7 +86,7 @@ texture_filter = 1
 texture_repeat = 2
 position = Vector2(-80, -16)
 scale = Vector2(2, 2)
-texture = ExtResource("9_hpc6h")
+texture = ExtResource("8_btbly")
 centered = false
 region_enabled = true
 region_rect = Rect2(0, 0, 320, 64)
@@ -96,7 +96,7 @@ texture_filter = 1
 texture_repeat = 2
 position = Vector2(-80, 48)
 scale = Vector2(2, 2)
-texture = ExtResource("9_kltya")
+texture = ExtResource("9_vs04g")
 centered = false
 region_enabled = true
 region_rect = Rect2(0, 0, 320, 32)

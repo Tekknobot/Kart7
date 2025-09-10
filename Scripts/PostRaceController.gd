@@ -6,7 +6,7 @@ extends Node2D
 @export var delay_seconds: float = 5.0
 @export var arm_after_seconds: float = 2.0   # fallback arm if no start signal
 
-@export_file("*.tscn") var title_scene_path: String = "res://Scenes/title.tscn"
+@export_file("*.tscn") var title_scene_path: String = "res://Scenes/Title.tscn"
 @export var fader_path: NodePath   # <- drag your ScreenFader (ColorRect) here
 
 signal leaderboard_shown

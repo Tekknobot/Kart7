@@ -290,7 +290,8 @@ func _unhandled_input(event: InputEvent) -> void:
 func _go_to_main_scene() -> void:
 	var tree := get_tree()
 	if tree != null:
-		tree.change_scene_to_file("res://Scenes/main.tscn")
+		tree.change_scene_to_file("res://Scenes/Main.tscn")
+		MidnightGrandPrix.start_gp(0)
 
 func _draw() -> void:
 	# marker
