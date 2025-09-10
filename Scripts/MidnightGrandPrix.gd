@@ -10,6 +10,9 @@ extends Node
 @export var race_scene: String = "res://Scenes/Main.tscn"  # single scene used every race
 @export var race_count: int = 20                           # how many races in the GP
 
+var completed_cities: PackedStringArray = PackedStringArray()
+var _current_race_city: String = ""   # captured when a race is entered
+
 var active := false
 var current_index := 0
 var total_points := {}
@@ -22,6 +25,8 @@ var player_uid := ""
 signal gp_started(index:int)
 signal gp_standings_ready(index:int)
 signal gp_finished(winner_uid:String)
+
+var last_city_name: String = ""
 
 func _ready() -> void:
 	# Never force-start on boot unless you explicitly flip auto_start.
@@ -64,6 +69,14 @@ func on_race_finished(board: Array, navigate: bool = true) -> void:
 
 	emit_signal("gp_standings_ready", current_index)
 
+	# mark the just-raced city as completed (no double-count)
+	if _current_race_city != "" and not completed_cities.has(_current_race_city):
+		completed_cities.append(_current_race_city)
+		_save(false)
+
+	if _current_race_city != "":
+		last_city_name = _current_race_city
+
 	if navigate:
 		_show_standings()  # does call_deferred -> change_scene_to_file(standings_scene)
 
@@ -86,8 +99,6 @@ func continue_from_standings() -> void:
 	current_index += 1
 	_save(false)
 	_go_to_world_map()
-
-
 
 func standings_rows() -> Array:
 	var rows: Array = []
@@ -165,6 +176,28 @@ func _leader_uid() -> String:
 	return best
 
 func _load_current_race() -> void:
+	# record selected city when entering a race
+	_current_race_city = ""
+	var glb := get_node_or_null("/root/Globals")
+	if glb != null:
+		if glb.has_method("get_selected_city"):
+			_current_race_city = String(glb.call("get_selected_city"))
+		else:
+			var v = glb.get("selected_city")
+			if v != null:
+				_current_race_city = String(v)
+
+	
+	# record the selected city at race-entry time
+	_current_race_city = ""
+	if glb != null:
+		if glb.has_method("get_selected_city"):
+			_current_race_city = String(glb.call("get_selected_city"))
+		else:
+			var v = glb.get("selected_city")
+			if v != null:
+				_current_race_city = String(v)
+	
 	if tracks.size() > 0:
 		if current_index < 0 or current_index >= tracks.size():
 			return
@@ -196,6 +229,8 @@ func _save(finished: bool) -> void:
 	cfg.set_value("gp","tracks", tracks)
 	cfg.set_value("gp","grid", grid_size)
 	cfg.set_value("gp","player_uid", player_uid)
+	cfg.set_value("gp","completed_cities", completed_cities)
+	cfg.set_value("gp","last_city_name", last_city_name)
 	cfg.save(SAVE_PATH)
 
 func load_save() -> bool:
@@ -209,6 +244,16 @@ func load_save() -> bool:
 	tracks = cfg.get_value("gp","tracks", tracks)
 	grid_size = int(cfg.get_value("gp","grid", grid_size))
 	player_uid = String(cfg.get_value("gp","player_uid",""))
+	last_city_name = String(cfg.get_value("gp","last_city_name", ""))
+	
+	var cc = cfg.get_value("gp","completed_cities", PackedStringArray())
+	if cc is PackedStringArray:
+		completed_cities = cc
+	elif cc is Array:
+		completed_cities = PackedStringArray(cc)
+	else:
+		completed_cities = PackedStringArray()
+	
 	return true
 
 func enter_current_race() -> void:

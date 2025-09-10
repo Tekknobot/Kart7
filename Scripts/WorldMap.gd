@@ -7,6 +7,8 @@ class_name WorldMap
 @export var pixel_color: Color = Color(129.0/255.0, 129.0/255.0, 129.0/255.0, 1.0)
 @export var background_color: Color = Color(80.0/255.0, 80.0/255.0, 80.0/255.0, 1.0)
 
+@export var completed_label_color: Color = Color(1.0, 0.25, 0.25, 1.0)  # “red”
+
 @export var camera_path: NodePath
 @export var camera_smoothing_speed: float = 5.0
 @export var enable_camera_limits: bool = true
@@ -211,7 +213,24 @@ func _ready() -> void:
 	_build_map_texture_from_html()
 	_init_cities()
 
-	_city_index = clamp(start_on_city_index, 0, max(CITY_DATA.size() - 1, 0))
+	# Prefer last city raced (from GP), otherwise use start_on_city_index
+	var desired_idx := -1
+	var gp := get_node_or_null("/root/MidnightGrandPrix")
+	if gp != null:
+		var last_name := ""
+		if gp.has_method("get_last_city_name"):
+			last_name = String(gp.call("get_last_city_name"))
+		else:
+			var v = gp.get("last_city_name")
+			if v != null:
+				last_name = String(v)
+		if last_name != "":
+			desired_idx = _find_city_index_by_name(last_name)
+
+	if desired_idx == -1:
+		desired_idx = clamp(start_on_city_index, 0, max(CITY_DATA.size() - 1, 0))
+
+	_city_index = desired_idx
 	if CITY_DATA.size() > 0:
 		_goto_city(_city_index, true)
 
@@ -331,6 +350,10 @@ func _draw() -> void:
 				outline_col = selected_label_outline_color
 				dot_r = selected_city_dot_radius * s
 				ring_r = (dot_r + 2.0) * 1.6
+
+			# Completed city → color red (unless it's the selected one, which keeps the selected styling)
+			if not is_selected and _is_city_completed(String(c["name"])):
+				lbl_color = completed_label_color
 
 			if show_city_dots:
 				if is_selected:
@@ -657,3 +680,29 @@ func _pulse_ui_label(lbl: Label) -> void:
 	tw1.tween_property(lbl, "scale", Vector2.ONE, ui_pulse_time * 0.5)
 	var tw2 := create_tween()
 	tw2.tween_property(lbl, "modulate", base_col, ui_pulse_time)
+
+func _is_city_completed(name: String) -> bool:
+	var gp := get_node_or_null("/root/MidnightGrandPrix")
+	if gp == null:
+		return false
+
+	# Prefer the helper if present
+	if gp.has_method("is_city_completed"):
+		return bool(gp.call("is_city_completed", name))
+
+	# Fallback: read the array directly
+	var arr = gp.get("completed_cities")
+	if arr is PackedStringArray:
+		return (arr as PackedStringArray).has(name)
+	if arr is Array:
+		return (arr as Array).has(name)
+	return false
+
+func _find_city_index_by_name(name: String) -> int:
+	var i := 0
+	while i < _cities.size():
+		var c: Dictionary = _cities[i]
+		if String(c.get("name","")) == name:
+			return i
+		i += 1
+	return -1
