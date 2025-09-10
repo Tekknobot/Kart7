@@ -39,6 +39,15 @@ const RACER_COLOR_NAME := {
 	"Rogue":   "Cyan"
 }
 
+# --- Selected city shared across scenes ---
+var selected_city: StringName = "New York"
+
+func set_selected_city(name: String) -> void:
+	selected_city = StringName(name)
+
+func get_selected_city() -> String:
+	return String(selected_city)
+
 func set_camera_map_position(p: Vector2) -> void:
 	_camera_map_pos = p
 

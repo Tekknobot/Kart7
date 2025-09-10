@@ -46,12 +46,18 @@ func _ready() -> void:
 
 @export var auto_setup_on_ready := true
 
+@export var skyline_folder: String = "res://Textures/Tracks/Skylines/"   # where your .pngs live
+@export var skyline_ext: String = ".png"                    # .png, .webp, etc
+@export var skyline_map: Dictionary = {}                    # optional overrides: { "Tokyo": "res://custom/tokyo.webp" }
+@export var default_skyline: Texture2D                      # fallback if not found
+
 func Setup():
 	_rng.randomize()
 	if randomize_time_of_day_on_setup:
 		_roll_time_of_day()
 	_roll_night_clear()              # <<< roll night chance once at setup
 	_apply_time_of_day_modulate()
+	_apply_city_from_globals() 
 	_booted = true
 
 func Update(mapRotation : float) -> void:
@@ -168,3 +174,64 @@ func _roll_night_clear() -> void:
 	var p = clamp(night_clear_chance, 0.0, 1.0)
 	var r := _rng.randf()
 	_use_night_clear = (r < p)
+
+func _apply_city_from_globals() -> void:
+	var glb := get_node_or_null("/root/Globals")
+	if glb == null:
+		return
+	var name := ""
+	if glb.has_method("get_selected_city"):
+		name = String(glb.call("get_selected_city"))
+	else:
+		var val = glb.get("selected_city")
+		if val != null:
+			name = String(val)
+	if name != "":
+		SetCitySkylineByName(name)
+
+func SetCitySkylineByName(name: String) -> void:
+	if _skyLine == null:
+		return
+	var tex := _resolve_skyline_texture(name)
+	if tex != null:
+		_skyLine.texture = tex
+
+func _resolve_skyline_texture(name: String) -> Texture2D:
+	# explicit override via dictionary (path or Texture2D)
+	if skyline_map.has(name):
+		var v = skyline_map[name]
+		if v is Texture2D:
+			return v
+		if v is String:
+			if ResourceLoader.exists(v):
+				var t := load(v)
+				if t is Texture2D:
+					return t
+
+	# convention: res://art/skylines/<slug><ext>
+	var folder := skyline_folder
+	if not folder.ends_with("/"):
+		folder += "/"
+	var slug := _slugify_city(name)
+	var path := folder + slug + skyline_ext
+	if ResourceLoader.exists(path):
+		var t2 := load(path)
+		if t2 is Texture2D:
+			return t2
+
+	return default_skyline
+
+func _slugify_city(name: String) -> String:
+	var s := name.to_lower()
+	var out := ""
+	var i := 0
+	while i < s.length():
+		var code := s.unicode_at(i)
+		if (code >= 97 and code <= 122) or (code >= 48 and code <= 57):
+			out += char(code)
+		elif code == 32:
+			out += "_"
+		else:
+			out += "_"
+		i += 1
+	return out

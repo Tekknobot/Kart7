@@ -21,3 +21,5 @@ res://Scripts/CharacterSelect.gd
 res://Scenes/Title.tscn
 res://Scripts/GPStandings.gd
 res://Textures/VFX/StarNight.tscn
+res://Scripts/On Screen Elements/BackgroundEffects.gd
+res://Scripts/General/Globals.gd

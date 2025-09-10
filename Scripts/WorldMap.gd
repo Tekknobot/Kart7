@@ -496,6 +496,8 @@ func _goto_city(idx: int, jump: bool) -> void:
 	var c: Dictionary = _cities[_city_index]
 	set_marker_xy(c["pos"], jump)
 
+	Globals.set_selected_city(String(c["name"]))  # persist for other scenes
+
 	# UI text + pulse
 	_update_ui_for_city(c)
 	_pulse_ui_label(_title)
