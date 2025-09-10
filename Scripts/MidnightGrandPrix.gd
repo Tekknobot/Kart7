@@ -6,6 +6,7 @@ extends Node
 @export var points_table: PackedInt32Array = PackedInt32Array([15,12,10,8,6,4,2,1])
 @export var auto_start := false   # keep OFF; we’ll start from a button while testing
 
+@export var world_map_scene: String = "res://Scenes/WorldMap.tscn"
 @export var race_scene: String = "res://Scenes/Main.tscn"  # single scene used every race
 @export var race_count: int = 20                           # how many races in the GP
 
@@ -73,15 +74,19 @@ func continue_from_standings() -> void:
 	else:
 		last_index = race_count - 1
 
+	# Finished GP → save, deactivate, then go to map
 	if current_index >= last_index:
 		emit_signal("gp_finished", _leader_uid())
 		active = false
 		_save(true)
+		_go_to_world_map()
 		return
 
+	# Not finished → advance index, save, then go to map
 	current_index += 1
 	_save(false)
-	_load_current_race()
+	_go_to_world_map()
+
 
 
 func standings_rows() -> Array:
@@ -173,7 +178,9 @@ func _show_standings() -> void:
 	call_deferred("_do_change_scene", standings_scene)
 
 func _do_change_scene(path: String) -> void:
-	if get_tree() == null: return
+	if get_tree() == null:
+		return
+	get_tree().paused = false
 	get_tree().change_scene_to_file(path)
 
 # Save/Load
@@ -211,3 +218,9 @@ func enter_current_race() -> void:
 		return
 	# If not active yet, start from race 0 (uses your configured race_scene/tracks)
 	start_gp(0)
+
+func _go_to_world_map() -> void:
+	if world_map_scene != "":
+		call_deferred("_do_change_scene", world_map_scene)
+	else:
+		push_error("world_map_scene not set; cannot go to map")

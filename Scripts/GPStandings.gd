@@ -11,12 +11,12 @@ func _ready() -> void:
 
 	var gp = MidnightGrandPrix
 	var race_no = gp.current_index + 1
-	var total = gp.tracks.size()
+	var total = gp.race_count
 	lb_title.text = "Grand Prix Standings — Race %d / %d" % [race_no, total]
 
 	# Next track label
 	if gp.current_index + 1 < total:
-		lb_next.text = "Next: " + _nice_track_name(gp.tracks[gp.current_index + 1])
+		lb_next.text = "Next: " + _nice_track_name(gp.world_map_scene)
 	else:
 		lb_next.text = "Final results"
 
