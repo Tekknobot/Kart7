@@ -56,6 +56,8 @@ func _ready() -> void:
 @export var treeline_map: Dictionary = {}                                   # optional overrides: { "Tokyo": "res://custom/trees_tokyo.webp" or Texture2D }
 @export var default_treeline: Texture2D                                     # fallback if not found
 
+var _sky_night_mat: ShaderMaterial = null
+
 func Setup():
 	_rng.randomize()
 	if randomize_time_of_day_on_setup:
@@ -84,10 +86,9 @@ func MoveBackgroundElements(element : Sprite2D, mapRotation : float) -> void:
 # --- Modulation --------------------------------------------------------------
 
 func _apply_time_of_day_modulate() -> void:
-	# Compute targets (still used for clear color only)
+	# Pick target palettes
 	var sky_target := day_sky_color
 	var tree_target := day_tree_color
-
 	if time_of_day == TIME_DAWN:
 		sky_target  = dawn_sky_color
 		tree_target = dawn_tree_color
@@ -98,17 +99,17 @@ func _apply_time_of_day_modulate() -> void:
 		sky_target  = sunset_sky_color
 		tree_target = sunset_tree_color
 
-	# Mix only for the *engine clear color*, not for sprite tinting
+	# Mix toward targets by strength
 	var sky_mix  := _blend_color(Color(1,1,1,1), sky_target,  clamp(sky_strength,  0.0, 1.0))
 	var tree_mix := _blend_color(Color(1,1,1,1), tree_target, clamp(tree_strength, 0.0, 1.0))
 
-	# --- Do NOT tint sprites anymore; keep them unaffected ---
+	# --- Apply time-of-day modulation to sprites ---
 	if _skyLine != null:
-		_skyLine.modulate = Color(1,1,1,1)   # reset to identity
+		_skyLine.modulate = sky_mix
 	if _treeLine != null:
-		_treeLine.modulate = Color(1,1,1,1)  # reset to identity
+		_treeLine.modulate = tree_mix
 
-	# You can keep the clear color tied to time-of-day (optional)
+	# Optionally keep engine clear color tied to time-of-day
 	if match_clear_color_to_sky:
 		var cc := Color(sky_mix.r, sky_mix.g, sky_mix.b, 1.0)
 		if _use_night_clear:

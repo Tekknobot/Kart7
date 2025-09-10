@@ -1,4 +1,4 @@
-[gd_scene load_steps=34 format=3 uid="uid://dx0ficwyxnegg"]
+[gd_scene load_steps=35 format=3 uid="uid://dx0ficwyxnegg"]
 
 [ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_xvtyr"]
 [ext_resource type="PackedScene" uid="uid://4y14qyh1accq" path="res://Scenes/player.tscn" id="2_u7mjy"]
@@ -31,6 +31,8 @@
 [ext_resource type="Script" uid="uid://dcb4blo4uiyti" path="res://Scripts/PostRaceController.gd" id="29_5gwyn"]
 [ext_resource type="Script" uid="uid://c7rugtwfllds7" path="res://Scripts/SkidsOnTrackFromMinimap.gd" id="30_r6gtk"]
 [ext_resource type="Script" uid="uid://phcpocpluv50" path="res://Scripts/Transition.gd" id="31_81ldr"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_xvtyr"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_lhngl"]
 shader = ExtResource("10_6ehlx")
@@ -68,9 +70,8 @@ position = Vector2(80, 0)
 script = ExtResource("6_6heos")
 _skyLine = NodePath("Sky Line")
 _treeLine = NodePath("Tree Line")
-dawn_tree_color = Color(0.515495, 0.615132, 0.917415, 1)
-day_tree_color = Color(0.357682, 0.634844, 0.924233, 1)
-sunset_tree_color = Color(0.269072, 0.576876, 0.881599, 1)
+day_tree_color = Color(0.70173, 0.70173, 0.70173, 1)
+night_clear_chance = 0.75
 
 [node name="Background" type="Sprite2D" parent="Background Elements"]
 z_index = -1
@@ -81,6 +82,7 @@ texture = ExtResource("7_vvnwx")
 [node name="Sky Line" type="Sprite2D" parent="Background Elements"]
 texture_filter = 1
 texture_repeat = 2
+material = SubResource("ShaderMaterial_xvtyr")
 position = Vector2(-80, -16)
 scale = Vector2(2, 2)
 texture = ExtResource("8_btbly")

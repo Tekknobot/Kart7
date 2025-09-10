@@ -14,3 +14,5 @@ res://Scenes/opponent.tscn
 res://Scenes/standings.tscn
 res://Scenes/WorldMap.tscn
 res://Textures/VFX/StarNight.tscn
+res://Scripts/Shaders/NightSkylineTint.gdshader
+res://Scripts/On Screen Elements/BackgroundEffects.gd
