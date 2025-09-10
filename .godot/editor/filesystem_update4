@@ -20,3 +20,4 @@ res://Scenes/WorldMap.tscn
 res://Scripts/CharacterSelect.gd
 res://Scenes/Title.tscn
 res://Scripts/GPStandings.gd
+res://Textures/VFX/StarNight.tscn
