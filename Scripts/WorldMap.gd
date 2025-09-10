@@ -92,6 +92,13 @@ const CITY_DATA := [
 	{"name":"Tokyo", "lon":139.6917, "lat":35.6895},
 	{"name":"Sydney", "lon":151.2093, "lat":-33.8688},
 	{"name":"Toronto", "lon":-79.3832, "lat":43.6532},
+	{"name":"Babylon", "lon":44.4200, "lat":32.5364},                  # ruins near Hillah, Iraq
+	{"name":"Aurora Borealis", "lon":18.9553, "lat":69.6492}, # prime viewing hub in Norway
+	{"name":"Taj Mahal", "lon":78.0421, "lat":27.1751},               # Agra, India
+	{"name":"Giza", "lon":31.1342, "lat":29.9792},                    # Great Pyramid area, Egypt
+	{"name":"Nuwara Eliya", "lon":80.7891, "lat":6.9497},             # Sri Lanka highlands
+	{"name":"Keystone", "lon":-96.2775, "lat":36.1287}, # Keystone State Park (OK) coords
+	{"name":"Banff", "lon":-115.5708, "lat":51.1784},                 # Banff town, Alberta	
 ]
 
 var _rng := RandomNumberGenerator.new()
@@ -196,6 +203,41 @@ const CITY_FACTS := {
 		"The CN Tower was the tallest freestanding structure from 1976 to 2007.",
 		"The PATH is a 30+ km underground walkway network.",
 		"St. Lawrence Market is a celebrated 19th-century food hall."
+	],
+	"Babylon": [
+		"Ancient Mesopotamian city on the Euphrates near today’s Hillah, Iraq.",
+		"The Ishtar Gate was Babylon’s grand entrance; parts are reconstructed in Berlin’s Pergamon Museum.",
+		"Recognized as a UNESCO World Heritage Site in 2019."
+	],
+	"Aurora Borealis": [
+		"Tromsø lies under the auroral oval, so displays are frequent from roughly September to March.",
+		"Peak activity often clusters around the equinoxes due to geomagnetic conditions.",
+		"Auroras form when charged solar particles hit Earth’s magnetic field and upper atmosphere."
+	],
+	"Taj Mahal": [
+		"A white-marble mausoleum built by Shah Jahan for Mumtaz Mahal (construction ~1632–1653).",
+		"It sits on the Yamuna River and appears to change color with the light.",
+		"Listed as a UNESCO World Heritage Site in 1983."
+	],
+	"Giza": [
+		"The Giza Plateau hosts the Great Pyramid of Khufu, plus Khafre and Menkaure.",
+		"The Great Sphinx stands nearby, carved from a single limestone outcrop.",
+		"The Great Pyramid is the last surviving Wonder of the Ancient World."
+	],
+	"Nuwara Eliya": [
+		"Tea-country hill town nicknamed ‘Little England’ for its cool climate and colonial-era villas.",
+		"Elevation is roughly 1,868 meters, surrounded by rolling tea estates.",
+		"Gateway to Horton Plains National Park and the World’s End escarpment."
+	],
+	"Keystone": [
+		"Set on Keystone Lake west of Tulsa, with coves and wooded shoreline.",
+		"Popular for boating and fishing—catfish, crappie, and striped bass are common targets.",
+		"Trails and cabins sit among Cross Timbers woodlands and sandstone bluffs."
+	],
+	"Banff": [
+		"Banff National Park (est. 1885) is Canada’s first national park.",
+		"The town of Banff sits in the Bow Valley beneath the Rockies.",
+		"Iconic glacial lakes—like Lake Louise and Moraine Lake—are nearby."
 	],
 }
 
