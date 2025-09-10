@@ -220,6 +220,23 @@ func _ready() -> void:
 	queue_redraw()
 	
 	_rng.randomize()
+	
+	process_mode = Node.PROCESS_MODE_ALWAYS  # still receive input if something paused the tree
+	_ensure_ui_accept_binding()	
+
+func _ensure_ui_accept_binding() -> void:
+	if not InputMap.has_action("ui_accept"):
+		InputMap.add_action("ui_accept")
+
+	var has_gamepad := false
+	for ev in InputMap.action_get_events("ui_accept"):
+		if ev is InputEventJoypadButton and ev.button_index == JOY_BUTTON_A:  # 0 (South/A)
+			has_gamepad = true
+			break
+	if not has_gamepad:
+		var jb := InputEventJoypadButton.new()
+		jb.button_index = JOY_BUTTON_A
+		InputMap.action_add_event("ui_accept", jb)
 
 func _pick_city_fact(name: String) -> String:
 	if CITY_FACTS.has(name):
@@ -249,7 +266,7 @@ func _process(delta: float) -> void:
 			_pulse_t = pulse_time
 		queue_redraw()
 
-func _unhandled_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
 	# Enter / A button → go to main scene
 	if event.is_action_pressed("ui_accept"):
 		_go_to_main_scene()
@@ -263,35 +280,21 @@ func _unhandled_input(event: InputEvent) -> void:
 		_prev_city()
 		return
 
-	# Zoom keys
-	if event is InputEventKey and event.pressed and event.echo == false:
-		var k := (event as InputEventKey).keycode
-		if k == Key.KEY_EQUAL:
-			_zoom_in()
-			get_viewport().set_input_as_handled()
-			return
-		if k == Key.KEY_MINUS:
-			_zoom_out()
-			get_viewport().set_input_as_handled()
-			return
-
-	# Mouse wheel zoom
-	if event is InputEventMouseButton and event.pressed and event.is_echo() == false:
-		var b := (event as InputEventMouseButton).button_index
-		if b == MOUSE_BUTTON_WHEEL_UP:
-			_zoom_in()
-			get_viewport().set_input_as_handled()
-			return
-		if b == MOUSE_BUTTON_WHEEL_DOWN:
-			_zoom_out()
-			get_viewport().set_input_as_handled()
-			return
-
 func _go_to_main_scene() -> void:
-	var tree := get_tree()
-	if tree != null:
-		tree.change_scene_to_file("res://Scenes/Main.tscn")
-		MidnightGrandPrix.start_gp(0)
+	get_tree().paused = false
+	var gp := get_node_or_null("/root/MidnightGrandPrix")
+	if gp != null:
+		if not gp.active:
+			gp.race_scene = "res://Scenes/Main.tscn"
+			gp.race_count = 20
+			gp.grid_size  = 8
+			gp.start_gp(0)
+		else:
+			gp.enter_current_race()
+		return
+
+	# Fallback if autoload not present
+	get_tree().change_scene_to_file("res://Scenes/Main.tscn")
 
 func _draw() -> void:
 	# marker

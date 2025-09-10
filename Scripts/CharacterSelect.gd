@@ -51,13 +51,7 @@ func _ready() -> void:
 func _on_racer_pressed(name: String) -> void:
 	if Globals.has_method("set_selected_racer"):
 		Globals.set_selected_racer(name)
-
-		var list := PackedStringArray()
-		for i in range(20):
-			list.append("res://Scenes/Main.tscn")  # <- your main scene path
-		MidnightGrandPrix.tracks = list
-		MidnightGrandPrix.grid_size = 8            # 8 racers total
-				
+			
 	await _fade_to_scene(worldmap_scene_path)
 
 func _back() -> void:

@@ -6,6 +6,9 @@ extends Node
 @export var points_table: PackedInt32Array = PackedInt32Array([15,12,10,8,6,4,2,1])
 @export var auto_start := false   # keep OFF; we’ll start from a button while testing
 
+@export var race_scene: String = "res://Scenes/Main.tscn"  # single scene used every race
+@export var race_count: int = 20                           # how many races in the GP
+
 var active := false
 var current_index := 0
 var total_points := {}
@@ -26,11 +29,26 @@ func _ready() -> void:
 
 func start_gp(start_at := 0) -> void:
 	active = true
-	current_index = clamp(start_at, 0, max(0, tracks.size()-1))
-	total_points.clear(); stats.clear(); uid_display.clear(); last_gain.clear()
-	last_race_index = -1; player_uid = ""
+
+	var last_index := -1
+	if tracks.size() > 0:
+		last_index = tracks.size() - 1
+	else:
+		last_index = race_count - 1
+	if last_index < 0:
+		last_index = 0
+
+	current_index = clamp(start_at, 0, last_index)
+	total_points.clear()
+	stats.clear()
+	uid_display.clear()
+	last_gain.clear()
+	last_race_index = -1
+	player_uid = ""
+
 	emit_signal("gp_started", current_index)
 	_load_current_race()
+
 
 func on_race_finished(board: Array, navigate: bool = true) -> void:
 	if not active:
@@ -49,14 +67,22 @@ func on_race_finished(board: Array, navigate: bool = true) -> void:
 		_show_standings()  # does call_deferred -> change_scene_to_file(standings_scene)
 
 func continue_from_standings() -> void:
-	if current_index >= tracks.size() - 1:
+	var last_index := -1
+	if tracks.size() > 0:
+		last_index = tracks.size() - 1
+	else:
+		last_index = race_count - 1
+
+	if current_index >= last_index:
 		emit_signal("gp_finished", _leader_uid())
 		active = false
 		_save(true)
 		return
+
 	current_index += 1
 	_save(false)
 	_load_current_race()
+
 
 func standings_rows() -> Array:
 	var rows: Array = []
@@ -134,8 +160,14 @@ func _leader_uid() -> String:
 	return best
 
 func _load_current_race() -> void:
-	if current_index < 0 or current_index >= tracks.size(): return
-	call_deferred("_do_change_scene", tracks[current_index])
+	if tracks.size() > 0:
+		if current_index < 0 or current_index >= tracks.size():
+			return
+		call_deferred("_do_change_scene", tracks[current_index])
+	else:
+		if current_index < 0 or current_index >= race_count:
+			return
+		call_deferred("_do_change_scene", race_scene)
 
 func _show_standings() -> void:
 	call_deferred("_do_change_scene", standings_scene)
@@ -171,3 +203,11 @@ func load_save() -> bool:
 	grid_size = int(cfg.get_value("gp","grid", grid_size))
 	player_uid = String(cfg.get_value("gp","player_uid",""))
 	return true
+
+func enter_current_race() -> void:
+	# If a GP is already running, (re)enter the current race without resetting points
+	if active:
+		_load_current_race()
+		return
+	# If not active yet, start from race 0 (uses your configured race_scene/tracks)
+	start_gp(0)
