@@ -42,7 +42,7 @@ var _drift_dir := 0
 var _drift_charge := 0.0
 var _turbo_timer := 0.0
 var _base_sprite_offset_y := 0.0
-const FRAMES_PER_ROW := 16
+const FRAMES_PER_ROW := 12
 
 const TURN_STRAIGHT_INDEX := 0
 const TURN_INCREASES_TO_RIGHT := true
@@ -192,7 +192,7 @@ var _award_spin_phase := 0.0         # 0..N cycles
 var _award_spin_dir := 1             # +1 = right-first, -1 = left-first
 
 # === Award Spin (celebration) ===
-const AWARD_SPIN_ROTATIONS := 3.0   # exactly two full 360s
+const AWARD_SPIN_ROTATIONS := 2.0   # exactly two full 360s
 var _award_spin_elapsed := 0.0
 
 var _nitro_was_active := false
@@ -1336,15 +1336,25 @@ func _award_spin_start() -> void:
 	_is_award_spin = true
 	_award_spin_elapsed = 0.0
 
-	# pick spin direction from current steering (fallback to last drift side)
-	var steer_now := ReturnPlayerInput().x
-	var dir := 1
-	if steer_now < 0.0:
-		dir = -1
-	elif steer_now == 0.0:
-		if _drift_dir < 0:
+	var dir := 1  # +1 = right spin, -1 = left spin
+
+	# 1) If we were drifting, use that turn’s sign (most accurate).
+	if _drift_dir != 0:
+		dir = (-1 if _drift_dir < 0 else 1)
+	else:
+		# 2) Otherwise use the live steering input if it’s meaningful.
+		var steer_now := ReturnPlayerInput().x
+		var STEER_SPIN_THRESH := 0.12  # ignore tiny noise around center
+		if steer_now <= -STEER_SPIN_THRESH:
 			dir = -1
+		elif steer_now >=  STEER_SPIN_THRESH:
+			dir =  1
+		else:
+			# 3) Last resort: current visual lean.
+			dir = (-1 if _lean_left_visual else 1)
+
 	_award_spin_dir = dir
+
 
 func _award_spin_tick(dt: float) -> void:
 	if not _is_award_spin:
