@@ -177,8 +177,8 @@ var _nitro_prev_material: Material = null
 
 # --- Character color (Yoshi-style hue swap) ---
 @export_file("*.gdshader") var yoshi_shader_path: String = "res://Scripts/Shaders/YoshiSwap.gdshader"
-@export var yoshi_source_hue: float = 0.333333
-@export var yoshi_tolerance: float = 0.08
+@export var yoshi_source_hue: float = 0.97
+@export var yoshi_tolerance: float = 0.045
 @export var yoshi_edge_soft: float = 0.20
 var _yoshi_mat: ShaderMaterial = null
 

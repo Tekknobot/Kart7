@@ -20,3 +20,4 @@ res://Textures/VFX/StarNight.tscn
 res://Scripts/Shaders/YoshiColor.tres
 res://Scripts/RacerButton.gd
 res://Scripts/On Screen Elements/SpriteHandler.gd
+res://Scripts/General/Game.gd

@@ -26,8 +26,8 @@ var _player_freeze_frames := 0
 
 # Yoshi recolor shader for sprites
 @export_file("*.gdshader") var yoshi_shader_path: String = "res://Scripts/Shaders/YoshiSwap.gdshader"
-@export var src_hue: float   = 0.333333
-@export var hue_tol: float   = 0.08
+@export var src_hue: float   = 0.97
+@export var hue_tol: float   = 0.045
 @export var edge_soft: float = 0.20
 
 # Priming sheet (avoid 1-frame flash)
