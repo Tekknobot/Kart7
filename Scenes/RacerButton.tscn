@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3 uid="uid://c00id63cfavm2"]
+[gd_scene load_steps=18 format=3 uid="uid://c00id63cfavm2"]
 
 [ext_resource type="Script" uid="uid://bm73s7ojds8ud" path="res://Scripts/RacerButton.gd" id="1_i1aki"]
 [ext_resource type="Texture2D" uid="uid://d3mb73er1q712" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_01.png" id="3_3lfy4"]
@@ -10,7 +10,10 @@
 [ext_resource type="Texture2D" uid="uid://bdtxij0u2302n" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_07.png" id="9_r7mbh"]
 [ext_resource type="Texture2D" uid="uid://dg3lbiqtkg3f8" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_08.png" id="10_iagx7"]
 [ext_resource type="Texture2D" uid="uid://d4avr1yvciyxr" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_09.png" id="11_u6qbl"]
+[ext_resource type="Texture2D" uid="uid://dn27wljjg4qt1" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_10.png" id="12_i1aki"]
+[ext_resource type="Texture2D" uid="uid://daepqdvjd4a88" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_11.png" id="13_o6hd4"]
 [ext_resource type="FontFile" uid="uid://buw362wjb8o8d" path="res://Fonts/magofonts/mago2.ttf" id="13_uiqbj"]
+[ext_resource type="Texture2D" uid="uid://dianxxu2j0a06" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_12.png" id="14_u330m"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_i1aki"]
 bg_color = Color(0.6, 0.6, 0.6, 0)
@@ -49,6 +52,15 @@ animations = [{
 }, {
 "duration": 1.0,
 "texture": ExtResource("11_u6qbl")
+}, {
+"duration": 1.0,
+"texture": ExtResource("12_i1aki")
+}, {
+"duration": 1.0,
+"texture": ExtResource("13_o6hd4")
+}, {
+"duration": 1.0,
+"texture": ExtResource("14_u330m")
 }],
 "loop": true,
 "name": &"Rotate",
@@ -56,7 +68,7 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": ExtResource("11_u6qbl")
+"texture": ExtResource("14_u330m")
 }],
 "loop": true,
 "name": &"default",
