@@ -1,18 +1,15 @@
-[gd_scene load_steps=18 format=3 uid="uid://c00id63cfavm2"]
+[gd_scene load_steps=15 format=3 uid="uid://c00id63cfavm2"]
 
 [ext_resource type="Script" uid="uid://bm73s7ojds8ud" path="res://Scripts/RacerButton.gd" id="1_i1aki"]
-[ext_resource type="Texture2D" uid="uid://dk78v6j7pkaou" path="res://Textures/Racers/PNG/Yoshi/Yoshi_Back_1.png" id="1_sglre"]
-[ext_resource type="Texture2D" uid="uid://bfog1copxys7y" path="res://Textures/Racers/PNG/Yoshi/Yoshi_Back_2.png" id="2_i1aki"]
-[ext_resource type="Texture2D" uid="uid://stlhr6gjgd1w" path="res://Textures/Racers/PNG/Yoshi/Yoshi_Back_3.png" id="3_o6hd4"]
-[ext_resource type="Texture2D" uid="uid://dtwcdaxhgmaqj" path="res://Textures/Racers/PNG/Yoshi/Yoshi_Back_4.png" id="4_u330m"]
-[ext_resource type="Texture2D" uid="uid://b553njduortb2" path="res://Textures/Racers/PNG/Yoshi/Yoshi_Back_5.png" id="5_r7mbh"]
-[ext_resource type="Texture2D" uid="uid://sjleicuqadjx" path="res://Textures/Racers/PNG/Yoshi/Yoshi_Back_6.png" id="6_iagx7"]
-[ext_resource type="Texture2D" uid="uid://b7kwrnoyi2b5j" path="res://Textures/Racers/PNG/Yoshi/Yoshi_Back_7.png" id="7_u6qbl"]
-[ext_resource type="Texture2D" uid="uid://1h3u4mwk4xfj" path="res://Textures/Racers/PNG/Yoshi/Yoshi_Back_8.png" id="8_p6xwy"]
-[ext_resource type="Texture2D" uid="uid://cxcgyala0xkg3" path="res://Textures/Racers/PNG/Yoshi/Yoshi_Back_9.png" id="9_3vfdl"]
-[ext_resource type="Texture2D" uid="uid://blsreg5uhotds" path="res://Textures/Racers/PNG/Yoshi/Yoshi_Back_10.png" id="10_uyn7w"]
-[ext_resource type="Texture2D" uid="uid://0xdw4c7c7fmb" path="res://Textures/Racers/PNG/Yoshi/Yoshi_Back_11.png" id="11_fmnf1"]
-[ext_resource type="Texture2D" uid="uid://b0q3wi23oovlf" path="res://Textures/Racers/PNG/Yoshi/Yoshi_Back_12.png" id="12_3c8tq"]
+[ext_resource type="Texture2D" uid="uid://d3mb73er1q712" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_01.png" id="3_3lfy4"]
+[ext_resource type="Texture2D" uid="uid://bk63ne128gwp1" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_02.png" id="4_b4gbh"]
+[ext_resource type="Texture2D" uid="uid://bsndcaqrfuh0f" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_03.png" id="5_sglre"]
+[ext_resource type="Texture2D" uid="uid://4tka6wdqnd4p" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_04.png" id="6_i1aki"]
+[ext_resource type="Texture2D" uid="uid://s081n3ffbceu" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_05.png" id="7_o6hd4"]
+[ext_resource type="Texture2D" uid="uid://dao34r0jk0su2" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_06.png" id="8_u330m"]
+[ext_resource type="Texture2D" uid="uid://bdtxij0u2302n" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_07.png" id="9_r7mbh"]
+[ext_resource type="Texture2D" uid="uid://dg3lbiqtkg3f8" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_08.png" id="10_iagx7"]
+[ext_resource type="Texture2D" uid="uid://d4avr1yvciyxr" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_09.png" id="11_u6qbl"]
 [ext_resource type="FontFile" uid="uid://buw362wjb8o8d" path="res://Fonts/magofonts/mago2.ttf" id="13_uiqbj"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_i1aki"]
@@ -27,40 +24,31 @@ Button/styles/normal = SubResource("StyleBoxFlat_i1aki")
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": ExtResource("1_sglre")
+"texture": ExtResource("3_3lfy4")
 }, {
 "duration": 1.0,
-"texture": ExtResource("2_i1aki")
+"texture": ExtResource("4_b4gbh")
 }, {
 "duration": 1.0,
-"texture": ExtResource("3_o6hd4")
+"texture": ExtResource("5_sglre")
 }, {
 "duration": 1.0,
-"texture": ExtResource("4_u330m")
+"texture": ExtResource("6_i1aki")
 }, {
 "duration": 1.0,
-"texture": ExtResource("5_r7mbh")
+"texture": ExtResource("7_o6hd4")
 }, {
 "duration": 1.0,
-"texture": ExtResource("6_iagx7")
+"texture": ExtResource("8_u330m")
 }, {
 "duration": 1.0,
-"texture": ExtResource("7_u6qbl")
+"texture": ExtResource("9_r7mbh")
 }, {
 "duration": 1.0,
-"texture": ExtResource("8_p6xwy")
+"texture": ExtResource("10_iagx7")
 }, {
 "duration": 1.0,
-"texture": ExtResource("9_3vfdl")
-}, {
-"duration": 1.0,
-"texture": ExtResource("10_uyn7w")
-}, {
-"duration": 1.0,
-"texture": ExtResource("11_fmnf1")
-}, {
-"duration": 1.0,
-"texture": ExtResource("12_3c8tq")
+"texture": ExtResource("11_u6qbl")
 }],
 "loop": true,
 "name": &"Rotate",
@@ -68,7 +56,7 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": ExtResource("8_p6xwy")
+"texture": ExtResource("11_u6qbl")
 }],
 "loop": true,
 "name": &"default",

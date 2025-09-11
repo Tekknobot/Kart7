@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://cq2qm30peuh2" path="res://Scripts/World Elements/Racers/Opponent.gd" id="1_rx6yg"]
 [ext_resource type="FontFile" uid="uid://buw362wjb8o8d" path="res://Fonts/magofonts/mago2.ttf" id="2_cyera"]
-[ext_resource type="Texture2D" uid="uid://bvioi2jfn2hmv" path="res://Textures/Racers/Yoshi Back.png" id="3_t8iht"]
+[ext_resource type="Texture2D" uid="uid://chp83vpu20vmp" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PZM_Car01_.png" id="3_rx6yg"]
 [ext_resource type="Script" uid="uid://jwsfedkwc2mf" path="res://Scripts/KartSFX.gd" id="4_rsahb"]
 [ext_resource type="AudioStream" uid="uid://dao0xo2qdbnow" path="res://Audio/pSE_EG_IDLE_B_AMB.wav" id="5_ttmly"]
 [ext_resource type="AudioStream" uid="uid://bdu3ele2dkq3w" path="res://Audio/pSE_EG_LOOP_B_AMB.wav" id="6_i4xd2"]
@@ -88,7 +88,7 @@ _spriteGFX = NodePath("GFX/AngleSprite")
 
 [node name="AngleSprite" type="Sprite2D" parent="GFX"]
 z_index = -1
-texture = ExtResource("3_t8iht")
+texture = ExtResource("3_rx6yg")
 
 [node name="Road Type Effects" type="Node2D" parent="."]
 

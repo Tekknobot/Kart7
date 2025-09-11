@@ -4,8 +4,8 @@
 
 [resource]
 shader = ExtResource("1_4mq47")
-shader_parameter/src_hue = 0.33
-shader_parameter/hue_tol = 0.12
+shader_parameter/src_hue = 0.97
+shader_parameter/hue_tol = 0.045
 shader_parameter/edge_soft = 0.2
 shader_parameter/white_sat_max = 0.18
 shader_parameter/white_sat_soft = 0.08

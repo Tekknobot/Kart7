@@ -42,7 +42,7 @@ var _drift_dir := 0
 var _drift_charge := 0.0
 var _turbo_timer := 0.0
 var _base_sprite_offset_y := 0.0
-const FRAMES_PER_ROW := 12
+const FRAMES_PER_ROW := 16
 
 const TURN_STRAIGHT_INDEX := 0
 const TURN_INCREASES_TO_RIGHT := true

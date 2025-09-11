@@ -1444,14 +1444,23 @@ func _attach_yoshi_shader(opp: WorldElement, color_key: String) -> void:
 		col = _YOSHI_COLORS[color_key]
 	mat.set_shader_parameter("target_color", col)
 
-	# Defaults tuned for “green” source paint; tweak if your sheet differs
-	mat.set_shader_parameter("src_hue", 0.33)
-	mat.set_shader_parameter("hue_tol", 0.12)
-	mat.set_shader_parameter("sat_min", 0.25)
-	mat.set_shader_parameter("val_min", 0.12)
+	# Defaults tuned for RED source paint (your sheet)
+	mat.set_shader_parameter("src_hue", 0.97)      # ≈350° wrap-safe
+	mat.set_shader_parameter("hue_tol", 0.045)     # 0.035–0.06 depending on highlight capture
 	mat.set_shader_parameter("edge_soft", 0.20)
-	mat.set_shader_parameter("sat_boost", 1.00)
-	mat.set_shader_parameter("val_mix", 0.50)
+
+	# keep these guards if your shader exposes them
+	if mat.shader.has_param("sat_min"):      mat.set_shader_parameter("sat_min", 0.28)
+	if mat.shader.has_param("val_min"):      mat.set_shader_parameter("val_min", 0.14)
+	if mat.shader.has_param("white_sat_max"):mat.set_shader_parameter("white_sat_max", 0.18)
+	if mat.shader.has_param("white_sat_soft"):mat.set_shader_parameter("white_sat_soft", 0.08)
+	if mat.shader.has_param("black_val_max"):mat.set_shader_parameter("black_val_max", 0.18)
+	if mat.shader.has_param("black_val_soft"):mat.set_shader_parameter("black_val_soft", 0.10)
+	if mat.shader.has_param("chroma_min"):   mat.set_shader_parameter("chroma_min", 0.06)
+	if mat.shader.has_param("chroma_soft"):  mat.set_shader_parameter("chroma_soft", 0.06)
+	if mat.shader.has_param("sat_boost"):    mat.set_shader_parameter("sat_boost", 1.00)
+	if mat.shader.has_param("val_mix"):      mat.set_shader_parameter("val_mix", 0.50)
+
 
 	# Apply to Sprite2D (grid frames, not regions)
 	if spr is Sprite2D:

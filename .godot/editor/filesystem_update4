@@ -1,4 +1,4 @@
-res://Scenes/Main.tscn
+res://Scenes/player.tscn
 res://Scripts/Shaders/ModeSeven.gdshader
 res://Scripts/Shaders/FinishFlag.gdshader
 res://Scripts/Shaders/GasDistort.gdshader
@@ -7,13 +7,16 @@ res://Scripts/Shaders/Tunnel.gdshader
 res://Scripts/Shaders/NitroPulse.gdshader
 res://Scripts/Shaders/OpponentNitroPulse.gdshader
 res://Scripts/Shaders/WindPixel2D.gdshader
+res://Scripts/Shaders/NightSkylineTint.gdshader
+res://Scripts/World Elements/Racers/Player.gd
+res://Scenes/RacerButton.tscn
+res://Scenes/Main.tscn
 res://Scenes/Title.tscn
 res://Scenes/CharacterSelect.tscn
-res://Scenes/player.tscn
 res://Scenes/opponent.tscn
 res://Scenes/standings.tscn
 res://Scenes/WorldMap.tscn
 res://Textures/VFX/StarNight.tscn
-res://Scripts/Shaders/NightSkylineTint.gdshader
-res://Scripts/On Screen Elements/BackgroundEffects.gd
-res://Scripts/WorldMap.gd
+res://Scripts/Shaders/YoshiColor.tres
+res://Scripts/RacerButton.gd
+res://Scripts/On Screen Elements/SpriteHandler.gd

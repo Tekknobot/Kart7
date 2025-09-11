@@ -1,8 +1,8 @@
 shader_type canvas_item;
 
-// --- detect source green band ---
-uniform float src_hue  : hint_range(0.0, 1.0) = 0.33;  // ~120°
-uniform float hue_tol  : hint_range(0.0, 0.5) = 0.12;
+// --- detect source *red* band (calibrated from your sprite: ~350°) ---
+uniform float src_hue  : hint_range(0.0, 1.0) = 0.97;  // ≈ 350° (wrap-safe)
+uniform float hue_tol  : hint_range(0.0, 0.5) = 0.045;  // tighter around that red
 uniform float edge_soft : hint_range(0.0, 1.0) = 0.20;
 
 // --- HARD protection against whites / blacks (soft edges) ---
@@ -12,12 +12,12 @@ uniform float white_sat_soft : hint_range(0.0, 0.5) = 0.08;
 uniform float black_val_max  : hint_range(0.0, 1.0) = 0.18; // raised to protect dark rubber
 uniform float black_val_soft : hint_range(0.0, 0.5) = 0.10;
 
-// --- NEW: chroma gate (protect near-greys / low-contrast rubber) ---
+// --- chroma gate (protect near-greys / low-contrast rubber) ---
 uniform float chroma_min     : hint_range(0.0, 1.0) = 0.06; // max(rgb)-min(rgb)
 uniform float chroma_soft    : hint_range(0.0, 0.5) = 0.06;
 
 // --- softer paint gates ---
-uniform float sat_min : hint_range(0.0, 1.0) = 0.28;  // a touch stricter
+uniform float sat_min : hint_range(0.0, 1.0) = 0.28;
 uniform float val_min : hint_range(0.0, 1.0) = 0.14;
 
 // --- target color & shading preservation ---
@@ -41,7 +41,7 @@ vec3 hsv2rgb(vec3 c){
 }
 float hue_dist(float a, float b){
 	float d = abs(a - b);
-	return min(d, 1.0 - d);
+	return min(d, 1.0 - d); // wrap-safe distance
 }
 
 void fragment(){
@@ -49,15 +49,15 @@ void fragment(){
 	vec3 rgb = tex.rgb;
 	vec3 hsv = rgb2hsv(rgb);
 
-	// hue proximity (green band)
+	// hue proximity (red band)
 	float dh = hue_dist(hsv.x, src_hue);
 	float hue_mask = smoothstep(hue_tol + edge_soft, hue_tol, dh);
 
 	// protect whites (low S) and blacks (low V) with soft ramps
 	float not_white = smoothstep(white_sat_max, white_sat_max + white_sat_soft, hsv.y);
-	float not_black = smoothstep(black_val_max, black_val_max + black_val_soft, hsv.z);
+	float not_black = smoothstep(black_val_max,  black_val_max  + black_val_soft, hsv.z);
 
-	// NEW: protect low-chroma (rubber/greys). Chroma = max(rgb) - min(rgb).
+	// protect low-chroma (rubber/greys). Chroma = max(rgb) - min(rgb).
 	float mx = max(rgb.r, max(rgb.g, rgb.b));
 	float mn = min(rgb.r, min(rgb.g, rgb.b));
 	float chroma = mx - mn;

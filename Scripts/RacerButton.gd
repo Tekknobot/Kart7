@@ -12,8 +12,8 @@ class_name RacerButton
 # tint + shader options
 @export var tint_color: Color = Color(1,1,1,1)
 @export_file("*.gdshader") var yoshi_shader_path: String = "res://Scripts/Shaders/YoshiSwap.gdshader"
-@export var yoshi_source_hue: float = 0.333333
-@export var yoshi_tolerance: float = 0.08
+@export var yoshi_source_hue: float = 0.97
+@export var yoshi_tolerance: float = 0.045
 @export var yoshi_strength: float = 1.0
 
 @onready var sprite: AnimatedSprite2D = $Sprite
