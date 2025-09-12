@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://cq2qm30peuh2" path="res://Scripts/World Elements/Racers/Opponent.gd" id="1_rx6yg"]
 [ext_resource type="FontFile" uid="uid://buw362wjb8o8d" path="res://Fonts/magofonts/mago2.ttf" id="2_cyera"]
-[ext_resource type="Texture2D" uid="uid://chp83vpu20vmp" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PZM_Car01_.png" id="3_rx6yg"]
+[ext_resource type="Texture2D" uid="uid://be3tjjb2isjnd" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PZM_Car01_-Sheet.png" id="3_rx6yg"]
 [ext_resource type="Script" uid="uid://jwsfedkwc2mf" path="res://Scripts/KartSFX.gd" id="4_rsahb"]
 [ext_resource type="AudioStream" uid="uid://dao0xo2qdbnow" path="res://Audio/pSE_EG_IDLE_B_AMB.wav" id="5_ttmly"]
 [ext_resource type="AudioStream" uid="uid://bdu3ele2dkq3w" path="res://Audio/pSE_EG_LOOP_B_AMB.wav" id="6_i4xd2"]

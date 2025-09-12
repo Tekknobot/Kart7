@@ -1,7 +1,7 @@
 [gd_scene load_steps=11 format=3 uid="uid://4y14qyh1accq"]
 
 [ext_resource type="Script" uid="uid://by6cg8pjfml46" path="res://Scripts/World Elements/Racers/Player.gd" id="1_gymyn"]
-[ext_resource type="Texture2D" uid="uid://chp83vpu20vmp" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PZM_Car01_.png" id="3_gymyn"]
+[ext_resource type="Texture2D" uid="uid://be3tjjb2isjnd" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PZM_Car01_-Sheet.png" id="2_gymyn"]
 [ext_resource type="Script" uid="uid://jwsfedkwc2mf" path="res://Scripts/KartSFX.gd" id="4_7dp3o"]
 [ext_resource type="AudioStream" uid="uid://dao0xo2qdbnow" path="res://Audio/pSE_EG_IDLE_B_AMB.wav" id="5_h4iuc"]
 [ext_resource type="AudioStream" uid="uid://bdu3ele2dkq3w" path="res://Audio/pSE_EG_LOOP_B_AMB.wav" id="6_fd4e3"]
@@ -47,7 +47,7 @@ z_index = 4096
 z_as_relative = false
 texture_filter = 1
 scale = Vector2(3, 3)
-texture = ExtResource("3_gymyn")
+texture = ExtResource("2_gymyn")
 region_enabled = true
 region_rect = Rect2(0, 0, 32, 32)
 
@@ -55,7 +55,7 @@ region_rect = Rect2(0, 0, 32, 32)
 
 [node name="AngleSprite" type="Sprite2D" parent="GFX2"]
 z_index = 4096
-texture = ExtResource("3_gymyn")
+texture = ExtResource("2_gymyn")
 
 [node name="Road Type Effects" type="Node2D" parent="."]
 

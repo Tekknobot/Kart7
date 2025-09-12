@@ -1,19 +1,19 @@
 [gd_scene load_steps=18 format=3 uid="uid://c00id63cfavm2"]
 
 [ext_resource type="Script" uid="uid://bm73s7ojds8ud" path="res://Scripts/RacerButton.gd" id="1_i1aki"]
-[ext_resource type="Texture2D" uid="uid://d3mb73er1q712" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_01.png" id="3_3lfy4"]
-[ext_resource type="Texture2D" uid="uid://bk63ne128gwp1" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_02.png" id="4_b4gbh"]
-[ext_resource type="Texture2D" uid="uid://bsndcaqrfuh0f" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_03.png" id="5_sglre"]
-[ext_resource type="Texture2D" uid="uid://4tka6wdqnd4p" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_04.png" id="6_i1aki"]
-[ext_resource type="Texture2D" uid="uid://s081n3ffbceu" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_05.png" id="7_o6hd4"]
-[ext_resource type="Texture2D" uid="uid://dao34r0jk0su2" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_06.png" id="8_u330m"]
-[ext_resource type="Texture2D" uid="uid://bdtxij0u2302n" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_07.png" id="9_r7mbh"]
-[ext_resource type="Texture2D" uid="uid://dg3lbiqtkg3f8" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_08.png" id="10_iagx7"]
-[ext_resource type="Texture2D" uid="uid://d4avr1yvciyxr" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_09.png" id="11_u6qbl"]
-[ext_resource type="Texture2D" uid="uid://dn27wljjg4qt1" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_10.png" id="12_i1aki"]
-[ext_resource type="Texture2D" uid="uid://daepqdvjd4a88" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_11.png" id="13_o6hd4"]
+[ext_resource type="Texture2D" uid="uid://p4p7alalfk00" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL1.png" id="3_i1aki"]
+[ext_resource type="Texture2D" uid="uid://b822gm4k1y3wt" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL2.png" id="4_o6hd4"]
+[ext_resource type="Texture2D" uid="uid://dcwoenqqdf675" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL3.png" id="5_u330m"]
+[ext_resource type="Texture2D" uid="uid://dd1ibd7pnq6ec" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL4.png" id="6_r7mbh"]
+[ext_resource type="Texture2D" uid="uid://dis6mmqyi4tqh" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL5.png" id="7_iagx7"]
+[ext_resource type="Texture2D" uid="uid://bbwb8nbg0fn6t" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL6.png" id="8_u6qbl"]
+[ext_resource type="Texture2D" uid="uid://4fpybri0h5ss" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL7.png" id="9_p6xwy"]
+[ext_resource type="Texture2D" uid="uid://bhlmmc4dmlpt8" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL8.png" id="10_3vfdl"]
+[ext_resource type="Texture2D" uid="uid://b8k0hct3rdpge" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL9.png" id="11_uyn7w"]
+[ext_resource type="Texture2D" uid="uid://38l2fsmcxunk" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL10.png" id="12_fmnf1"]
+[ext_resource type="Texture2D" uid="uid://yeegq1jah4tf" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL11.png" id="13_3c8tq"]
 [ext_resource type="FontFile" uid="uid://buw362wjb8o8d" path="res://Fonts/magofonts/mago2.ttf" id="13_uiqbj"]
-[ext_resource type="Texture2D" uid="uid://dianxxu2j0a06" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_12.png" id="14_u330m"]
+[ext_resource type="Texture2D" uid="uid://bfl1dihgmyt1s" path="res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL12.png" id="14_uiqbj"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_i1aki"]
 bg_color = Color(0.6, 0.6, 0.6, 0)
@@ -27,40 +27,40 @@ Button/styles/normal = SubResource("StyleBoxFlat_i1aki")
 animations = [{
 "frames": [{
 "duration": 1.0,
-"texture": ExtResource("3_3lfy4")
+"texture": ExtResource("3_i1aki")
 }, {
 "duration": 1.0,
-"texture": ExtResource("4_b4gbh")
+"texture": ExtResource("4_o6hd4")
 }, {
 "duration": 1.0,
-"texture": ExtResource("5_sglre")
+"texture": ExtResource("5_u330m")
 }, {
 "duration": 1.0,
-"texture": ExtResource("6_i1aki")
+"texture": ExtResource("6_r7mbh")
 }, {
 "duration": 1.0,
-"texture": ExtResource("7_o6hd4")
+"texture": ExtResource("7_iagx7")
 }, {
 "duration": 1.0,
-"texture": ExtResource("8_u330m")
+"texture": ExtResource("8_u6qbl")
 }, {
 "duration": 1.0,
-"texture": ExtResource("9_r7mbh")
+"texture": ExtResource("9_p6xwy")
 }, {
 "duration": 1.0,
-"texture": ExtResource("10_iagx7")
+"texture": ExtResource("10_3vfdl")
 }, {
 "duration": 1.0,
-"texture": ExtResource("11_u6qbl")
+"texture": ExtResource("11_uyn7w")
 }, {
 "duration": 1.0,
-"texture": ExtResource("12_i1aki")
+"texture": ExtResource("12_fmnf1")
 }, {
 "duration": 1.0,
-"texture": ExtResource("13_o6hd4")
+"texture": ExtResource("13_3c8tq")
 }, {
 "duration": 1.0,
-"texture": ExtResource("14_u330m")
+"texture": ExtResource("14_uiqbj")
 }],
 "loop": true,
 "name": &"Rotate",
@@ -68,7 +68,7 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": ExtResource("14_u330m")
+"texture": ExtResource("14_uiqbj")
 }],
 "loop": true,
 "name": &"default",
