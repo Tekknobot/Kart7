@@ -58,6 +58,8 @@ func _ready() -> void:
 
 var _sky_night_mat: ShaderMaterial = null
 
+@export var pseudo3d_path: NodePath  # assign your Pseudo3D Sprite2D here
+
 func Setup():
 	_rng.randomize()
 	if randomize_time_of_day_on_setup:
@@ -103,11 +105,14 @@ func _apply_time_of_day_modulate() -> void:
 	var sky_mix  := _blend_color(Color(1,1,1,1), sky_target,  clamp(sky_strength,  0.0, 1.0))
 	var tree_mix := _blend_color(Color(1,1,1,1), tree_target, clamp(tree_strength, 0.0, 1.0))
 
-	# --- Apply time-of-day modulation to sprites ---
-	if _skyLine != null:
-		_skyLine.modulate = sky_mix
-	if _treeLine != null:
-		_treeLine.modulate = tree_mix
+	# Apply to sprites (already in your code)
+	if _skyLine != null:  _skyLine.modulate  = sky_mix
+	if _treeLine != null: _treeLine.modulate = tree_mix
+
+	# Apply the SAME tint to the map shader
+	var map_node := get_node_or_null(pseudo3d_path)
+	if map_node != null and map_node.has_method("SetMapTint"):
+		map_node.call("SetMapTint", sky_mix, sky_strength)  # reuse same strength
 
 	# Optionally keep engine clear color tied to time-of-day
 	if match_clear_color_to_sky:

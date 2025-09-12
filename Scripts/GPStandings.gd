@@ -19,10 +19,10 @@ func _ready() -> void:
 
 	# Title + "next" text depend on whether this was a replay
 	if gp.last_race_was_replay:
-		lb_title.text = "Grand Prix Standings — Replay: Race %d / %d (no points)" % [race_no, total]
+		lb_title.text = "Grand Prix Standings -- Replay: Race %d / %d (no points)" % [race_no, total]
 		lb_next.text = "Return to map"
 	else:
-		lb_title.text = "Grand Prix Standings — Race %d / %d" % [race_no, total]
+		lb_title.text = "Grand Prix Standings -- Race %d / %d" % [race_no, total]
 		if gp.current_index + 1 < total:
 			lb_next.text = "Next: " + _nice_track_name(gp.world_map_scene)
 		else:

@@ -2,25 +2,33 @@ shader_type canvas_item;
 
 uniform sampler2D trackTexture : filter_nearest, repeat_disable;
 uniform sampler2D grassTexture : filter_nearest, repeat_enable;
-uniform sampler2D pathOverlay  : hint_default_black, filter_nearest, repeat_disable; // bound SubViewport (1024x1024)
+uniform sampler2D pathOverlay  : hint_default_black, filter_nearest, repeat_disable; // bound SubViewport (e.g. 1024x1024)
 uniform mat3 mapMatrix;
 
 uniform float overlay_strength = 1.0; // 0..1, scales skid visibility
 
+// --- NEW: time-of-day / global tint (same look as BackgroundEffects) ---
+uniform vec4  mapTint           : source_color = vec4(1.0, 1.0, 1.0, 1.0); // tint color
+uniform float mapTintStrength   : hint_range(0.0, 1.0) = 1.0;              // 0=no tint, 1=full
+uniform bool  tintOutsideGrass  = true;                                     // false = tint only track area
+
 void fragment()
 {
-    vec3 uv = mapMatrix * vec3(UV - vec2(0.5), 1.0);
-    if (uv.z < 0.0) {
+    // Project map-space (Mode 7) UV through view matrix
+    vec3 uvh = mapMatrix * vec3(UV - vec2(0.5), 1.0);
+    if (uvh.z <= 0.0) {
         discard;
     }
+    vec2 projectedUV = uvh.xy / uvh.z;
 
-    vec2 projectedUV = uv.xy / uv.z;
+    // Inside = track UV region [0..1]^2, otherwise sample tiled grass
+    bool inside = (projectedUV.x >= 0.0 && projectedUV.x <= 1.0 &&
+                   projectedUV.y >= 0.0 && projectedUV.y <= 1.0);
 
     vec4 texColor;
     float tileScale = float(textureSize(trackTexture, 0).x) / float(textureSize(grassTexture, 0).x);
 
-    // Track/grass selection
-    if (projectedUV.x < 0.0 || projectedUV.x > 1.0 || projectedUV.y < 0.0 || projectedUV.y > 1.0) {
+    if (!inside) {
         vec2 grassUV = fract(projectedUV * tileScale);
         texColor = texture(grassTexture, grassUV);
     } else {
@@ -31,16 +39,20 @@ void fragment()
         discard;
     }
 
-    // --- Overlay (skid marks) in the SAME projected space as the track ----
-    vec4 overlay = vec4(0.0);
-    if (projectedUV.x >= 0.0 && projectedUV.x <= 1.0 && projectedUV.y >= 0.0 && projectedUV.y <= 1.0) {
-        overlay = texture(pathOverlay, projectedUV);
+    // Overlay (skid marks) sampled in the same projected space as the track
+    if (inside) {
+        vec4 overlay = texture(pathOverlay, projectedUV);
+        float a = overlay.a * overlay_strength;
+        if (a > 0.0) {
+            texColor.rgb = mix(texColor.rgb, overlay.rgb, a);
+        }
     }
 
-    // Paint overlay color on top (your Node2D draws black/colored lines into the SubViewport)
-    float a = overlay.a * overlay_strength;
-    if (a > 0.0) {
-        texColor.rgb = mix(texColor.rgb, overlay.rgb, a);
+    // --- Apply the same time-of-day tint as BackgroundEffects ---
+    // Multiply-style tint (matches Sprite2D.modulate), blended by mapTintStrength.
+    if (tintOutsideGrass || inside) {
+        vec3 tinted = texColor.rgb * mapTint.rgb;
+        texColor.rgb = mix(texColor.rgb, tinted, mapTintStrength);
     }
 
     COLOR = texColor;

@@ -60,6 +60,15 @@ var REARVIEW_ACTION: StringName = "RearView"
 @export var player_frames_half_turn := true      # true = frames cover ~180° then mirror
 @export var player_halfturn_frames  : int = 12   # your sheet’s columns for the half-turn
 
+@export var map_tint_strength: float = 1.0  # 0..1
+@export var tint_outside_grass: bool = true
+
+func SetMapTint(col: Color, strength: float = map_tint_strength) -> void:
+	if material == null: return
+	material.set_shader_parameter("mapTint", col)
+	material.set_shader_parameter("mapTintStrength", clamp(strength, 0.0, 1.0))
+	material.set_shader_parameter("tintOutsideGrass", tint_outside_grass)
+
 func _rearview_on() -> bool:
 	return Input.is_action_pressed(REARVIEW_ACTION)
 
