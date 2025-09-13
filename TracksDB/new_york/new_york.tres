@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TrackConfig" load_steps=5 format=3 uid="uid://b1c4iyf6iyvn4"]
+
+[ext_resource type="Texture2D" uid="uid://ctj5u2thsothk" path="res://Textures/Tracks/My Tracks/Track_07_Road.png" id="1_ilmtx"]
+[ext_resource type="Texture2D" uid="uid://baswq6uaio1tg" path="res://Textures/Tracks/Grass/Grass_Tile_02.png" id="2_86wf1"]
+[ext_resource type="Script" uid="uid://0mvsc0fipym0" path="res://Scripts/TrackConfig.gd" id="3_tu75h"]
+[ext_resource type="Texture2D" uid="uid://dt7rpf61qxyg5" path="res://Textures/Tracks/My Tracks/Track_07.png" id="4_h6hld"]
+
+[resource]
+script = ExtResource("3_tu75h")
+display_name = "New York"
+track_texture = ExtResource("4_h6hld")
+grass_texture = ExtResource("2_86wf1")
+collision_map = ExtResource("1_ilmtx")
+tint_color = Color(1, 1, 1, 1)
+tint_strength = 0.0
+path_points_uv = PackedVector2Array(919, 583, 919, 72, 72, 300, 62, 852, 546, 728, 618, 806, 618, 950, 919, 950)
+metadata/_custom_type_script = "uid://0mvsc0fipym0"

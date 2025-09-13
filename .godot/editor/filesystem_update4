@@ -17,3 +17,4 @@ res://Scenes/standings.tscn
 res://Textures/VFX/StarNight.tscn
 res://Scenes/RacerButton.tscn
 res://Scripts/WorldMap.gd
+res://TracksDB/new_york/new_york.tres
