@@ -13,5 +13,5 @@ grass_texture = ExtResource("2_awwby")
 collision_map = ExtResource("1_5up70")
 tint_color = Color(1, 1, 1, 1)
 tint_strength = 0.0
-path_points_uv = PackedVector2Array(920, 556, 920, 90, 772, 90, 772, 781, 238, 781, 238, 602, 593, 602, 593, 90, 80, 90, 80, 1000, 920, 1000)
+path_points_uv = PackedVector2Array(920, 556, 920, 80, 772, 80, 772, 710, 238, 710, 238, 602, 593, 602, 593, 80, 80, 80, 80, 950, 920, 950)
 metadata/_custom_type_script = "uid://0mvsc0fipym0"
