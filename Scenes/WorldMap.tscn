@@ -17,7 +17,9 @@ script = ExtResource("1_h0vor")
 map_size = Vector2i(1280, 640)
 pixel_size = 1
 pixel_color = Color(0.505882, 0.737255, 0.505882, 1)
+background_color = Color(0.105614, 0.105614, 0.105614, 1)
 camera_path = NodePath("Camera2D")
+marker_color = Color(1, 0.34902, 0.34902, 0)
 marker_radius = 1.0
 city_dot_radius = 1.0
 label_font = ExtResource("3_5wnfc")
@@ -43,16 +45,19 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Minimap" type="Control" parent="CanvasLayer/Control"]
+[node name="PanelContainerMap" type="PanelContainer" parent="CanvasLayer/Control"]
+custom_minimum_size = Vector2(100, 100)
+offset_left = 12.0
+offset_top = 125.0
+offset_right = 112.0
+offset_bottom = 225.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_5wnfc")
+
+[node name="Minimap" type="Control" parent="CanvasLayer/Control/PanelContainerMap"]
 z_index = 4096
 z_as_relative = false
 custom_minimum_size = Vector2(100, 100)
-layout_mode = 1
-anchors_preset = 0
-offset_left = 12.0
-offset_top = 138.0
-offset_right = 112.0
-offset_bottom = 238.0
+layout_mode = 2
 script = ExtResource("4_nnt0k")
 path_provider = NodePath("../SubViewport/PathOverlay2D")
 racers_root = NodePath("../Sprite Handler/Racers")
