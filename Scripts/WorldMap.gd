@@ -1071,7 +1071,6 @@ func _format_km(km: float, decimals: int) -> String:
 		p *= 10
 		i += 1
 	var v = round(km * float(p)) / float(p)
-	v = v * 100
 	return str(v)
 
 func _best_map_texture_and_width(cfg: Resource, slug: String) -> Array:
