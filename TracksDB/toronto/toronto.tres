@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TrackConfig" load_steps=5 format=3 uid="uid://c3bxafpgmv3jb"]
+
+[ext_resource type="Texture2D" uid="uid://dm7fdb6ct2k4n" path="res://Textures/Tracks/My Tracks/Track_06_Road.png" id="1_ata4a"]
+[ext_resource type="Texture2D" uid="uid://baswq6uaio1tg" path="res://Textures/Tracks/Grass/Grass_Tile_02.png" id="2_enoig"]
+[ext_resource type="Script" uid="uid://0mvsc0fipym0" path="res://Scripts/TrackConfig.gd" id="3_a3nei"]
+[ext_resource type="Texture2D" uid="uid://cf5b17emo1xxp" path="res://Textures/Tracks/My Tracks/Track_06.png" id="4_dr0bc"]
+
+[resource]
+script = ExtResource("3_a3nei")
+display_name = "Toronto"
+track_texture = ExtResource("4_dr0bc")
+grass_texture = ExtResource("2_enoig")
+collision_map = ExtResource("1_ata4a")
+tint_color = Color(1, 1, 1, 1)
+tint_strength = 0.0
+path_points_uv = PackedVector2Array(919, 583, 919, 245, 190, 87, 190, 411, 608, 517, 608, 650, 80, 775, 80, 950, 919, 950)
+metadata/_custom_type_script = "uid://0mvsc0fipym0"
