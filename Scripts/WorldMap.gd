@@ -74,6 +74,9 @@ var _pulse_t: float = 0.0
 var _rng := RandomNumberGenerator.new()
 
 @export var default_size: Vector2i = Vector2i(240, 240)
+@export var track_map_px_fallback: int = 1024   # used if we can't read the track texture width
+@export var default_meters_per_px: float = 1.0   # tweak globally (e.g. 0.6 m/px, 1.2 m/px, etc.)
+@export var km_decimals: int = 2                 # how many decimals to show
 
 const CITY_DATA := [
 	{"name":"Los Angeles", "lon":-118.2437, "lat":34.0522},
@@ -217,6 +220,11 @@ const CITY_FACTS := {
 		"Banff National Park (est. 1885) is Canada’s first national park.",
 		"The town of Banff sits in the Bow Valley beneath the Rockies.",
 		"Iconic glacial lakes—like Lake Louise and Moraine Lake—are nearby."
+	],
+	"Cairo": [
+		"Egypt’s capital on the Nile and the core of Greater Cairo.",
+		"Close to the Giza Plateau, home to the Pyramids and the Great Sphinx.",
+		"Nicknamed the 'City of a Thousand Minarets' for its rich Islamic architecture."
 	],
 }
 
@@ -928,10 +936,139 @@ func _preview_minimap_for_city(name: String) -> void:
 			pts = c
 			prints("[WorldMap] preview", name, "from Tracks/ path.json:", legacy, pts.size())
 
-	# 4) Push to Minimap (or clear)
+	# 4) Push to Minimap (or clear) + update TrackLength label
+	var map_w_px := track_map_px_fallback  # default
+	# try to get a better width from whatever cfg/direct we found
+	if cfg is TrackConfig:
+		map_w_px = _best_track_map_width_px_from_cfg(cfg, slug)
+	elif pts.size() < 2:
+		map_w_px = track_map_px_fallback
+	else:
+		# if we loaded direct .tres earlier (cfg2), try that as well
+		# (safe to try again; if not present, _best... returns fallback)
+		map_w_px = _best_track_map_width_px_from_cfg(cfg, slug)
+
 	if pts.size() >= 2 and mm.has_method("set_preview_points_uv"):
 		mm.call("set_preview_points_uv", pts)
-		prints("[WorldMap] preview", name, "pts:", pts.size())
+		_update_track_length_label(name, pts, map_w_px)
+		prints("[WorldMap] preview", name, "pts:", pts.size(), " map_w_px:", map_w_px)
 	elif mm.has_method("clear_preview"):
 		mm.call("clear_preview")
-		prints("[WorldMap] preview", name, "pts:", 0)
+		_update_track_length_label(name, PackedVector2Array(), map_w_px)
+		prints("[WorldMap] preview", name, "pts:", 0, " map_w_px:", map_w_px)
+
+
+func _find_track_length_label() -> Label:
+	var n := get_node_or_null(^"CanvasLayer/Control/PanelContainer/TrackLength")
+	if n is Label:
+		return n
+	n = get_tree().get_root().find_child("TrackLength", true, false)
+	if n is Label:
+		return n
+	return null
+
+func _number_with_commas(n: int) -> String:
+	var s := str(n)
+	var out := ""
+	var i := s.length() - 1
+	var group := 0
+	while i >= 0:
+		out = s.substr(i, 1) + out
+		group += 1
+		if group == 3 and i > 0:
+			out = "," + out
+			group = 0
+		i -= 1
+	return out
+
+func _normalize_points_to_uv(pts: PackedVector2Array, map_px: int) -> PackedVector2Array:
+	var max_comp := 0.0
+	for v in pts:
+		if abs(v.x) > max_comp:
+			max_comp = abs(v.x)
+		if abs(v.y) > max_comp:
+			max_comp = abs(v.y)
+	var out := PackedVector2Array()
+	if max_comp > 2.0:
+		var denom := float(max(1, map_px))
+		for v in pts:
+			out.append(Vector2(v.x / denom, v.y / denom))
+	else:
+		for v in pts:
+			out.append(v)
+	return out
+
+func _uv_path_length_px(uv_pts: PackedVector2Array, map_px: int) -> float:
+	if uv_pts.size() < 2:
+		return 0.0
+	var total := 0.0
+	for i in range(1, uv_pts.size()):
+		var a := uv_pts[i - 1]
+		var b := uv_pts[i]
+		total += a.distance_to(b)
+	return total * float(map_px)   # map width in pixels (matches how your game scales)
+
+func _best_track_map_width_px_from_cfg(cfg: Resource, slug: String) -> int:
+	# 1) TrackConfig.track_texture width
+	if cfg is TrackConfig:
+		var tc := cfg as TrackConfig
+		if tc.track_texture != null and tc.track_texture is Texture2D:
+			var sz := (tc.track_texture as Texture2D).get_size()
+			if sz.x > 0:
+				return int(sz.x)
+	# 2) Legacy folder map.png
+	var p_map := "res://Tracks/" + slug + "/map.png"
+	if ResourceLoader.exists(p_map):
+		var t := load(p_map)
+		if t is Texture2D:
+			var w := (t as Texture2D).get_size().x
+			if w > 0:
+				return int(w)
+	# 3) Fallback
+	return track_map_px_fallback
+
+func _update_track_length_label(city_name: String, pts: PackedVector2Array, map_px: int, meters_per_px: float = -1.0) -> void:
+	var lbl := _find_track_length_label()
+	if lbl == null:
+		return
+
+	if meters_per_px <= 0.0:
+		meters_per_px = default_meters_per_px
+
+	var uv := _normalize_points_to_uv(pts, map_px)
+	var px_len := _uv_path_length_px(uv, map_px)
+
+	if px_len <= 0.0:
+		lbl.text = "Track Length: —"
+		lbl.tooltip_text = city_name
+		return
+
+	var meters := px_len * meters_per_px
+	var km := meters / 1000.0
+
+	lbl.text = "Track Length: " + _format_km(km, km_decimals) + " km"
+	# keep a helpful tooltip with raw numbers
+	lbl.tooltip_text = city_name \
+		+ " • " + str(int(round(px_len))) + " px" \
+		+ " @ " + str(meters_per_px) + " m/px" \
+		+ " → " + _format_km(km, km_decimals) + " km"
+
+func _meters_per_px_for_cfg(cfg: Resource) -> float:
+	var mpp := default_meters_per_px
+	if cfg != null:
+		if "meters_per_px" in cfg:
+			var v = cfg.meters_per_px
+			if typeof(v) == TYPE_FLOAT and v > 0.0:
+				mpp = float(v)
+	return mpp
+
+func _format_km(km: float, decimals: int) -> String:
+	var d = max(0, decimals)
+	var p := 1
+	var i := 0
+	while i < d:
+		p *= 10
+		i += 1
+	var v = round(km * float(p)) / float(p)
+	v = v * 100
+	return str(v)

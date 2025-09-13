@@ -45,38 +45,6 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="PanelContainerMap" type="PanelContainer" parent="CanvasLayer/Control"]
-custom_minimum_size = Vector2(100, 100)
-layout_mode = 0
-offset_left = 12.0
-offset_top = 192.0
-offset_right = 112.0
-offset_bottom = 292.0
-theme_override_styles/panel = SubResource("StyleBoxFlat_5wnfc")
-
-[node name="Minimap" type="Control" parent="CanvasLayer/Control/PanelContainerMap"]
-z_index = 4096
-z_as_relative = false
-custom_minimum_size = Vector2(100, 100)
-layout_mode = 2
-script = ExtResource("4_nnt0k")
-path_provider = NodePath("../SubViewport/PathOverlay2D")
-racers_root = NodePath("../Sprite Handler/Racers")
-path_width = 2
-pixel_snap = false
-resample_step_px = 2.24
-smooth_iterations = 1
-dot_color = Color(0, 1, 0, 1)
-player_dot_color = Color(1, 0, 0, 1)
-lapped_dot_color = Color(0, 0.509804, 1, 1)
-dot_radius = 2.0
-player_dot_radius = 2.0
-padding_px = 0.0
-flip_y = false
-pixel_dots = false
-dot_square_size = 2
-player_square_size = 2
-
 [node name="Title" type="Label" parent="CanvasLayer/Control"]
 layout_mode = 0
 offset_left = 12.0
@@ -98,6 +66,48 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_5wnfc")
 [node name="Info" type="RichTextLabel" parent="CanvasLayer/Control/PanelContainer"]
 layout_mode = 2
 theme_override_fonts/normal_font = ExtResource("3_5wnfc")
+
+[node name="TrackLength" type="Label" parent="CanvasLayer/Control"]
+layout_mode = 2
+offset_left = 12.0
+offset_top = 166.0
+offset_right = 112.0
+offset_bottom = 179.0
+theme_override_fonts/font = ExtResource("3_nnt0k")
+theme_override_font_sizes/font_size = 16
+text = "Track Length: "
+
+[node name="ContainerMap" type="PanelContainer" parent="CanvasLayer/Control"]
+custom_minimum_size = Vector2(100, 100)
+layout_mode = 2
+offset_left = 12.0
+offset_top = 192.0
+offset_right = 112.0
+offset_bottom = 292.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_5wnfc")
+
+[node name="Minimap" type="Control" parent="CanvasLayer/Control/ContainerMap"]
+z_index = 4096
+z_as_relative = false
+custom_minimum_size = Vector2(100, 100)
+layout_mode = 2
+script = ExtResource("4_nnt0k")
+path_provider = NodePath("../SubViewport/PathOverlay2D")
+racers_root = NodePath("../Sprite Handler/Racers")
+path_width = 2
+pixel_snap = false
+resample_step_px = 2.24
+smooth_iterations = 1
+dot_color = Color(0, 1, 0, 1)
+player_dot_color = Color(1, 0, 0, 1)
+lapped_dot_color = Color(0, 0.509804, 1, 1)
+dot_radius = 2.0
+player_dot_radius = 2.0
+padding_px = 0.0
+flip_y = false
+pixel_dots = false
+dot_square_size = 2
+player_square_size = 2
 
 [node name="Map" type="Sprite2D" parent="."]
 z_index = -4096

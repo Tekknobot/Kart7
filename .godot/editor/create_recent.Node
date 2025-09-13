@@ -1,14 +1,14 @@
+Label
+VBoxContainer
 PanelContainer
 Panel
 RichTextLabel
 CenterContainer
-Label
 CanvasLayer
 Control
 Node2D
 Camera2D
 Sprite2D
 Button
-VBoxContainer
 HBoxContainer
 ColorRect

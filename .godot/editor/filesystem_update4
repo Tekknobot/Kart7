@@ -16,3 +16,4 @@ res://Scenes/opponent.tscn
 res://Scenes/standings.tscn
 res://Textures/VFX/StarNight.tscn
 res://Scenes/RacerButton.tscn
+res://Scripts/WorldMap.gd
