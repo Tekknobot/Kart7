@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cfyrqua1g1ftc"
-path="res://.godot/imported/beunos_aires.png-15d69b2b761ef6c05cc78becd5e08f57.ctex"
+uid="uid://bm3usstriade8"
+path="res://.godot/imported/buenos_aires.png-5e8dd9d0131b1108d9c8778e3fb94dd5.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://Textures/Tracks/Treelines/beunos_aires.png"
-dest_files=["res://.godot/imported/beunos_aires.png-15d69b2b761ef6c05cc78becd5e08f57.ctex"]
+source_file="res://Textures/Tracks/Treelines/buenos_aires.png"
+dest_files=["res://.godot/imported/buenos_aires.png-5e8dd9d0131b1108d9c8778e3fb94dd5.ctex"]
 
 [params]
 
