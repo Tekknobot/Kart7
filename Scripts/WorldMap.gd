@@ -867,51 +867,48 @@ func _preview_minimap_for_city(name: String) -> void:
 	var pts := PackedVector2Array()
 	var slug := _slugify_city(name)
 
-	# 0) Make sure DB is loaded
-	if Engine.has_singleton("TracksDataBase"):
-		var db0 := get_node_or_null("/root/TracksDataBase")
-		if db0 != null and db0.has_method("reload"):
-			db0.call("reload")
-
-	# 1) Try DB by name, then slug
-	var cfg: Resource = null
+	# Ensure DB is loaded
+	var cfg_found: Resource = null
 	if Engine.has_singleton("TracksDataBase"):
 		var db := get_node_or_null("/root/TracksDataBase")
 		if db != null:
+			if db.has_method("reload"):
+				db.call("reload")
 			if db.has_method("get_config"):
-				cfg = db.call("get_config", name)
-				if cfg == null:
-					cfg = db.call("get_config", slug)
+				cfg_found = db.call("get_config", name)
+				if cfg_found == null:
+					cfg_found = db.call("get_config", slug)
 
-	if cfg is TrackConfig:
-		var tc := cfg as TrackConfig
+	# 1) From TrackConfig in DB
+	if cfg_found is TrackConfig:
+		var tc := cfg_found as TrackConfig
 		if tc.path_points_uv.size() >= 2:
 			pts = tc.path_points_uv
 			prints("[WorldMap] preview", name, "from TrackConfig.tres (DB)", pts.size())
+		else:
+			# sidecar next to the .tres
+			var rp := ""
+			if "resource_path" in tc:
+				rp = String(tc.resource_path)
+			if rp != "" and rp.ends_with(".tres"):
+				var dir := rp.get_base_dir()
+				var tried := [dir + "/path.json", dir + "/" + slug + ".json"]
+				var j := 0
+				while j < tried.size() and pts.size() < 2:
+					var pj := String(tried[j])
+					var a := _load_points_from_json(pj)
+					if a.size() >= 2:
+						pts = a
+						prints("[WorldMap] preview", name, "from TracksDB sidecar:", pj, pts.size())
+					j += 1
 
-	# 1a) If DB gave us a TrackConfig but no points, look for a sidecar next to the .tres
-	if pts.size() < 2 and cfg is TrackConfig:
-		var rp := ""
-		if "resource_path" in cfg:
-			rp = String(cfg.resource_path)
-		if rp != "" and rp.ends_with(".tres"):
-			var dir := rp.get_base_dir()
-			var tried := [dir + "/path.json", dir + "/" + slug + ".json"]
-			var j := 0
-			while j < tried.size() and pts.size() < 2:
-				var pj := String(tried[j])
-				var a := _load_points_from_json(pj)
-				if a.size() >= 2:
-					pts = a
-					prints("[WorldMap] preview", name, "from TracksDB sidecar:", pj, pts.size())
-				j += 1
-
-	# 2) No DB hit? Load the .tres directly and try again
+	# 2) Direct .tres (if DB had nothing usable)
 	if pts.size() < 2:
 		var direct := "res://TracksDB/" + slug + "/" + slug + ".tres"
 		if ResourceLoader.exists(direct):
 			var cfg2 := load(direct)
 			if cfg2 is TrackConfig:
+				cfg_found = cfg2   # prefer the direct .tres as our active config
 				var tc2 := cfg2 as TrackConfig
 				if tc2.path_points_uv.size() >= 2:
 					pts = tc2.path_points_uv
@@ -936,28 +933,32 @@ func _preview_minimap_for_city(name: String) -> void:
 			pts = c
 			prints("[WorldMap] preview", name, "from Tracks/ path.json:", legacy, pts.size())
 
-	# 4) Push to Minimap (or clear) + update TrackLength label
-	var map_w_px := track_map_px_fallback  # default
-	# try to get a better width from whatever cfg/direct we found
-	if cfg is TrackConfig:
-		map_w_px = _best_track_map_width_px_from_cfg(cfg, slug)
-	elif pts.size() < 2:
-		map_w_px = track_map_px_fallback
-	else:
-		# if we loaded direct .tres earlier (cfg2), try that as well
-		# (safe to try again; if not present, _best... returns fallback)
-		map_w_px = _best_track_map_width_px_from_cfg(cfg, slug)
+	# 4) Resolve map width and meters-per-pixel using the best config we found
+	var map_w_px := _best_track_map_width_px_from_cfg(cfg_found, slug)
+	var mpp := _meters_per_px_for_cfg(cfg_found)
 
+	# 5) Push once to Minimap, update length label, and (optionally) set background map
 	if pts.size() >= 2 and mm.has_method("set_preview_points_uv"):
 		mm.call("set_preview_points_uv", pts)
-		_update_track_length_label(name, pts, map_w_px)
-		prints("[WorldMap] preview", name, "pts:", pts.size(), " map_w_px:", map_w_px)
-	elif mm.has_method("clear_preview"):
-		mm.call("clear_preview")
-		_update_track_length_label(name, PackedVector2Array(), map_w_px)
-		prints("[WorldMap] preview", name, "pts:", 0, " map_w_px:", map_w_px)
+		_update_track_length_label(name, pts, map_w_px, mpp)
+		prints("[WorldMap] preview", name, "pts:", pts.size(), " map_w_px:", map_w_px, " m/px:", mpp)
+	else:
+		if mm.has_method("clear_preview"):
+			mm.call("clear_preview")
+		_update_track_length_label(name, PackedVector2Array(), map_w_px, mpp)
+		prints("[WorldMap] preview", name, "pts:", 0, " map_w_px:", map_w_px, " m/px:", mpp)
 
-
+	# 6) Background texture under the Minimap (if your Minimap implements it)
+	var tex_and_w := _best_map_texture_and_width(cfg_found, slug)
+	var bg_tex: Texture2D = tex_and_w[0]
+	var bg_w: int = tex_and_w[1]
+	if mm.has_method("set_background_map_texture"):
+		if bg_tex != null:
+			mm.call("set_background_map_texture", bg_tex, bg_w)
+		else:
+			if mm.has_method("clear_background_map_texture"):
+				mm.call("clear_background_map_texture")
+			
 func _find_track_length_label() -> Label:
 	var n := get_node_or_null(^"CanvasLayer/Control/PanelContainer/TrackLength")
 	if n is Label:
@@ -1072,3 +1073,29 @@ func _format_km(km: float, decimals: int) -> String:
 	var v = round(km * float(p)) / float(p)
 	v = v * 100
 	return str(v)
+
+func _best_map_texture_and_width(cfg: Resource, slug: String) -> Array:
+	var tex: Texture2D = null
+	var w := 0
+
+	# 1) From TrackConfig
+	if cfg is TrackConfig:
+		var tc := cfg as TrackConfig
+		if tc.track_texture != null and tc.track_texture is Texture2D:
+			tex = tc.track_texture
+			var sz := tex.get_size()
+			if sz.x > 0:
+				w = int(sz.x)
+
+	# 2) Legacy fallback texture
+	if tex == null:
+		var p_map := "res://Tracks/" + slug + "/map.png"
+		if ResourceLoader.exists(p_map):
+			var t := load(p_map)
+			if t is Texture2D:
+				tex = t
+				var sz2 := tex.get_size()
+				if sz2.x > 0:
+					w = int(sz2.x)
+
+	return [tex, w]

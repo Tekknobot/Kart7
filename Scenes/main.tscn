@@ -434,6 +434,7 @@ flip_y = false
 pixel_dots = false
 dot_square_size = 2
 player_square_size = 2
+show_map_background = false
 
 [node name="RaceHUD" type="Control" parent="." node_paths=PackedStringArray("time_lbl", "lap_lbl", "place_lbl", "speed_lbl", "last_lbl", "name_lbl", "fps_lbl", "ahead_lbl", "behind_lbl")]
 z_index = 4096

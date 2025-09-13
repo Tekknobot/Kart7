@@ -108,6 +108,7 @@ flip_y = false
 pixel_dots = false
 dot_square_size = 2
 player_square_size = 2
+show_map_background = false
 
 [node name="Map" type="Sprite2D" parent="."]
 z_index = -4096

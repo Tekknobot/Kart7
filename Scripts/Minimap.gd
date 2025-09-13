@@ -45,6 +45,11 @@ var _lapped_ids := {}  # {instance_id: true}
 
 var _preview_override_active := false  # when true, we use manual UV and ignore providers
 
+@export var show_map_background: bool = true
+@export var map_bg_modulate: Color = Color(1, 1, 1, 0.25)  # translucency for the background
+
+var _bg_tex: Texture2D = null
+
 # ---------- Public API (World can call this once after spawn) ----------
 func Bind(player: Node, racers_root_node: Node, provider_node: Node) -> void:
 	_player = player
@@ -204,6 +209,22 @@ func _draw_pixel_square(center: Vector2, size_px: int, col: Color) -> void:
 
 # ---------- Drawing ----------
 func _draw() -> void:
+	# --- Background map texture ---
+	if show_map_background and _bg_tex != null:
+		var rect := Rect2(Vector2(padding_px, padding_px), size - Vector2(padding_px * 2.0, padding_px * 2.0))
+		var w := rect.size.x
+		var h := rect.size.y
+		var s = min(w, h)  # square fit (UV is square)
+		var off := rect.position + Vector2((w - s) * 0.5, (h - s) * 0.5)
+
+		if flip_y:
+			# flip vertically to match UV orientation
+			draw_set_transform(off + Vector2(0, s), 0.0, Vector2(1, -1))
+			draw_texture_rect(_bg_tex, Rect2(Vector2.ZERO, Vector2(s, s)), false, map_bg_modulate)
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2(1, 1))
+		else:
+			draw_texture_rect(_bg_tex, Rect2(off, Vector2(s, s)), false, map_bg_modulate)
+	
 	# Path
 	if _uv_loop.size() >= 2:
 		var pts := _resampled_panel_points(_uv_loop, resample_step_px, smooth_iterations)
@@ -351,4 +372,14 @@ func clear_preview() -> void:
 	_preview_override_active = false
 	_uv_loop = PackedVector2Array()
 	_uv_loop_dirty = false
+	queue_redraw()
+
+func set_background_map_texture(tex: Texture2D, map_width_px: int) -> void:
+	_bg_tex = tex
+	if map_width_px > 0:
+		map_size_px = map_width_px   # keep px↔UV normalization consistent
+	queue_redraw()
+
+func clear_background_map_texture() -> void:
+	_bg_tex = null
 	queue_redraw()
