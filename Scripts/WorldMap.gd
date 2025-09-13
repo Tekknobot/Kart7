@@ -116,7 +116,7 @@ const CITY_FACTS := {
 	"Mexico City": [
 		"The city stands on the ruins of the Aztec capital Tenochtitlan.",
 		"Its elevation is about 2,240 meters above sea level.",
-		"The Zócalo is among the world’s largest public squares."
+		"The Zocalo is among the world’s largest public squares."
 	],
 	"Sao Paulo": [
 		"It is the largest city in the Southern Hemisphere.",
@@ -275,7 +275,6 @@ func _force_minimap_front_debug() -> void:
 		if c.size.x < 2 or c.size.y < 2:
 			c.custom_minimum_size = Vector2(280, 280)
 			c.size = c.custom_minimum_size
-		c.global_position = Vector2(32, 32)
 		# Draw above anything in this canvas
 		c.z_as_relative = false
 		c.z_index = 100000
