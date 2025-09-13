@@ -34,6 +34,9 @@ var _player_freeze_frames := 0
 @export var prime_hframes: bool = true
 @export var sheet_hframes: int  = 12
 
+var _locked_city := ""      # lock the city once
+var _track_applied := false # prevent re-applying after first success
+
 var DEFAULT_POINTS: PackedVector2Array = PackedVector2Array([
 	Vector2(922, 584),
 	Vector2(952, 607),
@@ -192,6 +195,13 @@ func _process(delta: float) -> void:
 		_raceManager.Update()
 
 func _ready() -> void:
+	var first := _read_selected_city_any_source()
+	if first != "" and first.to_lower() != "main":
+		_locked_city = first
+		if Engine.has_meta("selected_city_override"):
+			Engine.remove_meta("selected_city_override")
+		print("[World] locked city -> ", _locked_city)
+
 	_apply_character_selection()
 	# (keep the rest of your existing _ready() as-is)
 	await _await_roster_and_boot()
@@ -281,6 +291,17 @@ func _setup_after_roster() -> void:
 	if _map != null and _map.has_method("SetPathOverlayNodePath"):
 		_map.call("SetPathOverlayNodePath", rel_from_map, overlay_vp)
 
+	# Bind/minimap hookup
+	var rr := get_node_or_null(racers_root_path)
+	if rr == null:
+		rr = get_node_or_null(^"Sprite Handler/Racers")
+	var minimap := get_tree().get_root().find_child("Minimap", true, false)
+	if minimap != null:
+		if minimap.has_method("Bind"):
+			minimap.call("Bind", _player, rr, overlay_node)
+		if minimap.has_method("mark_path_dirty"):
+			minimap.call("mark_path_dirty")
+
 	# >>> BIND THE SKID PAINTER / OVERLAY PATHS HERE <<<
 	var painter := overlay_node  # PathOverlay2D node (has player_path & pseudo3d_path exports)
 	if painter:
@@ -290,6 +311,10 @@ func _setup_after_roster() -> void:
 	# Tell Map which nodes are opponents, etc.
 	if _map != null and _map.has_method("SetOpponentsFromGroup"):
 		_map.call("SetOpponentsFromGroup", "racers", _player)
+
+	_apply_track_from_globals()
+	if _locked_city != "":
+		print("[World] after apply: ", _locked_city, " slug:", _slugify_city(_locked_city))
 
 	if _collision != null and _collision.has_method("Setup"):
 		_collision.call("Setup")
@@ -701,3 +726,242 @@ func _place_grid_player_last() -> void:
 	var ppx: Vector2 = DEFAULT_POINTS[last_idx]
 	if _player != null and _player.has_method("SetMapPosition"):
 		_player.call("SetMapPosition", Vector3(ppx.x, 0.0, ppx.y))
+
+# --- Track loading ------------------------------------------------------------
+func _apply_track_from_globals() -> void:
+	# Already applied? Ignore re-entries and show who called us.
+	if _track_applied:
+		print("[World] _apply_track_from_globals() called again; ignoring")
+		print_stack()
+		return
+
+	var name := _locked_city
+	if name == "":
+		name = _read_selected_city_any_source()
+		# Treat "Main" as a default; use only if we truly have nothing else
+		if name.to_lower() == "main":
+			name = ""
+
+		if name != "":
+			_locked_city = name
+			if Engine.has_meta("selected_city_override"):
+				Engine.remove_meta("selected_city_override")
+
+	print("[World] City:", name, " slug:", _slugify_city(name))
+
+	if name == "":
+		# keep your existing first_config/legacy fallback here...
+		# (unchanged)
+		# ...
+		return
+
+	_apply_track_by_name(name)
+
+func _apply_track_by_name(name: String) -> void:
+	var slug := _slugify_city(name)
+	var cfg_res: Resource = null
+
+	# 1) Ask the autoload DB (try name, then slug)
+	if Engine.has_singleton("TracksDataBase"):
+		var db := get_node_or_null("/root/TracksDataBase")
+		if db != null:
+			if db.has_method("get_config"):
+				cfg_res = db.call("get_config", name)
+				if cfg_res == null:
+					cfg_res = db.call("get_config", slug)
+			if cfg_res == null and db.has_method("get_config_by_slug"):
+				cfg_res = db.call("get_config_by_slug", slug)
+
+	# 2) No DB hit? Load the .tres directly from TracksDB/<slug>/<slug>.tres
+	if cfg_res == null:
+		var p := "res://TracksDB/%s/%s.tres" % [slug, slug]
+		if ResourceLoader.exists(p):
+			cfg_res = load(p)
+
+	# 3) Apply if it’s the right type; else fall back to old filesystem Tracks/
+	if cfg_res is TrackConfig:
+		_apply_track_config(cfg_res as TrackConfig, name)
+		return
+	elif cfg_res != null:
+		push_warning("Track config for '%s' is not a TrackConfig resource." % name)
+
+	# Legacy fallback (only works if you also have res://Tracks/<slug>/ assets)
+	_apply_track_by_slug(slug)
+
+func _apply_track_config(cfg: TrackConfig, display_name: String) -> void:
+	# --- Debug: show which assets are being applied (no ternaries) ---
+	var tp := ""
+	if cfg.track_texture != null and cfg.track_texture is Resource:
+		tp = (cfg.track_texture as Resource).resource_path
+	var gp := ""
+	if cfg.grass_texture != null and cfg.grass_texture is Resource:
+		gp = (cfg.grass_texture as Resource).resource_path
+	var cp := ""
+	if cfg.collision_map != null and cfg.collision_map is Resource:
+		cp = (cfg.collision_map as Resource).resource_path
+	print("[TrackCfg] map:", tp, "  grass:", gp, "  coll:", cp)
+
+	# Map textures + tint
+	if _map != null:
+		if _map.has_method("SetTrackTextures"):
+			_map.call("SetTrackTextures", cfg.track_texture, cfg.grass_texture)
+		elif _map is Sprite2D and cfg.track_texture != null:
+			(_map as Sprite2D).texture = cfg.track_texture
+
+		if _map.has_method("SetMapTint"):
+			_map.call("SetMapTint", cfg.tint_color, cfg.tint_strength)
+		elif _map is CanvasItem:
+			(_map as CanvasItem).modulate = Color(1, 1, 1, 1)
+
+	# Collision map
+	if _collision != null:
+		if _collision.has_method("SetCollisionTexture"):
+			_collision.call("SetCollisionTexture", cfg.collision_map)
+		elif _has_prop(_collision, StringName("_collisionMap")):
+			_collision.set("_collisionMap", cfg.collision_map)
+			if _collision.has_method("Setup"):
+				_collision.call("Setup")
+
+	# Path points (overlay + pseudo3D path)
+	var pts: PackedVector2Array = cfg.path_points_uv
+	if pts.size() >= 2:
+		var overlay := get_node_or_null(^"SubViewport/PathOverlay2D")
+		if overlay != null:
+			# Replace any minimap/default points instead of appending
+			if _has_prop(overlay, StringName("mm_append_uv")):
+				overlay.set("mm_append_uv", false)
+			if overlay.has_method("clear_minimap_points"):
+				overlay.call("clear_minimap_points")
+			if overlay.has_method("clear_points"):
+				overlay.call("clear_points")
+			if overlay.has_method("set_points_uv"):
+				overlay.call("set_points_uv", pts)
+
+		if _map != null and _map.has_method("SetPathPoints"):
+			_map.call("SetPathPoints", pts)
+
+	var minimap2 := get_tree().get_root().find_child("Minimap", true, false)
+	if minimap2 != null and minimap2.has_method("mark_path_dirty"):
+		minimap2.call("mark_path_dirty")
+
+	# Optional: themed backgrounds per city
+	if _backgroundElements != null and _backgroundElements.has_method("SetCityAssetsByName"):
+		_backgroundElements.call("SetCityAssetsByName", display_name)
+
+	# Nudge redraws
+	if _map is Node2D:
+		(_map as Node2D).queue_redraw()
+	var ov := get_node_or_null(^"SubViewport/PathOverlay2D")
+	if ov is CanvasItem:
+		(ov as CanvasItem).queue_redraw()
+
+	_track_applied = true
+
+# --- Helpers required by the code above --------------------------------------
+func _slugify_city(name: String) -> String:
+	var s := name.strip_edges().to_lower()
+	var out := ""
+	for i in s.length():
+		var ch := s.unicode_at(i)
+		if (ch >= 97 and ch <= 122) or (ch >= 48 and ch <= 57):
+			out += char(ch)
+		elif ch == 32 or ch == 45 or ch == 95:
+			out += "_"
+		else:
+			out += "_"
+	return out
+
+func _unslugify(slug: String) -> String:
+	var s := slug.replace("_", " ")
+	return s.substr(0,1).to_upper() + s.substr(1, s.length()-1)
+
+func _apply_track_by_slug(slug: String) -> void:
+	var base := "res://Tracks/%s/" % slug
+	var track: Texture2D = null
+	var grass: Texture2D = null
+	var coll:  Texture2D = null
+
+	var p_track := base + "map.png"
+	if ResourceLoader.exists(p_track):
+		var r := load(p_track)
+		if r is Texture2D:
+			track = r
+
+	var p_grass := base + "grass.png"
+	if ResourceLoader.exists(p_grass):
+		var r := load(p_grass)
+		if r is Texture2D:
+			grass = r
+
+	var p_coll := base + "collision.png"
+	if ResourceLoader.exists(p_coll):
+		var r := load(p_coll)
+		if r is Texture2D:
+			coll = r
+
+	if _map != null and _map.has_method("SetTrackTextures"):
+		_map.call("SetTrackTextures", track, grass)
+
+	if _collision != null:
+		if _collision.has_method("SetCollisionTexture"):
+			_collision.call("SetCollisionTexture", coll)
+		elif coll != null:
+			_collision.set("_collisionMap", coll)
+			if _collision.has_method("Setup"):
+				_collision.call("Setup")
+
+	# path.json: { "points_uv": [[x0,y0], [x1,y1], ...] }
+	var p_path := base + "path.json"
+	if ResourceLoader.exists(p_path):
+		var f := FileAccess.open(p_path, FileAccess.READ)
+		if f != null:
+			var data = JSON.parse_string(f.get_as_text())
+			if typeof(data) == TYPE_DICTIONARY and data.has("points_uv"):
+				var arr := PackedVector2Array()
+				for p in data["points_uv"]:
+					if p is Array and p.size() >= 2:
+						arr.append(Vector2(float(p[0]), float(p[1])))
+				var overlay := get_node_or_null(^"SubViewport/PathOverlay2D")
+				if overlay != null and overlay.has_method("set_points_uv"):
+					overlay.call("set_points_uv", arr)
+				if _map != null and _map.has_method("SetPathPoints"):
+					_map.call("SetPathPoints", arr)
+
+	# Optional: backgrounds keyed by city
+	if _backgroundElements != null and _backgroundElements.has_method("SetCityAssetsByName"):
+		_backgroundElements.call("SetCityAssetsByName", _unslugify(slug))
+
+func _read_selected_city_any_source() -> String:
+	# 1) one-shot handoff from WorldMap
+	if Engine.has_meta("selected_city_override"):
+		var over := String(Engine.get_meta("selected_city_override"))
+		if over != "":
+			return over
+
+	# 2) MidnightGrandPrix autoload (if it carries a city)
+	var gp := get_node_or_null("/root/MidnightGrandPrix")
+	if gp != null:
+		for m in ["get_current_city_name", "get_next_city_name", "get_last_city_name"]:
+			if gp.has_method(m):
+				var v := String(gp.call(m))
+				if v != "":
+					return v
+		for k in ["current_city_name", "next_city_name", "last_city_name"]:
+			if _has_prop(gp, StringName(k)):
+				var pv = gp.get(k)
+				if pv != null and String(pv) != "":
+					return String(pv)
+
+	# 3) Globals fallback
+	var glb := get_node_or_null("/root/Globals")
+	if glb != null:
+		if glb.has_method("get_selected_city"):
+			var n := String(glb.call("get_selected_city"))
+			if n != "":
+				return n
+		if glb.has_method("get"):
+			var v = glb.get("selected_city")
+			if v != null and String(v) != "":
+				return String(v)
+
+	return ""

@@ -519,3 +519,10 @@ func screen_px_to_map_uv(screen_px: Vector2) -> Vector2:
 	if abs(h.z) < 1e-6:
 		return Vector2(-1e9, -1e9)
 	return Vector2(h.x / h.z, h.y / h.z)
+
+func SetTrackTextures(track: Texture2D, grass: Texture2D) -> void:
+	if material == null: return
+	if track != null:
+		material.set_shader_parameter("trackTexture", track)
+	if grass != null:
+		material.set_shader_parameter("grassTexture", grass)

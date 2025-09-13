@@ -1,3 +1,8 @@
+res://TracksDB
+res://Textures/Tracks/My Tracks
+res://Textures/Tracks/Grass
+res://TracksDB/los_angeles
+res://Scripts
 /Users/machome/Godot/_Builds/Kart 7/win
 /Users/machome/Godot/_Builds/Kart 7/web
 res://Textures/Racers/MetalZebra/PZM_Delivery_01
@@ -5,12 +10,9 @@ res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs
 /Users/machome/Godot/_Builds/Kart 7/mac
 res://Scenes
 res://Textures/Tracks/Skylines
-res://Textures/Tracks/My Tracks
 res://Textures/Tracks
 res://Textures/WorldMap
 res://Textures/Double C's Pixel World Map/1x Size/All_1x
-res://Scripts
-res://Textures/Tracks/Grass
 res://Icon
 res://Textures/Racers/Particles
 res://Scenes/
@@ -18,5 +20,4 @@ res://Textures/Racers/PNG/Yoshi
 res://Fonts/magofonts
 res://Scripts/General
 /Users/machome/Movies
-res://Scripts/Shaders/
 /Users/machome/Godot/_Builds/Kart 7

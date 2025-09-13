@@ -86,20 +86,22 @@ func _process(_dt: float) -> void:
 # ---------- Lazy binding for prefabs ----------
 func _lazy_bind() -> void:
 	if _provider == null:
-		# 1) Exported path
 		_provider = get_node_or_null(path_provider)
-	# 2) Common scene search (PathOverlay2D in a SubViewport)
 	if _provider == null:
 		var cand := get_tree().get_root().find_child("PathOverlay2D", true, false)
 		if cand != null:
 			_provider = cand
 			_uv_loop_dirty = true
-	# 3) Map (Pseudo3D) can also provide UV points
 	if _provider == null:
 		var m := get_tree().get_root().find_child("Map", true, false)
 		if m != null:
 			_provider = m
 			_uv_loop_dirty = true
+
+	# NEW: listen for provider changes
+	if _provider != null and _provider.has_signal("points_changed"):
+		if not _provider.is_connected("points_changed", Callable(self, "_on_points_changed")):
+			_provider.connect("points_changed", Callable(self, "_on_points_changed"))
 
 	if _root == null:
 		_root = get_node_or_null(racers_root)
@@ -107,11 +109,9 @@ func _lazy_bind() -> void:
 	if _player == null:
 		_player = get_node_or_null(player_path)
 		if _player == null:
-			# Try group "player"
 			var p := get_tree().get_first_node_in_group("player")
 			if p != null:
 				_player = p
-		# As a last resort, pick the racer whose name matches Globals.selected_racer
 		if _player == null:
 			var rr := _scan_racers()
 			var want := ""
@@ -122,16 +122,18 @@ func _lazy_bind() -> void:
 					_player = r
 					break
 
+func _on_points_changed() -> void:
+	_uv_loop_dirty = true
+
 # ---------- Data fetch ----------
 func _fetch_uv_loop() -> void:
 	_uv_loop = PackedVector2Array()
 	if _provider != null:
-		# Preferred: PathOverlay2D
-		if _provider.has_method("get_path_points_uv_transformed"):
-			_uv_loop = _provider.call("get_path_points_uv_transformed")
-		elif _provider.has_method("get_path_points_uv"):
+		# Prefer base UV, not transformed
+		if _provider.has_method("get_path_points_uv"):
 			_uv_loop = _provider.call("get_path_points_uv")
-		# Map (Pseudo3D) fallback
+		elif _provider.has_method("get_path_points_uv_transformed"):
+			_uv_loop = _provider.call("get_path_points_uv_transformed")
 		elif _provider.has_method("GetPathPointsUV"):
 			_uv_loop = _provider.call("GetPathPointsUV")
 		elif _provider.has_method("ReturnPathPointsUV"):
@@ -145,6 +147,9 @@ func _fetch_uv_loop() -> void:
 			_uv_loop.append(a)
 
 	_uv_loop_dirty = false
+
+func mark_path_dirty() -> void:
+	_uv_loop_dirty = true
 
 # ---------- Helpers ----------
 func _scan_racers() -> Array:

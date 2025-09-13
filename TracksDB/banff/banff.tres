@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TrackConfig" load_steps=5 format=3 uid="uid://6kmohm8nxavj"]
+
+[ext_resource type="Texture2D" uid="uid://bikoicopa18n7" path="res://Textures/Tracks/My Tracks/Track_03_Road.png" id="1_5up70"]
+[ext_resource type="Texture2D" uid="uid://baswq6uaio1tg" path="res://Textures/Tracks/Grass/Grass_Tile_02.png" id="2_awwby"]
+[ext_resource type="Script" uid="uid://0mvsc0fipym0" path="res://Scripts/TrackConfig.gd" id="3_td8mn"]
+[ext_resource type="Texture2D" uid="uid://jdetmck2pfnv" path="res://Textures/Tracks/My Tracks/Track_03.png" id="4_tvjjn"]
+
+[resource]
+script = ExtResource("3_td8mn")
+display_name = "Banff"
+track_texture = ExtResource("4_tvjjn")
+grass_texture = ExtResource("2_awwby")
+collision_map = ExtResource("1_5up70")
+tint_color = Color(1, 1, 1, 1)
+tint_strength = 0.0
+path_points_uv = PackedVector2Array(920, 556, 920, 90, 772, 90, 772, 781, 238, 781, 238, 602, 593, 602, 593, 90, 80, 90, 80, 1000, 920, 1000)
+metadata/_custom_type_script = "uid://0mvsc0fipym0"

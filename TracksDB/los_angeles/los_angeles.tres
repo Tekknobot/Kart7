@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TrackConfig" load_steps=5 format=3 uid="uid://cyrrewu4rimq2"]
+
+[ext_resource type="Script" uid="uid://0mvsc0fipym0" path="res://Scripts/TrackConfig.gd" id="1_q5aqa"]
+[ext_resource type="Texture2D" uid="uid://bkmti72i7af1q" path="res://Textures/Tracks/My Tracks/Track_02_Road.png" id="1_r7tj1"]
+[ext_resource type="Texture2D" uid="uid://baswq6uaio1tg" path="res://Textures/Tracks/Grass/Grass_Tile_02.png" id="2_xn2ke"]
+[ext_resource type="Texture2D" uid="uid://cuhl0bp0xfw80" path="res://Textures/Tracks/My Tracks/Track_02.png" id="4_tvyib"]
+
+[resource]
+script = ExtResource("1_q5aqa")
+display_name = "Los Angeles"
+track_texture = ExtResource("4_tvyib")
+grass_texture = ExtResource("2_xn2ke")
+collision_map = ExtResource("1_r7tj1")
+tint_color = Color(1, 1, 1, 1)
+tint_strength = 0.0
+path_points_uv = PackedVector2Array(919, 583, 919, 100, 76, 100, 76, 174, 792, 600, 792, 710, 81, 710, 81, 950, 841, 950, 919, 950)
+metadata/_custom_type_script = "uid://0mvsc0fipym0"

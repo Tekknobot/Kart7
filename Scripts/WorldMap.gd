@@ -320,18 +320,48 @@ func _input(event: InputEvent) -> void:
 
 func _go_to_main_scene() -> void:
 	get_tree().paused = false
+
+	# Chosen city right now
+	var chosen := ""
+	if _cities.size() > 0:
+		chosen = String(_cities[_city_index].get("name", ""))
+
+	# Persist globally (race scene reads this)
+	if chosen != "":
+		if Globals.has_method("set_selected_city"):
+			Globals.set_selected_city(chosen)
+			print("[Globals] set_selected_city -> ", chosen)
+			print_stack()
+		else:
+			Globals.selected_city = chosen
+		Engine.set_meta("selected_city_override", chosen)  # <-- important
+		print("[WorldMap] set_selected_city -> ", chosen)
+
 	var gp := get_node_or_null("/root/MidnightGrandPrix")
 	if gp != null:
-		if not gp.active:
-			gp.race_scene = "res://Scenes/Main.tscn"
-			gp.race_count = 20
-			gp.grid_size  = 8
-			gp.start_gp(0)
+		# Hint GP about the city using whatever API it has
+		if gp.has_method("set_next_city_name"):
+			gp.call("set_next_city_name", chosen)
+		elif gp.has_method("set_current_city_name"):
+			gp.call("set_current_city_name", chosen)
+		elif gp.has_method("set_last_city_name"):
+			gp.call("set_last_city_name", chosen)
+		# (Optional) try common properties if they exist
+		for k in ["next_city_name", "current_city_name", "last_city_name"]:
+			if k in gp:
+				gp.set(k, chosen)
+
+		# Now launch the race
+		gp.race_scene = "res://Scenes/Main.tscn"
+		gp.race_count = 20
+		gp.grid_size  = 8
+		if not gp.active and gp.has_method("start_gp"):
+			gp.call("start_gp", 0)
 		else:
 			gp.enter_current_race()
 		return
 
-	# Fallback if autoload not present
+	# Fallback (no GP autoload)
 	get_tree().change_scene_to_file("res://Scenes/Main.tscn")
 
 func _draw() -> void:

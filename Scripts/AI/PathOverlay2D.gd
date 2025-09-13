@@ -865,3 +865,10 @@ func debug_draw_center_line() -> void:
 	mm_append_uv(id, 0, u1, true)
 	mm_end(id, 0)
 	prints("[Overlay] drew debug center line")
+
+func load_points_from_resource(cfg: Resource) -> void:
+	if cfg == null: return
+	if not cfg.has_method("get"): return
+	var pts: PackedVector2Array = cfg.get("path_points_uv")
+	if pts.size() >= 2:
+		set_points_uv(pts)

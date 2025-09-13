@@ -26,6 +26,7 @@ Globals="*res://Scripts/General/Globals.gd"
 FullscreenWeb="*res://Scripts/FullscreenWeb.gd"
 ScreenScaler="*res://Scripts/ScreenScaler.gd"
 MidnightGrandPrix="*res://Scripts/MidnightGrandPrix.gd"
+TracksDataBase="*res://Scripts/TracksDB.gd"
 
 [display]
 

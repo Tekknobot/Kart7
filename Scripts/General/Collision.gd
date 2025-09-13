@@ -33,3 +33,10 @@ func ReturnCurrentRoadType(position : Vector2i) -> Globals.RoadType:
 			roadType = colorID
 	
 	return roadType
+
+func SetCollisionTexture(tex: Texture2D) -> void:
+	if tex == null:
+		push_warning("Collision: null collision map")
+		return
+	_collisionMap = tex
+	Setup()  # rebuild _textureImage/_w/_h
