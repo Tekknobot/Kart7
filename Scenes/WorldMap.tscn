@@ -67,12 +67,15 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_5wnfc")
 layout_mode = 2
 theme_override_fonts/normal_font = ExtResource("3_5wnfc")
 
-[node name="TrackLength" type="Label" parent="CanvasLayer/Control"]
-layout_mode = 2
+[node name="LengthContainer2" type="PanelContainer" parent="CanvasLayer/Control"]
 offset_left = 12.0
-offset_top = 166.0
-offset_right = 112.0
+offset_top = 157.0
+offset_right = 156.0
 offset_bottom = 179.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_5wnfc")
+
+[node name="TrackLength" type="Label" parent="CanvasLayer/Control/LengthContainer2"]
+layout_mode = 2
 theme_override_fonts/font = ExtResource("3_nnt0k")
 theme_override_font_sizes/font_size = 16
 text = "Track Length: "
@@ -108,6 +111,7 @@ flip_y = false
 pixel_dots = false
 dot_square_size = 2
 player_square_size = 2
+show_map_background = false
 
 [node name="Map" type="Sprite2D" parent="."]
 z_index = -4096

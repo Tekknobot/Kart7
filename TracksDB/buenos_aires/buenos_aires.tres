@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="TrackConfig" load_steps=5 format=3 uid="uid://clhhviahv1iky"]
 
 [ext_resource type="Texture2D" uid="uid://cai5o0l46jl2r" path="res://Textures/Tracks/My Tracks/Track_08_Road.png" id="1_s2i8m"]
-[ext_resource type="Texture2D" uid="uid://baswq6uaio1tg" path="res://Textures/Tracks/Grass/Grass_Tile_02.png" id="2_kgdhu"]
+[ext_resource type="Texture2D" uid="uid://bb0ixnfclgnj5" path="res://Textures/Tracks/Grass/Grass_Tile_08.png" id="2_s2i8m"]
 [ext_resource type="Script" uid="uid://0mvsc0fipym0" path="res://Scripts/TrackConfig.gd" id="3_4uch3"]
 [ext_resource type="Texture2D" uid="uid://d3j4kqylrei32" path="res://Textures/Tracks/My Tracks/Track_08.png" id="4_6dp1h"]
 
@@ -9,7 +9,7 @@
 script = ExtResource("3_4uch3")
 display_name = "Buenos Aires"
 track_texture = ExtResource("4_6dp1h")
-grass_texture = ExtResource("2_kgdhu")
+grass_texture = ExtResource("2_s2i8m")
 collision_map = ExtResource("1_s2i8m")
 tint_color = Color(1, 1, 1, 1)
 tint_strength = 0.0
