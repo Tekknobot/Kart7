@@ -73,6 +73,8 @@ var _pulse_t: float = 0.0
 
 var _rng := RandomNumberGenerator.new()
 
+@export var default_size: Vector2i = Vector2i(240, 240)
+
 const CITY_DATA := [
 	{"name":"Los Angeles", "lon":-118.2437, "lat":34.0522},
 	{"name":"Banff", "lon":-115.5708, "lat":51.1784},                 # Banff town, Alberta
@@ -222,6 +224,7 @@ var _cities: Array = []     # each = {"name": String, "lon": float, "lat": float
 var _city_index: int = 0
 
 func _ready() -> void:
+	_force_minimap_front_debug()
 	_camera = _resolve_camera()
 	_title = _resolve_label(title_label_path)
 	_info = _resolve_label(info_label_path)
@@ -261,6 +264,50 @@ func _ready() -> void:
 	
 	process_mode = Node.PROCESS_MODE_ALWAYS  # still receive input if something paused the tree
 	_ensure_ui_accept_binding()	
+
+func _force_minimap_front_debug() -> void:
+	var mm := get_node_or_null(^"CanvasLayer/Control/Minimap")
+	if mm is Control:
+		var c := mm as Control
+		# Ignore parent layout/transforms (escapes clipping/containers)
+		c.top_level = true
+		# Big, visible, and in a safe corner
+		if c.size.x < 2 or c.size.y < 2:
+			c.custom_minimum_size = Vector2(280, 280)
+			c.size = c.custom_minimum_size
+		c.global_position = Vector2(32, 32)
+		# Draw above anything in this canvas
+		c.z_as_relative = false
+		c.z_index = 100000
+		c.visible = true
+		# Disable clipping up the chain (just in case)
+		var p := c.get_parent()
+		while p is Control:
+			(p as Control).clip_contents = false
+			p = p.get_parent()
+	# World map sprite should NOT be under a CanvasLayer
+	if _map_sprite != null:
+		_map_sprite.z_as_relative = false
+		_map_sprite.z_index = -5000
+		var up := _map_sprite.get_parent()
+		while up != null:
+			if up is CanvasLayer:
+				push_warning("WorldMap Sprite2D is under a CanvasLayer; move it out (it can cover UI).")
+				break
+			up = up.get_parent()
+	# Print the truth about layers & size
+	_minimap_vis_dump()
+
+func _minimap_vis_dump() -> void:
+	var mm := get_node_or_null(^"CanvasLayer/Control/Minimap")
+	var cl := get_node_or_null(^"CanvasLayer")
+	if mm is Control:
+		var c := mm as Control
+		var rect := c.get_global_rect()
+		prints("[MM] size=", c.size, " global=", rect,
+			   " z=", c.z_index, " rel=", c.z_as_relative,
+			   " visible=", c.is_visible_in_tree(),
+			   " ui.layer=", (cl.layer if cl != null else -999))
 
 func _ensure_ui_accept_binding() -> void:
 	if not InputMap.has_action("ui_accept"):
@@ -572,16 +619,17 @@ func _goto_city(idx: int, jump: bool) -> void:
 	var c: Dictionary = _cities[_city_index]
 	set_marker_xy(c["pos"], jump)
 
-	Globals.set_selected_city(String(c["name"]))  # persist for other scenes
+	Globals.set_selected_city(String(c["name"]))
 
-	# UI text + pulse
 	_update_ui_for_city(c)
 	_pulse_ui_label(_title)
 	_pulse_ui_label(_info)
 
-	# restart map pulse
 	_pulse_t = 0.0
 	queue_redraw()
+
+	# NEW: live preview of the selected track in the Minimap
+	_preview_minimap_for_city(String(c["name"]))
 
 func _next_city() -> void:
 	if _cities.size() == 0:
@@ -755,3 +803,136 @@ func _find_city_index_by_name(name: String) -> int:
 			return i
 		i += 1
 	return -1
+
+func _find_minimap() -> Node:
+	var mm := get_node_or_null(^"CanvasLayer/Control/Minimap")
+	if mm == null:
+		mm = get_tree().get_root().find_child("Minimap", true, false)
+	return mm
+
+func _slugify_city(name: String) -> String:
+	var s := name.strip_edges().to_lower()
+	var out := ""
+	for i in s.length():
+		var ch := s.unicode_at(i)
+		if (ch >= 97 and ch <= 122) or (ch >= 48 and ch <= 57):
+			out += char(ch)
+		elif ch == 32 or ch == 45 or ch == 95:
+			out += "_"
+		else:
+			out += "_"
+	return out
+
+func _load_points_from_json(p: String) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	if not ResourceLoader.exists(p):
+		return out
+	var f := FileAccess.open(p, FileAccess.READ)
+	if f == null:
+		return out
+	var data = JSON.parse_string(f.get_as_text())
+	if typeof(data) != TYPE_DICTIONARY:
+		return out
+
+	var keys := ["points_uv", "points", "uv"]
+	var arr: Array = []
+	var i := 0
+	while i < keys.size():
+		var k := String(keys[i])
+		if data.has(k):
+			var v = data[k]
+			if v is Array:
+				arr = v
+				break
+		i += 1
+
+	for q in arr:
+		if q is Array and q.size() >= 2:
+			out.append(Vector2(float(q[0]), float(q[1])))
+	return out
+
+func _preview_minimap_for_city(name: String) -> void:
+	var mm := _find_minimap()
+	if mm == null:
+		prints("[WorldMap] preview", name, "no Minimap node found")
+		return
+
+	var pts := PackedVector2Array()
+	var slug := _slugify_city(name)
+
+	# 0) Make sure DB is loaded
+	if Engine.has_singleton("TracksDataBase"):
+		var db0 := get_node_or_null("/root/TracksDataBase")
+		if db0 != null and db0.has_method("reload"):
+			db0.call("reload")
+
+	# 1) Try DB by name, then slug
+	var cfg: Resource = null
+	if Engine.has_singleton("TracksDataBase"):
+		var db := get_node_or_null("/root/TracksDataBase")
+		if db != null:
+			if db.has_method("get_config"):
+				cfg = db.call("get_config", name)
+				if cfg == null:
+					cfg = db.call("get_config", slug)
+
+	if cfg is TrackConfig:
+		var tc := cfg as TrackConfig
+		if tc.path_points_uv.size() >= 2:
+			pts = tc.path_points_uv
+			prints("[WorldMap] preview", name, "from TrackConfig.tres (DB)", pts.size())
+
+	# 1a) If DB gave us a TrackConfig but no points, look for a sidecar next to the .tres
+	if pts.size() < 2 and cfg is TrackConfig:
+		var rp := ""
+		if "resource_path" in cfg:
+			rp = String(cfg.resource_path)
+		if rp != "" and rp.ends_with(".tres"):
+			var dir := rp.get_base_dir()
+			var tried := [dir + "/path.json", dir + "/" + slug + ".json"]
+			var j := 0
+			while j < tried.size() and pts.size() < 2:
+				var pj := String(tried[j])
+				var a := _load_points_from_json(pj)
+				if a.size() >= 2:
+					pts = a
+					prints("[WorldMap] preview", name, "from TracksDB sidecar:", pj, pts.size())
+				j += 1
+
+	# 2) No DB hit? Load the .tres directly and try again
+	if pts.size() < 2:
+		var direct := "res://TracksDB/" + slug + "/" + slug + ".tres"
+		if ResourceLoader.exists(direct):
+			var cfg2 := load(direct)
+			if cfg2 is TrackConfig:
+				var tc2 := cfg2 as TrackConfig
+				if tc2.path_points_uv.size() >= 2:
+					pts = tc2.path_points_uv
+					prints("[WorldMap] preview", name, "from TrackConfig.tres (direct)", pts.size())
+				if pts.size() < 2:
+					var dir2 := direct.get_base_dir()
+					var tried2 := [dir2 + "/path.json", dir2 + "/" + slug + ".json"]
+					var k := 0
+					while k < tried2.size() and pts.size() < 2:
+						var pj2 := String(tried2[k])
+						var b := _load_points_from_json(pj2)
+						if b.size() >= 2:
+							pts = b
+							prints("[WorldMap] preview", name, "from TracksDB sidecar (direct):", pj2, pts.size())
+						k += 1
+
+	# 3) Legacy folder fallback
+	if pts.size() < 2:
+		var legacy := "res://Tracks/" + slug + "/path.json"
+		var c := _load_points_from_json(legacy)
+		if c.size() >= 2:
+			pts = c
+			prints("[WorldMap] preview", name, "from Tracks/ path.json:", legacy, pts.size())
+
+	# 4) Push to Minimap (or clear)
+	if pts.size() >= 2 and mm.has_method("set_preview_points_uv"):
+		mm.call("set_preview_points_uv", pts)
+		prints("[WorldMap] preview", name, "pts:", pts.size())
+	elif mm.has_method("clear_preview"):
+		mm.call("clear_preview")
+		prints("[WorldMap] preview", name, "pts:", 0)

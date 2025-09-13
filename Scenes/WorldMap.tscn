@@ -1,8 +1,9 @@
-[gd_scene load_steps=5 format=3 uid="uid://dvj546krba1wg"]
+[gd_scene load_steps=6 format=3 uid="uid://dvj546krba1wg"]
 
 [ext_resource type="Script" uid="uid://d4ctmix5rqgps" path="res://Scripts/WorldMap.gd" id="1_h0vor"]
 [ext_resource type="FontFile" uid="uid://csnhk3q4gx0" path="res://Fonts/magofonts/mago1.ttf" id="3_5wnfc"]
 [ext_resource type="FontFile" uid="uid://dgugahs6bc7so" path="res://Fonts/magofonts/mago3.ttf" id="3_nnt0k"]
+[ext_resource type="Script" uid="uid://dtnsya35gcocj" path="res://Scripts/Minimap.gd" id="4_nnt0k"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_5wnfc"]
 bg_color = Color(0, 0, 0, 0.521569)
@@ -31,11 +32,8 @@ ui_font = ExtResource("3_nnt0k")
 ui_font_size = 32
 ui_outline_px = 2
 
-[node name="Map" type="Sprite2D" parent="."]
-
-[node name="Camera2D" type="Camera2D" parent="."]
-
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
+layer = 50
 
 [node name="Control" type="Control" parent="CanvasLayer"]
 layout_mode = 3
@@ -44,6 +42,35 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+
+[node name="Minimap" type="Control" parent="CanvasLayer/Control"]
+z_index = 4096
+z_as_relative = false
+custom_minimum_size = Vector2(100, 100)
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_top = -100.0
+offset_right = 100.0
+grow_vertical = 0
+script = ExtResource("4_nnt0k")
+path_provider = NodePath("../SubViewport/PathOverlay2D")
+racers_root = NodePath("../Sprite Handler/Racers")
+path_width = 2
+pixel_snap = false
+resample_step_px = 2.24
+smooth_iterations = 1
+dot_color = Color(0, 1, 0, 1)
+player_dot_color = Color(1, 0, 0, 1)
+lapped_dot_color = Color(0, 0.509804, 1, 1)
+dot_radius = 2.0
+player_dot_radius = 2.0
+padding_px = 0.0
+flip_y = false
+pixel_dots = false
+dot_square_size = 2
+player_square_size = 2
 
 [node name="Title" type="Label" parent="CanvasLayer/Control"]
 layout_mode = 0
@@ -66,3 +93,8 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_5wnfc")
 [node name="Info" type="RichTextLabel" parent="CanvasLayer/Control/PanelContainer"]
 layout_mode = 2
 theme_override_fonts/normal_font = ExtResource("3_5wnfc")
+
+[node name="Map" type="Sprite2D" parent="."]
+z_index = -4096
+
+[node name="Camera2D" type="Camera2D" parent="."]

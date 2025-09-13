@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TrackConfig" load_steps=5 format=3 uid="uid://be2lstfjfwhru"]
+
+[ext_resource type="Texture2D" uid="uid://cldur1sqc0njd" path="res://Textures/Tracks/My Tracks/Track_04_Road.png" id="1_oqfcv"]
+[ext_resource type="Texture2D" uid="uid://baswq6uaio1tg" path="res://Textures/Tracks/Grass/Grass_Tile_02.png" id="2_egn4r"]
+[ext_resource type="Script" uid="uid://0mvsc0fipym0" path="res://Scripts/TrackConfig.gd" id="3_7tpd6"]
+[ext_resource type="Texture2D" uid="uid://bd8vocbhdcrpn" path="res://Textures/Tracks/My Tracks/Track_04.png" id="4_tm0ja"]
+
+[resource]
+script = ExtResource("3_7tpd6")
+display_name = "Mexico City"
+track_texture = ExtResource("4_tm0ja")
+grass_texture = ExtResource("2_egn4r")
+collision_map = ExtResource("1_oqfcv")
+tint_color = Color(1, 1, 1, 1)
+tint_strength = 0.0
+path_points_uv = PackedVector2Array(919, 583, 919, 100, 76, 100, 76, 950, 400, 950, 400, 329, 650, 329, 650, 950, 919, 950)
+metadata/_custom_type_script = "uid://0mvsc0fipym0"

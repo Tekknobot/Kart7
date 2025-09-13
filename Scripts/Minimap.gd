@@ -43,6 +43,8 @@ var _frame := 0
 # optional: ids to render in the lapped color (fill from Leaderboard if desired)
 var _lapped_ids := {}  # {instance_id: true}
 
+var _preview_override_active := false  # when true, we use manual UV and ignore providers
+
 # ---------- Public API (World can call this once after spawn) ----------
 func Bind(player: Node, racers_root_node: Node, provider_node: Node) -> void:
 	_player = player
@@ -85,6 +87,8 @@ func _process(_dt: float) -> void:
 
 # ---------- Lazy binding for prefabs ----------
 func _lazy_bind() -> void:
+	if _preview_override_active:
+		return  # don't auto-bind providers while preview is active	
 	if _provider == null:
 		_provider = get_node_or_null(path_provider)
 	if _provider == null:
@@ -127,9 +131,13 @@ func _on_points_changed() -> void:
 
 # ---------- Data fetch ----------
 func _fetch_uv_loop() -> void:
+	if _preview_override_active:
+		_uv_loop_dirty = false
+		return
+
 	_uv_loop = PackedVector2Array()
 	if _provider != null:
-		# Prefer base UV, not transformed
+		# Prefer base UV (stable), then transformed, then Map fallbacks
 		if _provider.has_method("get_path_points_uv"):
 			_uv_loop = _provider.call("get_path_points_uv")
 		elif _provider.has_method("get_path_points_uv_transformed"):
@@ -182,7 +190,9 @@ func _uv_to_panel(uv: Vector2) -> Vector2:
 	return off + Vector2(u * s, v * s)
 
 func _odd(n: int) -> int:
-	return n if (n % 2) != 0 else n + 1
+	if (n % 2) != 0:
+		return n
+	return n + 1
 
 func _draw_pixel_square(center: Vector2, size_px: int, col: Color) -> void:
 	var s = max(1, _odd(size_px))
@@ -290,3 +300,55 @@ func _chaikin(src: PackedVector2Array, iters: int) -> PackedVector2Array:
 		dst.append(pts[pts.size() - 1])
 		pts = dst
 	return pts
+
+func set_preview_points_uv(pts: PackedVector2Array) -> void:
+	_preview_override_active = true
+
+	# --- Detect if points are pixels (e.g., 0..1024) and normalize to 0..1 ---
+	var max_comp := 0.0
+	for v in pts:
+		var ax = abs(v.x)
+		var ay = abs(v.y)
+		if ax > max_comp:
+			max_comp = ax
+		if ay > max_comp:
+			max_comp = ay
+
+	var normalized := PackedVector2Array()
+	if max_comp > 2.0:
+		# Treat as pixel coordinates; scale by map_size_px (default 1024)
+		var denom := float(max(1, map_size_px))
+		for v in pts:
+			normalized.append(Vector2(v.x / denom, v.y / denom))
+	else:
+		for v in pts:
+			normalized.append(v)
+
+	# --- Store + ensure closed ---
+	_uv_loop = PackedVector2Array()
+	for v in normalized:
+		_uv_loop.append(v)
+	if _uv_loop.size() >= 2:
+		var a := _uv_loop[0]
+		var b := _uv_loop[_uv_loop.size() - 1]
+		if not a.is_equal_approx(b):
+			_uv_loop.append(a)
+
+	_uv_loop_dirty = false
+	queue_redraw()
+
+	# (Optional) quick bounds log to confirm in-range
+	var minx :=  1e9; var miny :=  1e9
+	var maxx := -1e9; var maxy := -1e9
+	for v in _uv_loop:
+		if v.x < minx: minx = v.x
+		if v.y < miny: miny = v.y
+		if v.x > maxx: maxx = v.x
+		if v.y > maxy: maxy = v.y
+	prints("[Minimap] uv bounds:", Vector2(minx, miny), "→", Vector2(maxx, maxy))
+
+func clear_preview() -> void:
+	_preview_override_active = false
+	_uv_loop = PackedVector2Array()
+	_uv_loop_dirty = false
+	queue_redraw()
