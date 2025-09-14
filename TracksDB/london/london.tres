@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TrackConfig" load_steps=5 format=3 uid="uid://dxrammpmywidl"]
+
+[ext_resource type="Texture2D" uid="uid://dkcmx34f2yai4" path="res://Textures/Tracks/My Tracks/Track_11_Road.png" id="1_l7ebw"]
+[ext_resource type="Texture2D" uid="uid://xcidbyb1ig0c" path="res://Textures/Tracks/Grass/Grass_Tile_10.png" id="2_h5u0s"]
+[ext_resource type="Script" uid="uid://0mvsc0fipym0" path="res://Scripts/TrackConfig.gd" id="3_o2n5j"]
+[ext_resource type="Texture2D" uid="uid://dmfs7ati1q45l" path="res://Textures/Tracks/My Tracks/Track_11.png" id="4_yg7sj"]
+
+[resource]
+script = ExtResource("3_o2n5j")
+display_name = "London"
+track_texture = ExtResource("4_yg7sj")
+grass_texture = ExtResource("2_h5u0s")
+collision_map = ExtResource("1_l7ebw")
+tint_color = Color(1, 1, 1, 1)
+tint_strength = 0.0
+path_points_uv = PackedVector2Array(920, 556, 920, 90, 820, 80, 246, 370, 246, 90, 80, 90, 80, 940, 216, 940, 780, 670, 780, 940, 919, 940)
+metadata/_custom_type_script = "uid://0mvsc0fipym0"
