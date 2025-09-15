@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TrackConfig" load_steps=5 format=3 uid="uid://c37tkhpn7d8s"]
+
+[ext_resource type="Texture2D" uid="uid://bxy6nt1iv42p8" path="res://Textures/Tracks/My Tracks/Track_13_Road.png" id="1_hilsi"]
+[ext_resource type="Texture2D" uid="uid://bxvqm3xkgd6jt" path="res://Textures/Tracks/Grass/Grass_Tile_13.png" id="2_7rqdn"]
+[ext_resource type="Script" uid="uid://0mvsc0fipym0" path="res://Scripts/TrackConfig.gd" id="3_bdrak"]
+[ext_resource type="Texture2D" uid="uid://vf4cpmyv72lq" path="res://Textures/Tracks/My Tracks/Track_13.png" id="4_74n43"]
+
+[resource]
+script = ExtResource("3_bdrak")
+display_name = "Lagos"
+track_texture = ExtResource("4_74n43")
+grass_texture = ExtResource("2_7rqdn")
+collision_map = ExtResource("1_hilsi")
+tint_color = Color(1, 1, 1, 1)
+tint_strength = 0.0
+path_points_uv = PackedVector2Array(920, 556, 920, 80, 708, 80, 588, 612, 80, 726, 80, 950, 920, 950)
+metadata/_custom_type_script = "uid://0mvsc0fipym0"

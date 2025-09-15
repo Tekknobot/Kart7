@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TrackConfig" load_steps=5 format=3 uid="uid://bkfer8eer2dv4"]
+
+[ext_resource type="Texture2D" uid="uid://c0u1qqkgg5jru" path="res://Textures/Tracks/My Tracks/Track_12_Road.png" id="1_mmmcg"]
+[ext_resource type="Texture2D" uid="uid://bmd0l2rs1wcxq" path="res://Textures/Tracks/Grass/Grass_Tile_12.png" id="2_p7xau"]
+[ext_resource type="Script" uid="uid://0mvsc0fipym0" path="res://Scripts/TrackConfig.gd" id="3_tv0fu"]
+[ext_resource type="Texture2D" uid="uid://bs3plnw5652x8" path="res://Textures/Tracks/My Tracks/Track_12.png" id="4_cpwkw"]
+
+[resource]
+script = ExtResource("3_tv0fu")
+display_name = "Paris"
+track_texture = ExtResource("4_cpwkw")
+grass_texture = ExtResource("2_p7xau")
+collision_map = ExtResource("1_mmmcg")
+tint_color = Color(1, 1, 1, 1)
+tint_strength = 0.0
+path_points_uv = PackedVector2Array(920, 556, 920, 310, 140, 130, 100, 315, 757, 485, 757, 705, 80, 705, 80, 950, 919, 950)
+metadata/_custom_type_script = "uid://0mvsc0fipym0"
