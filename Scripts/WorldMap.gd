@@ -139,7 +139,7 @@ const CITY_FACTS := {
 	"Paris": [
 		"The Louvre is the world’s most-visited museum.",
 		"The Eiffel Tower was built for the 1889 Exposition Universelle.",
-		"Paris is nicknamed La Ville Lumière—the City of Light."
+		"Paris is nicknamed La Ville Lumière--the City of Light."
 	],
 	"Madrid": [
 		"Puerta del Sol marks Kilometer Zero of Spain’s roads.",
@@ -213,13 +213,13 @@ const CITY_FACTS := {
 	],
 	"Keystone": [
 		"Set on Keystone Lake west of Tulsa, with coves and wooded shoreline.",
-		"Popular for boating and fishing—catfish, crappie, and striped bass are common targets.",
+		"Popular for boating and fishing--catfish, crappie, and striped bass are common targets.",
 		"Trails and cabins sit among Cross Timbers woodlands and sandstone bluffs."
 	],
 	"Banff": [
 		"Banff National Park (est. 1885) is Canada’s first national park.",
 		"The town of Banff sits in the Bow Valley beneath the Rockies.",
-		"Iconic glacial lakes—like Lake Louise and Moraine Lake—are nearby."
+		"Iconic glacial lakes--like Lake Louise and Moraine Lake--are nearby."
 	],
 	"Cairo": [
 		"Egypt’s capital on the Nile and the core of Greater Cairo.",

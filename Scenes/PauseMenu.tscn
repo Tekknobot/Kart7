@@ -81,7 +81,7 @@ bbcode_enabled = true
 text = "CONTROLS:
 
 [color=#4CAF50]A[/color] to Accelerate
-[color=#FFC107]D-Pad ← →[/color]  Steer
+[color=#FFC107]D-Pad[/color]  Steer
 [color=#FF7043]RB[/color] + steer = Drift
 [color=#FF7043]RB[/color] (hold while steady) = Nitro
 [color=#42A5F5]LB[/color] Rear View
