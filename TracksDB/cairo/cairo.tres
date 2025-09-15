@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TrackConfig" load_steps=5 format=3 uid="uid://b4cnahmwlh221"]
+
+[ext_resource type="Texture2D" uid="uid://61q63gpymx8e" path="res://Textures/Tracks/My Tracks/Track_15_Road.png" id="1_e8rm0"]
+[ext_resource type="Texture2D" uid="uid://bu73xge1f4djq" path="res://Textures/Tracks/Grass/Grass_Tile_15.png" id="2_2i3ph"]
+[ext_resource type="Script" uid="uid://0mvsc0fipym0" path="res://Scripts/TrackConfig.gd" id="3_0weqs"]
+[ext_resource type="Texture2D" uid="uid://8v4hsg6r0uxr" path="res://Textures/Tracks/My Tracks/Track_15.png" id="4_ib02g"]
+
+[resource]
+script = ExtResource("3_0weqs")
+display_name = "Cairo"
+track_texture = ExtResource("4_ib02g")
+grass_texture = ExtResource("2_2i3ph")
+collision_map = ExtResource("1_e8rm0")
+tint_color = Color(1, 1, 1, 1)
+tint_strength = 0.0
+path_points_uv = PackedVector2Array(920, 556, 920, 80, 80, 80, 80, 950, 310, 950, 310, 230, 736, 230, 736, 720, 470, 720, 470, 950, 920, 950)
+metadata/_custom_type_script = "uid://0mvsc0fipym0"

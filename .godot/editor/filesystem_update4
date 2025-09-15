@@ -33,3 +33,4 @@ res://TracksDB/lagos/lagos.tres
 res://Scenes/PauseMenu.tscn
 res://Scripts/World Elements/Racers/Opponent.gd
 res://TracksDB/istanbul/istanbul.tres
+res://TracksDB/cairo/cairo.tres
