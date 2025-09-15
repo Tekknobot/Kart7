@@ -209,6 +209,23 @@ var _curv_ema: float = 0.0
 
 @export var skid_parent_path: NodePath
 
+@export var TERRAIN_DECAY_HALF_LIFE := 0.016
+@export var TERRAIN_RECOVER_HALF_LIFE := 0.008
+@export var RELEASE_BOOST_HALF_LIFE := 0.18
+
+var _terrain_mult_s := 1.0
+var _release_boost := 0.0
+var _turbo_timer := 0.0
+var _drift_charge := 0.0
+var _drift_was_drifting := false
+var _drift_side_slip := 0.0
+var _spin_meter := 0.0
+var _is_spinning := false
+var _spin_timer := 0.0
+var _spin_phase := 0.0
+var _post_spin_lock := 0.0
+var _nitro_active_runtime := false
+
 func _bname(n: Node) -> String:
 	return (n.name if n != null and "name" in n else str(n.get_instance_id()))
 
@@ -451,7 +468,7 @@ func _process(delta: float) -> void:
 	if visual_update_stride <= 1 or (f % visual_update_stride) == 0:
 		_update_angle_sprite_fast()
 		_update_depth_sort_fast()
-		_update_speed_tag()   # <—— add this
+		_update_speed_tag()
 
 	_apply_dynamic_difficulty()
 
@@ -465,12 +482,10 @@ func _process(delta: float) -> void:
 	var right: Vector2 = _right_smooth.normalized()
 
 	# --- steering target using smoothed lookahead ---
-	# 0 = tight, 1 = straight
 	var t0 := _tangent_at_distance(_s_px)
 	var t1 := _tangent_at_distance(_s_px + 80.0)
-	var straightness = clamp((t0.dot(t1) + 1.0) * 0.5, 0.0, 1.0)  # [-1..1] -> [0..1]
-	var L = clamp(lookahead_px_base + lookahead_curv_boost * straightness,
-				   lookahead_px_min, lookahead_px_max)
+	var straightness = clamp((t0.dot(t1) + 1.0) * 0.5, 0.0, 1.0)
+	var L = clamp(lookahead_px_base + lookahead_curv_boost * straightness, lookahead_px_min, lookahead_px_max)
 	var tgt := _uv_and_tangent_smooth(_s_px + L)
 
 	var to_t = (tgt["uv"] - p_uv)
@@ -489,17 +504,57 @@ func _process(delta: float) -> void:
 	var dot_raw: float = clamp(t0.dot(t1), -1.0, 1.0)
 	var curv_approx: float = 1.0 - max(dot_raw, -1.0)
 
+	# === Drift sensing (central, smoothed, signed) ===
+	var ta: Vector2 = (_uv_and_tangent_smooth(_s_px - DRIFT_SIGN_SAMPLE_PX)["tan"] as Vector2)
+	var tb: Vector2 = (_uv_and_tangent_smooth(_s_px + DRIFT_SIGN_SAMPLE_PX)["tan"] as Vector2)
+
+	var drift_turn_sin: float = ta.x * tb.y - ta.y * tb.x
+	var drift_turn_sign: float = signf(drift_turn_sin)
+
+	var drift_curv_raw: float = 1.0 - clampf(ta.dot(tb), -1.0, 1.0)
+	_curv_ema = lerpf(_curv_ema, drift_curv_raw, DRIFT_CURV_ALPHA)
+	var drift_curv: float = _curv_ema
+
+	var want_drift := false
+	if drift_curv >= DRIFT_CURV_START and _movementSpeed >= DRIFT_MIN_SPEED and drift_turn_sign != 0.0:
+		want_drift = true
+
+	if want_drift:
+		_is_drifting = true
+		_drift_linger = DRIFT_RELEASE_S
+		_drift_sign = drift_turn_sign
+		var target_slip: float = DRIFT_SLIP_MAX * clampf(drift_curv, 0.0, 1.0)
+		_drift_slip = move_toward(_drift_slip, target_slip, DRIFT_SLIP_ACCEL * delta)
+	else:
+		_drift_linger = maxf(0.0, _drift_linger - delta)
+		if drift_curv <= DRIFT_CURV_STOP and _drift_linger <= 0.0:
+			_is_drifting = false
+		_drift_slip = move_toward(_drift_slip, 0.0, DRIFT_SLIP_ACCEL * delta)
+
+	if want_drift:
+		if int(Time.get_ticks_msec() / 250) % 2 == 0:
+			prints(name, "drift_curv=", String.num(drift_curv, 3), "speed=", int(_movementSpeed))
+
+	# === Mechanics ticks that depend on current drift state and yaw_err ===
+	_drift_charge_tick(delta, yaw_err)
+	_drift_award_tick()
+	_spinout_update_meter(delta, yaw_err)
+	_spinout_tick(delta)
+
+	# === Timers and nitro ===
+	_tick_release_boost_decay(delta)
+	_turbo_timer_tick(delta)
+	_ai_tick_nitro(delta)
+
+	# === Terrain smoothing (smoothed multiplier used below) ===
+	_terrain_tick(delta, terr_mult)
+
 	# --- desired speed base ---
 	var desired_speed: float = target_speed
-
 	if _is_drifting:
-		desired_speed *= DRIFT_SPEED_MULT
-		
-	# --- apply nitro boost ---
-	if _nitro_timer > 0.0:
-		desired_speed *= AI_NITRO_MULT
+		desired_speed = desired_speed * DRIFT_SPEED_MULT
 
-	# --- catch-up vs player (do this before corner/terrain clamps) ---
+	# --- catch-up vs player (do this before corner/terrain/boost) ---
 	var pl := _player()
 	if pl != null:
 		var pl_speed: float = 0.0
@@ -519,7 +574,7 @@ func _process(delta: float) -> void:
 
 		if fwd_gap > catchup_deadzone_uv:
 			var eff_gap: float = fwd_gap - catchup_deadzone_uv
-			desired_speed += eff_gap * catchup_gain_speed
+			desired_speed = desired_speed + eff_gap * catchup_gain_speed
 
 		var min_over: float = pl_speed * min_ratio_vs_player
 		if desired_speed < min_over:
@@ -528,15 +583,19 @@ func _process(delta: float) -> void:
 	# --- corner damping ---
 	var curv_u = clamp(curv_approx / 0.6, 0.0, 1.0)
 	var corner_mult: float = lerp(1.0, speed_damper_on_curve, curv_u)
-	desired_speed *= corner_mult
+	desired_speed = desired_speed * corner_mult
 
-	# --- terrain slow-down & cap (like player) ---
-	desired_speed *= terr_mult
-	desired_speed = min(desired_speed, _maxMovementSpeed * terr_mult)
+	# --- unified boost pipeline (no direct nitro multiply here) ---
+	var boost_mult := _recompute_speed_multiplier()
+	desired_speed = desired_speed * boost_mult
 
-	# --- accel/decel toward desired (optionally scale accel by surface grip) ---
-	var accel_eff: float = accel * lerp(1.0, terr_mult, accel_surface_gain)
-	
+	# --- smoothed terrain scaling and temp-cap headroom ---
+	desired_speed = desired_speed * _terrain_mult_s
+	desired_speed = _apply_speed_caps(desired_speed)
+
+	# --- accel/decel toward desired (scale accel by smoothed surface if desired) ---
+	var accel_eff: float = accel * lerp(1.0, _terrain_mult_s, accel_surface_gain)
+
 	if _movementSpeed < desired_speed:
 		_movementSpeed = min(desired_speed, _movementSpeed + accel_eff * delta)
 	else:
@@ -575,43 +634,37 @@ func _process(delta: float) -> void:
 
 	if _hit_sfx_cd > 0.0:
 		_hit_sfx_cd = max(0.0, _hit_sfx_cd - delta)
-		
-	# === Drift sensing (central, smoothed, signed) ===
-	var ta: Vector2 = (_uv_and_tangent_smooth(_s_px - DRIFT_SIGN_SAMPLE_PX)["tan"] as Vector2)
-	var tb: Vector2 = (_uv_and_tangent_smooth(_s_px + DRIFT_SIGN_SAMPLE_PX)["tan"] as Vector2)
 
-	# signed turn: >0 = left, <0 = right
-	var drift_turn_sin: float = ta.x * tb.y - ta.y * tb.x
-	var drift_turn_sign: float = signf(drift_turn_sin)
+func _compute_temp_cap(base_cap: float) -> float:
+	var cap := base_cap
 
-	# curvature magnitude in [0..~1], smoothed for stability
-	var drift_curv_raw: float = 1.0 - clampf(ta.dot(tb), -1.0, 1.0)
-	_curv_ema = lerpf(_curv_ema, drift_curv_raw, DRIFT_CURV_ALPHA)
-	var drift_curv: float = _curv_ema
+	# Match Player factors
+	var turbo_cap := base_cap * 1.45   # TURBO_TEMP_CAP_FACTOR
+	var nitro_cap := base_cap * 1.10   # NITRO_TEMP_CAP_FACTOR
+	var spin_mult := 0.60              # SPIN_SPEED_MULT
 
-	# hysteresis gates
-	var want_drift: bool = (
-		drift_curv >= DRIFT_CURV_START
-		and _movementSpeed >= DRIFT_MIN_SPEED
-		and drift_turn_sign != 0.0
-	)
+	if _turbo_timer > 0.0:
+		if cap < turbo_cap:
+			cap = turbo_cap
 
-	if want_drift:
-		_is_drifting = true
-		_drift_linger = DRIFT_RELEASE_S
-		_drift_sign = drift_turn_sign
-		var target_slip: float = DRIFT_SLIP_MAX * clampf(drift_curv, 0.0, 1.0)
-		_drift_slip = move_toward(_drift_slip, target_slip, DRIFT_SLIP_ACCEL * delta)
-	else:
-		_drift_linger = maxf(0.0, _drift_linger - delta)
-		if drift_curv <= DRIFT_CURV_STOP and _drift_linger <= 0.0:
-			_is_drifting = false
-		_drift_slip = move_toward(_drift_slip, 0.0, DRIFT_SLIP_ACCEL * delta)
+	if _nitro_timer > 0.0:
+		if cap < nitro_cap:
+			cap = nitro_cap
 
-	# option A: wall-clock throttle (every ~250 ms)
-	if want_drift and int(Time.get_ticks_msec() / 250) % 2 == 0:
-		prints(name, "drift_curv=", String.num(drift_curv, 3), "speed=", int(_movementSpeed))
+	if _is_spinning:
+		var spin_cap := base_cap * spin_mult
+		if cap > spin_cap:
+			cap = spin_cap
 
+	return cap
+
+func _apply_speed_caps(desired_speed: float) -> float:
+	# Clamp desired_speed against the current max, including temp headroom and smoothed terrain
+	var cap_mult := _compute_temp_cap(1.0)
+	var max_allowed := _maxMovementSpeed * cap_mult * _terrain_mult_s
+	if desired_speed > max_allowed:
+		desired_speed = max_allowed
+	return desired_speed
 	
 func _apply_dynamic_difficulty() -> void:
 	# Determine lap driving the difficulty
@@ -1567,48 +1620,54 @@ func _ai_straight_ahead_len(s_px: float) -> float:
 	return total
 
 func _ai_tick_nitro(dt: float) -> void:
-	# cooldown tick
-	_nitro_cd = max(0.0, _nitro_cd - dt)
+	var engage_frac := 0.12
+	var disengage_frac := 0.06
 
-	# simple surface check: prefer ROAD (don’t waste nitro off-road)
 	var pos_px_i := _pos_px_from_mappos(ReturnMapPosition())
 	var rt_cur := Globals.RoadType.ROAD
 	if _has_collision_api():
 		rt_cur = _collisionHandler.ReturnCurrentRoadType(pos_px_i)
-	var on_good_surface = (rt_cur == Globals.RoadType.ROAD)
 
-	# --- NEW: require FULL gauge before considering nitro ---
-	var full_ready := (_nitro_charge >= 0.999)
+	var on_good_surface := false
+	if rt_cur == Globals.RoadType.ROAD:
+		on_good_surface = true
 
-	# Decide whether to latch nitro ON this frame
-	if _nitro_timer <= 0.0 and _nitro_cd <= 0.0 and on_good_surface and full_ready:
-		var straight_px := _ai_straight_ahead_len(_s_px)
-		# scale runway requirement a bit with speed (faster -> need more)
-		var need = AI_NITRO_MIN_STRAIGHT_PX + clamp(_movementSpeed * 0.6, 0.0, 240.0)
+	var straight_px := _ai_straight_ahead_len(_s_px)
+	var need = AI_NITRO_MIN_STRAIGHT_PX + clamp(_movementSpeed * 0.6, 0.0, 240.0)
+
+	var requesting := false
+	if on_good_surface:
 		if straight_px >= need:
-			_nitro_latched = true
+			requesting = true
 
-	# Drain / refill and set visuals
+	var blocked := false
+	if _is_drifting:
+		blocked = true
+	if _is_spinning:
+		blocked = true
+
+	if _nitro_active_runtime:
+		if not requesting:
+			_nitro_active_runtime = false
+		if _nitro_charge <= disengage_frac:
+			_nitro_active_runtime = false
+		if blocked:
+			_nitro_active_runtime = false
+	else:
+		if requesting and not blocked:
+			if _nitro_charge >= engage_frac:
+				_nitro_active_runtime = true
+
 	var drain = 1.0 / max(0.001, AI_NITRO_CAPACITY_S)
 	var refill = 1.0 / max(0.001, AI_NITRO_REFILL_S)
 
-	if _nitro_latched and _nitro_charge > 0.0:
+	if _nitro_active_runtime:
 		_nitro_charge = max(0.0, _nitro_charge - drain * dt)
-		_nitro_timer = 1.0   # ON for shader this frame
-		# auto-drop when we run out
-		if _nitro_charge <= 0.0:
-			_nitro_latched = false
-			_nitro_cd = AI_NITRO_COOLDOWN_S
+		_nitro_timer = 1.0
 	else:
 		_nitro_timer = 0.0
-		_nitro_latched = false
-		_nitro_charge = min(1.0, _nitro_charge + refill * dt)
-
-	# --- OUTPUT boost multiplier (per frame) ---
-	var out_mult := 1.0
-	if _nitro_timer > 0.0:
-		out_mult = max(out_mult, AI_NITRO_MULT)
-	SetOutputSpeedMultiplier(out_mult)
+		if not requesting and not blocked:
+			_nitro_charge = min(1.0, _nitro_charge + refill * dt)
 
 func SetCollisionHandler(node: Node) -> void:
 	_collisionHandler = node
@@ -1692,3 +1751,150 @@ func _ensure_skid_painter_for_me() -> void:
 	var lw := get_node_or_null(^"Road Type Effects/LeftWheel")
 	var rw := get_node_or_null(^"Road Type Effects/RightWheel")
 	prints("[Skids] Attached painter for", name, "LW?", lw != null, "RW?", rw != null)
+
+func _recompute_speed_multiplier() -> float:
+	var boost := 1.0
+
+	if _nitro_timer > 0.0:
+		if AI_NITRO_MULT > boost:
+			boost = AI_NITRO_MULT
+
+	if _is_spinning:
+		var spin_mult := 0.60
+		if spin_mult < boost:
+			boost = spin_mult
+
+	if _release_boost > 0.0:
+		var b := 1.0 + _release_boost
+		if b > boost:
+			boost = b
+
+	return boost
+
+func _tick_release_boost_decay(delta: float) -> void:
+	if _release_boost <= 0.0:
+		return
+	var half := RELEASE_BOOST_HALF_LIFE
+	if half < 0.0001:
+		half = 0.0001
+	var a := 1.0 - pow(0.5, delta / half)
+	_release_boost = max(0.0, _release_boost - _release_boost * a)
+
+func _terrain_tick(delta: float, terr_raw: float) -> void:
+	if terr_raw <= 0.0:
+		terr_raw = 1.0
+	var hl: float
+	if terr_raw < _terrain_mult_s:
+		hl = TERRAIN_DECAY_HALF_LIFE
+	else:
+		hl = TERRAIN_RECOVER_HALF_LIFE
+	if hl < 0.0001:
+		hl = 0.0001
+	var a := 1.0 - pow(0.5, delta / hl)
+	_terrain_mult_s = _terrain_mult_s + (terr_raw - _terrain_mult_s) * a
+
+func _drift_charge_tick(dt: float, yaw_err: float) -> void:
+	if not _is_drifting:
+		return
+	var steer_amt = abs(yaw_err)
+	if heading_rate_limit > 0.0001:
+		steer_amt = steer_amt / heading_rate_limit
+	if steer_amt < 0.0:
+		steer_amt = 0.0
+	if steer_amt > 1.0:
+		steer_amt = 1.0
+
+	var build_rate := 28.0
+	var add = (0.75 + 0.25 * steer_amt) * build_rate * dt
+	_drift_charge = max(0.0, _drift_charge + add)
+
+func _drift_award_tick() -> void:
+	if _drift_was_drifting and not _is_drifting:
+		var turbo_time := 0.25
+		if _drift_charge >= 80.0:
+			_turbo_timer = turbo_time
+			_release_boost = 1.02 - 1.0
+			if _sfx_ai != null:
+				if _sfx_ai.has_method("play_boost"):
+					_sfx_ai.play_boost()
+		elif _drift_charge >= 35.0:
+			_turbo_timer = turbo_time
+			_release_boost = 1.005 - 1.0
+			if _sfx_ai != null:
+				if _sfx_ai.has_method("play_boost"):
+					_sfx_ai.play_boost()
+		_drift_charge = 0.0
+	_drift_was_drifting = _is_drifting
+
+func _turbo_timer_tick(dt: float) -> void:
+	if _turbo_timer > 0.0:
+		_turbo_timer = max(0.0, _turbo_timer - dt)
+
+func _spinout_update_meter(dt: float, yaw_err: float) -> void:
+	if _is_spinning:
+		return
+
+	var steer_amt = abs(yaw_err)
+	if heading_rate_limit > 0.0001:
+		steer_amt = steer_amt / heading_rate_limit
+	if steer_amt < 0.0:
+		steer_amt = 0.0
+	if steer_amt > 1.0:
+		steer_amt = 1.0
+
+	if _is_drifting and steer_amt >= 0.55:
+		var add = 10.0 + 26.0 * steer_amt
+		_spin_meter = _spin_meter + add * dt
+		if _spin_meter >= 100.0:
+			_spin_meter = 0.0
+			_is_spinning = true
+			_spin_timer = 0.80
+			if _sfx_ai != null:
+				if _sfx_ai.has_method("play_spin"):
+					_sfx_ai.play_spin()
+	else:
+		_spin_meter = max(0.0, _spin_meter - 30.0 * dt)
+
+func _spinout_tick(dt: float) -> void:
+	if not _is_spinning:
+		return
+	_spin_timer = _spin_timer - dt
+	var cycles := 2.0
+	var duration := 0.80
+	if duration > 0.0001:
+		_spin_phase = _spin_phase + (cycles / duration) * dt
+	if _spin_timer <= 0.0:
+		_is_spinning = false
+		_post_spin_lock = 0.12
+
+func _side_slip_tick(dt: float, yaw_err: float, speed: float, drift_dir_sign: int) -> void:
+	var steer_amt = abs(yaw_err)
+	if heading_rate_limit > 0.0001:
+		steer_amt = steer_amt / heading_rate_limit
+	if steer_amt < 0.0:
+		steer_amt = 0.0
+	if steer_amt > 1.0:
+		steer_amt = 1.0
+
+	var feed = 0.9 * speed * steer_amt
+
+	var outward_sign := 1.0
+	if drift_dir_sign >= 0:
+		outward_sign = -1.0
+
+	var target = outward_sign * feed
+
+	if _is_drifting and not _is_spinning:
+		var t := dt * 4.0
+		if t < 0.0:
+			t = 0.0
+		if t > 1.0:
+			t = 1.0
+		_drift_side_slip = lerp(_drift_side_slip, target, t)
+	else:
+		var td := dt * 6.0
+		if td < 0.0:
+			td = 0.0
+		if td > 1.0:
+			td = 1.0
+		_drift_side_slip = lerp(_drift_side_slip, 0.0, td)

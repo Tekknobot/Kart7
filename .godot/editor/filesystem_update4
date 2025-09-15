@@ -30,3 +30,5 @@ res://TracksDB/toronto/toronto.tres
 res://TracksDB/london/london.tres
 res://TracksDB/paris/paris.tres
 res://TracksDB/lagos/lagos.tres
+res://Scenes/PauseMenu.tscn
+res://Scripts/World Elements/Racers/Opponent.gd

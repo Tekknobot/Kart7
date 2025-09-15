@@ -43,8 +43,7 @@ grow_vertical = 2
 layout_mode = 2
 theme_override_fonts/font = ExtResource("4_gqxqw")
 theme_override_font_sizes/font_size = 16
-text = "Midnight Drift
-"
+text = "Midnight Drift"
 horizontal_alignment = 1
 
 [node name="PauseLabel" type="Label" parent="CenterContainer/Panel/VBoxContainer"]
