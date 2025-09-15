@@ -691,23 +691,21 @@ func _place_grid_player_last() -> void:
 	if total <= 0:
 		return
 
-	# Last grid index we will use for the player
-	var last_idx := total - 1
-	if last_idx >= DEFAULT_POINTS.size():
-		last_idx = DEFAULT_POINTS.size() - 1
-	if last_idx < 0:
-		last_idx = 0
+	# >>> This is where _grid_index_for_player is called <<<
+	var p_idx := _grid_index_for_player(total)
 
-	# 1) Place opponents into 0 .. last_idx-1
-	var opp_i := 0
+	# 1) Place opponents into all slots except p_idx
+	var grid_cap = min(total, DEFAULT_POINTS.size())
+	var opp_slot := 0
 	for n in racers_root.get_children():
 		if n == _player:
 			continue
-		if opp_i >= last_idx:
+		while opp_slot == p_idx and opp_slot < grid_cap:
+			opp_slot += 1
+		if opp_slot >= grid_cap:
 			break
 
-		var px: Vector2 = DEFAULT_POINTS[opp_i]
-
+		var px: Vector2 = DEFAULT_POINTS[opp_slot]
 		var used_merge := false
 		if n.has_method("ArmMergeFromGrid"):
 			var uv := px / scale_px
@@ -716,14 +714,13 @@ func _place_grid_player_last() -> void:
 		if not used_merge and n.has_method("SetMapPosition"):
 			n.call("SetMapPosition", Vector3(px.x, 0.0, px.y))
 
-		# Ensure they know the player (now that _player exists)
 		if _player != null and _has_prop(n, "player_ref"):
 			n.set("player_ref", n.get_path_to(_player))
 
-		opp_i += 1
+		opp_slot += 1
 
-	# 2) Place the player at the last slot
-	var ppx: Vector2 = DEFAULT_POINTS[last_idx]
+	# 2) Put the PLAYER at their computed slot
+	var ppx: Vector2 = DEFAULT_POINTS[p_idx]
 	if _player != null and _player.has_method("SetMapPosition"):
 		_player.call("SetMapPosition", Vector3(ppx.x, 0.0, ppx.y))
 
@@ -965,3 +962,29 @@ func _read_selected_city_any_source() -> String:
 				return String(v)
 
 	return ""
+
+# --- Grid helpers (series-aware) ---
+func _get_player_uid() -> String:
+	if _player == null: return ""
+	if _player.has_meta("racer_uid"): return String(_player.get_meta("racer_uid"))
+	return _player.name
+
+func _grid_index_for_player(total: int) -> int:
+	var last_fallback = clamp(total - 1, 0, max(0, DEFAULT_POINTS.size() - 1))
+	var gp := get_node_or_null("/root/MidnightGrandPrix")
+	if gp != null and gp.has_method("standings_rows"):
+		var rows = gp.call("standings_rows")
+		var uid_order: Array = []
+		if rows is Array and rows.size() > 0:
+			# standings order first
+			for r in rows: uid_order.append(String(r.get("uid","")))
+			# ensure 0-point drivers still get an order
+			for n in Globals.racer_names:
+				var u := String(n)
+				if not uid_order.has(u): uid_order.append(u)
+			var i := uid_order.find(_get_player_uid())
+			if i >= 0: return clamp(i, 0, max(0, DEFAULT_POINTS.size() - 1))
+		else:
+			# first race: put player on pole
+			return 0
+	return last_fallback

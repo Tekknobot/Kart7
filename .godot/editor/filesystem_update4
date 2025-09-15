@@ -34,3 +34,4 @@ res://Scenes/PauseMenu.tscn
 res://Scripts/World Elements/Racers/Opponent.gd
 res://TracksDB/istanbul/istanbul.tres
 res://TracksDB/cairo/cairo.tres
+res://Scripts/General/Game.gd
