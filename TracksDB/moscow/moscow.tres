@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TrackConfig" load_steps=5 format=3 uid="uid://dwcgckgvcwuvk"]
+
+[ext_resource type="Texture2D" uid="uid://64yxd0iivxen" path="res://Textures/Tracks/My Tracks/Track_16_Road.png" id="1_xwlsa"]
+[ext_resource type="Texture2D" uid="uid://b40kgtlpyojgb" path="res://Textures/Tracks/Grass/Grass_Tile_16.png" id="2_dur41"]
+[ext_resource type="Script" uid="uid://0mvsc0fipym0" path="res://Scripts/TrackConfig.gd" id="3_ogbaq"]
+[ext_resource type="Texture2D" uid="uid://b7f7dy434mxrl" path="res://Textures/Tracks/My Tracks/Track_16.png" id="4_7jhjn"]
+
+[resource]
+script = ExtResource("3_ogbaq")
+display_name = "Moscow"
+track_texture = ExtResource("4_7jhjn")
+grass_texture = ExtResource("2_dur41")
+collision_map = ExtResource("1_xwlsa")
+tint_color = Color(1, 1, 1, 1)
+tint_strength = 0.0
+path_points_uv = PackedVector2Array(920, 556, 920, 95, 680, 95, 680, 680, 110, 680, 110, 950, 920, 950)
+metadata/_custom_type_script = "uid://0mvsc0fipym0"
