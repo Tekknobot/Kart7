@@ -74,6 +74,8 @@ script = ExtResource("6_6heos")
 _skyLine = NodePath("Sky Line")
 _treeLine = NodePath("Tree Line")
 day_tree_color = Color(0.70173, 0.70173, 0.70173, 1)
+night_sky_color = Color(0.191018, 0.283686, 0.468595, 1)
+night_tree_color = Color(0.228002, 0.322423, 0.259356, 1)
 night_clear_chance = 70.0
 pseudo3d_path = NodePath("../Map")
 

@@ -38,14 +38,14 @@ var _locked_city := ""      # lock the city once
 var _track_applied := false # prevent re-applying after first success
 
 var DEFAULT_POINTS: PackedVector2Array = PackedVector2Array([
-	Vector2(922, 584),
-	Vector2(952, 607),
-	Vector2(922, 631),
-	Vector2(952, 655),
-	Vector2(922, 679),
-	Vector2(952, 703),
-	Vector2(922, 727),
-	Vector2(952, 751)
+	Vector2(920, 584),
+	Vector2(950, 607),
+	Vector2(920, 631),
+	Vector2(950, 655),
+	Vector2(920, 679),
+	Vector2(950, 703),
+	Vector2(920, 727),
+	Vector2(950, 751)
 ])
 
 func _input(event):
@@ -985,6 +985,6 @@ func _grid_index_for_player(total: int) -> int:
 			var i := uid_order.find(_get_player_uid())
 			if i >= 0: return clamp(i, 0, max(0, DEFAULT_POINTS.size() - 1))
 		else:
-			# first race: put player on pole
-			return 0
+			# first race: put player LAST
+			return last_fallback
 	return last_fallback

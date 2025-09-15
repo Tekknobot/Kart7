@@ -8,6 +8,8 @@ extends Node2D
 const TIME_DAWN := 0
 const TIME_DAY := 1
 const TIME_SUNSET := 2
+const TIME_NIGHT  := 3   # NEW
+
 @export var time_of_day: int = TIME_DAY   # 0=Dawn, 1=Day, 2=Sunset
 
 # --- Strength (blend with original texture color) ---
@@ -21,12 +23,16 @@ const TIME_SUNSET := 2
 @export var day_tree_color:    Color = Color(0.48, 0.78, 0.46, 1.0)
 @export var sunset_sky_color:  Color = Color(1.00, 0.64, 0.35, 1.0)
 @export var sunset_tree_color: Color = Color(0.95, 0.45, 0.25, 1.0)
+@export var night_sky_color:   Color = Color(0.10, 0.16, 0.28, 1.0)  # NEW
+@export var night_tree_color:  Color = Color(0.12, 0.18, 0.14, 1.0)  # NEW
+
 
 # --- Time-of-day randomization weights ---
 @export var randomize_time_of_day_on_setup := true
 @export var weight_dawn: float = 1.0
 @export var weight_day: float = 1.0
 @export var weight_sunset: float = 1.0
+@export var weight_night:  float = 0.75   # NEW (tune to taste)
 
 # --- Clear color behavior ---
 @export var match_clear_color_to_sky := true
@@ -91,33 +97,38 @@ func _apply_time_of_day_modulate() -> void:
 	# Pick target palettes
 	var sky_target := day_sky_color
 	var tree_target := day_tree_color
-	if time_of_day == TIME_DAWN:
-		sky_target  = dawn_sky_color
-		tree_target = dawn_tree_color
-	elif time_of_day == TIME_DAY:
-		sky_target  = day_sky_color
-		tree_target = day_tree_color
-	elif time_of_day == TIME_SUNSET:
-		sky_target  = sunset_sky_color
-		tree_target = sunset_tree_color
+	match time_of_day:
+		TIME_DAWN:
+			sky_target  = dawn_sky_color
+			tree_target = dawn_tree_color
+		TIME_DAY:
+			sky_target  = day_sky_color
+			tree_target = day_tree_color
+		TIME_SUNSET:
+			sky_target  = sunset_sky_color
+			tree_target = sunset_tree_color
+		TIME_NIGHT:
+			sky_target  = night_sky_color      # NEW
+			tree_target = night_tree_color     # NEW
 
 	# Mix toward targets by strength
 	var sky_mix  := _blend_color(Color(1,1,1,1), sky_target,  clamp(sky_strength,  0.0, 1.0))
 	var tree_mix := _blend_color(Color(1,1,1,1), tree_target, clamp(tree_strength, 0.0, 1.0))
 
-	# Apply to sprites (already in your code)
+	# Apply to sprites
 	if _skyLine != null:  _skyLine.modulate  = sky_mix
 	if _treeLine != null: _treeLine.modulate = tree_mix
 
 	# Apply the SAME tint to the map shader
 	var map_node := get_node_or_null(pseudo3d_path)
 	if map_node != null and map_node.has_method("SetMapTint"):
-		map_node.call("SetMapTint", sky_mix, sky_strength)  # reuse same strength
+		map_node.call("SetMapTint", sky_mix, sky_strength)
 
-	# Optionally keep engine clear color tied to time-of-day
+	# Clear color: force night tint if the mode is NIGHT, otherwise use your random roll
 	if match_clear_color_to_sky:
 		var cc := Color(sky_mix.r, sky_mix.g, sky_mix.b, 1.0)
-		if _use_night_clear:
+		var use_night := (time_of_day == TIME_NIGHT) or _use_night_clear
+		if use_night:
 			var t = clamp(night_tint_strength, 0.0, 1.0)
 			cc = Color(
 				lerp(cc.r, night_clear_color.r, t),
@@ -148,7 +159,7 @@ func SetTimeOfDay(mode: int) -> void:
 	_apply_time_of_day_modulate()
 
 func NextTimeOfDay() -> void:
-	if time_of_day >= TIME_SUNSET:
+	if time_of_day >= TIME_NIGHT:
 		time_of_day = TIME_DAWN
 	else:
 		time_of_day += 1
@@ -167,19 +178,20 @@ func _roll_time_of_day() -> void:
 	var wd = max(0.0, weight_dawn)
 	var wy = max(0.0, weight_day)
 	var ws = max(0.0, weight_sunset)
-	var total = wd + wy + ws
+	var wn = max(0.0, weight_night)  # NEW
+	var total = wd + wy + ws + wn
 	if total <= 0.0:
-		wd = 1.0; wy = 1.0; ws = 1.0; total = 3.0
+		wd = 1.0; wy = 1.0; ws = 1.0; wn = 1.0; total = 4.0
 
 	var r = _rng.randf() * total
 	if r < wd:
 		time_of_day = TIME_DAWN
+	elif r < wd + wy:
+		time_of_day = TIME_DAY
+	elif r < wd + wy + ws:
+		time_of_day = TIME_SUNSET
 	else:
-		r -= wd
-		if r < wy:
-			time_of_day = TIME_DAY
-		else:
-			time_of_day = TIME_SUNSET
+		time_of_day = TIME_NIGHT
 
 func _roll_night_clear() -> void:
 	if not night_clear_enabled:
