@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TrackConfig" load_steps=5 format=3 uid="uid://b83cho2pi4oxa"]
+
+[ext_resource type="Texture2D" uid="uid://0xc3dgiaoa42" path="res://Textures/Tracks/My Tracks/Track_14_Road.png" id="1_f0bnj"]
+[ext_resource type="Texture2D" uid="uid://bxvqm3xkgd6jt" path="res://Textures/Tracks/Grass/Grass_Tile_13.png" id="2_uhtmc"]
+[ext_resource type="Script" uid="uid://0mvsc0fipym0" path="res://Scripts/TrackConfig.gd" id="3_da5x3"]
+[ext_resource type="Texture2D" uid="uid://8fx5tnpoernb" path="res://Textures/Tracks/My Tracks/Track_14.png" id="4_s0crs"]
+
+[resource]
+script = ExtResource("3_da5x3")
+display_name = "Istanbul"
+track_texture = ExtResource("4_s0crs")
+grass_texture = ExtResource("2_uhtmc")
+collision_map = ExtResource("1_f0bnj")
+tint_color = Color(1, 1, 1, 1)
+tint_strength = 0.0
+path_points_uv = PackedVector2Array(920, 556, 920, 80, 692, 80, 692, 750, 446, 750, 446, 80, 80, 80, 80, 950, 920, 950)
+metadata/_custom_type_script = "uid://0mvsc0fipym0"
