@@ -18,3 +18,4 @@ res://Scripts/SplitMain.gd
 res://Scripts/General/Globals.gd
 res://Scripts/General/Game.gd
 res://Scripts/WorldMap.gd
+res://Scenes/CountdownUI.tscn

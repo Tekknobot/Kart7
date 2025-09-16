@@ -51,6 +51,35 @@ var DEFAULT_POINTS: PackedVector2Array = PackedVector2Array([
 var _player_slot: int = 1            # 1 = P1, 2 = P2 (set by SplitMain)
 var _selected_local: String = ""      # this instance’s chosen racer name
 
+const _GRID_BASE_PX := 1024.0  # authoring size for DEFAULT_POINTS
+
+func _map_width_px() -> float:
+	var w := 1024.0
+	if _map is Sprite2D:
+		var tex := (_map as Sprite2D).texture
+		if tex != null:
+			var sz := tex.get_size()
+			if sz.x > 0.0:
+				w = float(sz.x)
+	return w
+
+func _grid_px_for_current_map(base_px: Vector2) -> Vector2:
+	var scale := _map_width_px() / _GRID_BASE_PX
+	return base_px * scale
+
+# Place an entity in MAP space at "px" (pixel coordinates on X/Z).
+# Tries UV setter first; otherwise uses pixel setter.
+func _set_map_position_px(n: Node, px: Vector2) -> void:
+	if n.has_method("SetMapPositionUV"):
+		var uv := px / _map_width_px()
+		n.call("SetMapPositionUV", uv)
+		return
+	if n.has_method("SetMapPosition"):
+		n.call("SetMapPosition", Vector3(px.x, 0.0, px.y))
+		return
+	if n.has_method("SetMapPositionXZ"):
+		n.call("SetMapPositionXZ", px.x, px.y)
+
 func set_player_slot(slot: int) -> void:
 	_player_slot = slot
 	if _player_slot < 1:
@@ -108,7 +137,6 @@ func _ensure_roster_spawned() -> void:
 	if not _is_two_player():
 		if Globals.has_method("set_selected_racer"):
 			Globals.set_selected_racer(selected)
-			print("Picked:", Globals.selected_racer, " color:", Globals.selected_color)
 
 	# === 1) Spawn opponents first ===
 	for i in range(remaining.size()):
@@ -119,6 +147,7 @@ func _ensure_roster_spawned() -> void:
 
 		_wire_racer(opp, false)
 
+		# Opponent recolor (1P classic behavior preserved)
 		var ocol := Globals.get_racer_color(nm)
 		_set_racer_name_label(opp, nm, ocol)
 		var ospr := _find_sprite(opp)
@@ -144,8 +173,12 @@ func _ensure_roster_spawned() -> void:
 	if _player.has_method("SetInputDevice"):
 		_player.call_deferred("SetInputDevice", device_id)
 
-	# Local tint immediately (don’t depend on shared Globals color)
-	var pcol := Globals.get_racer_color(selected)
+	# Player recolor (use per-slot stored color if present)
+	var pcol := Color.WHITE
+	if Globals.has_method("get_selected_color_for_slot"):
+		pcol = Globals.get_selected_color_for_slot(_player_slot)
+	if pcol == Color.WHITE or pcol.a == 0.0:
+		pcol = Globals.get_racer_color(selected)
 	var pspr := _find_sprite(_player)
 	if pspr != null:
 		_apply_yoshi_shader(pspr, pcol)
@@ -169,6 +202,11 @@ func _ensure_roster_spawned() -> void:
 	# Keep Globals in sync in 1P only
 	if not _is_two_player() and Globals.has_method("set_selected_racer"):
 		Globals.set_selected_racer(selected)
+
+	# Provisional placement so the player appears on-grid immediately
+	if DEFAULT_POINTS.size() > 0:
+		var provisional := DEFAULT_POINTS[ _grid_index_for_player(1) ]
+		_set_map_position_px(_player, _grid_px_for_current_map(provisional))
 
 	_update_hud_name_color()
 	call_deferred("_reapply_player_color_once")
@@ -357,7 +395,7 @@ func _setup_after_roster() -> void:
 		_raceManager.connect("standings_changed", Callable(self, "_on_standings_changed"))
 
 	call_deferred("_push_path_points_once")
-	call_deferred("_spawn_player_at_path_index", 1)
+	# ← REMOVED: call_deferred("_spawn_player_at_path_index", 1)
 
 	_refresh_map_opponents()
 
@@ -563,27 +601,15 @@ func _prime_sprite_grid(spr: Node) -> void:
 			a.frame = 0
 			a.stop()
 
-func _apply_yoshi_shader(spr: Node, _unused: Color) -> void:
-	# 1) Resolve the exact color chosen for THIS slot
-	var col := Color.WHITE
-	if Globals.has_method("get_selected_color_for_slot"):
-		col = Globals.get_selected_color_for_slot(_player_slot)
-	if col == Color.WHITE or col.a == 0.0:
-		# Fallback to name->color map using our local selected name
-		var nm := _selected_local
-		if nm == "":
-			nm = String(Globals.selected_racer)
-		col = Globals.get_racer_color(nm)
-
-	# 2) Make it crisp (no blur)
+func _apply_yoshi_shader(spr: Node, col: Color) -> void:
+	# 1) Crisp pixels
 	if spr is CanvasItem:
 		(spr as CanvasItem).texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	# If your racer is a container node, push to children too:
 	for c in spr.get_children():
 		if c is CanvasItem:
 			(c as CanvasItem).texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 
-	# 3) Apply shader (fallback to modulate if missing)
+	# 2) Apply shader (fallback to modulate if missing)
 	if not ResourceLoader.exists(yoshi_shader_path):
 		if spr is CanvasItem:
 			(spr as CanvasItem).modulate = col
@@ -792,12 +818,7 @@ func _place_grid_player_last() -> void:
 	if DEFAULT_POINTS.size() == 0:
 		return
 
-	# UV scale for ArmMergeFromGrid (uses map texture width)
-	var scale_px := 1024.0
-	if _map is Sprite2D and (_map as Sprite2D).texture != null:
-		scale_px = float((_map as Sprite2D).texture.get_size().x)
-
-	# How many racers are in this race?
+	# Count real racers in THIS world
 	var total := 0
 	for n in racers_root.get_children():
 		if n is Node2D:
@@ -805,38 +826,47 @@ func _place_grid_player_last() -> void:
 	if total <= 0:
 		return
 
-	# >>> This is where _grid_index_for_player is called <<<
+	# Player's grid index (2P: P1→0, P2→1)
 	var p_idx := _grid_index_for_player(total)
+	var grid_cap = min(total, DEFAULT_POINTS.size())
 
 	# 1) Place opponents into all slots except p_idx
-	var grid_cap = min(total, DEFAULT_POINTS.size())
 	var opp_slot := 0
 	for n in racers_root.get_children():
 		if n == _player:
 			continue
+
 		while opp_slot == p_idx and opp_slot < grid_cap:
 			opp_slot += 1
 		if opp_slot >= grid_cap:
 			break
 
-		var px: Vector2 = DEFAULT_POINTS[opp_slot]
+		# Scale DEFAULT_POINTS from 1024 → current map width
+		var base_px: Vector2 = DEFAULT_POINTS[opp_slot]
+		var px: Vector2 = _grid_px_for_current_map(base_px)
+
 		var used_merge := false
 		if n.has_method("ArmMergeFromGrid"):
-			var uv := px / scale_px
+			# UV must use the 1024 base to keep authored shape
+			var uv = base_px / _GRID_BASE_PX
 			n.call("ArmMergeFromGrid", uv, 0, 0.0)
 			used_merge = true
-		if not used_merge and n.has_method("SetMapPosition"):
-			n.call("SetMapPosition", Vector3(px.x, 0.0, px.y))
+
+		if not used_merge:
+			_set_map_position_px(n, px)
 
 		if _player != null and _has_prop(n, "player_ref"):
 			n.set("player_ref", n.get_path_to(_player))
 
 		opp_slot += 1
 
-	# 2) Put the PLAYER at their computed slot
-	var ppx: Vector2 = DEFAULT_POINTS[p_idx]
-	if _player != null and _player.has_method("SetMapPosition"):
-		_player.call("SetMapPosition", Vector3(ppx.x, 0.0, ppx.y))
+	# 2) Player at its slot (scaled to current width)
+	if p_idx < 0 or p_idx >= DEFAULT_POINTS.size():
+		p_idx = 0
+	var p_base: Vector2 = DEFAULT_POINTS[p_idx]
+	var p_px  : Vector2 = _grid_px_for_current_map(p_base)
+	if _player != null:
+		_set_map_position_px(_player, p_px)
 
 # --- Track loading ------------------------------------------------------------
 func _apply_track_from_globals() -> void:
