@@ -1,3 +1,6 @@
+res://Scripts
+res://Scenes
+res://Scripts/World Elements
 /Users/machome/Godot/_Builds/Kart 7/win
 /Users/machome/Godot/_Builds/Kart 7/mac
 /Users/machome/Godot/_Builds/Kart 7/web
@@ -5,10 +8,8 @@ res://Textures/Tracks/My Tracks
 res://Textures/Tracks/Grass
 res://TracksDB
 res://TracksDB/los_angeles
-res://Scripts
 res://Textures/Racers/MetalZebra/PZM_Delivery_01
 res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs
-res://Scenes
 res://Textures/Tracks/Skylines
 res://Textures/Tracks
 res://Textures/WorldMap

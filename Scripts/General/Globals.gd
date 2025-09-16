@@ -16,6 +16,13 @@ var racer_names := PackedStringArray([
 
 var selected_racer: StringName = "Voltage"  # default
 
+# Per-player selections (defaults)
+var p1_racer: StringName = "Voltage"
+var p2_racer: StringName = "Grip"
+
+var p1_color: Color = Color.WHITE
+var p2_color: Color = Color.WHITE
+
 # --- Racer color map (hex ints -> Color.hex) ---
 const RACER_COLOR_HEX := {
 	"Voltage": 0xFFD54DFF, # gold
@@ -65,3 +72,22 @@ func get_racer_color_name(name: String) -> String:
 func set_selected_racer(name: String) -> void:
 	selected_racer = StringName(name)
 	selected_color = get_racer_color(name)
+
+func set_selected_racer_for_slot(slot: int, name: String) -> void:
+	var nm := String(name)
+	if slot <= 1:
+		p1_racer = StringName(nm)
+		p1_color = get_racer_color(nm)
+	else:
+		p2_racer = StringName(nm)
+		p2_color = get_racer_color(nm)
+
+func get_selected_racer_for_slot(slot: int) -> String:
+	if slot <= 1:
+		return String(p1_racer)
+	return String(p2_racer)
+
+func get_selected_color_for_slot(slot: int) -> Color:
+	if slot <= 1:
+		return p1_color
+	return p2_color

@@ -375,48 +375,61 @@ func _input(event: InputEvent) -> void:
 func _go_to_main_scene() -> void:
 	get_tree().paused = false
 
-	# Chosen city right now
+	# Which city is currently selected on the map?
 	var chosen := ""
 	if _cities.size() > 0:
 		chosen = String(_cities[_city_index].get("name", ""))
 
-	# Persist globally (race scene reads this)
+	# Persist the selection for the race scenes
 	if chosen != "":
 		if Globals.has_method("set_selected_city"):
 			Globals.set_selected_city(chosen)
-			print("[Globals] set_selected_city -> ", chosen)
-			print_stack()
 		else:
-			Globals.selected_city = chosen
-		Engine.set_meta("selected_city_override", chosen)  # <-- important
+			Globals.selected_city = StringName(chosen)
+
+		# One-shot handoff used by World.gd at boot
+		Engine.set_meta("selected_city_override", chosen)
 		print("[WorldMap] set_selected_city -> ", chosen)
 
+	# Decide which scene to run (1P = Main, 2P = SplitMain)
+	var race_scene_path := _race_scene_path_for_mode()
+
+	# If your Grand Prix autoload is present, set it up and let it drive
 	var gp := get_node_or_null("/root/MidnightGrandPrix")
 	if gp != null:
-		# Hint GP about the city using whatever API it has
+		# Hint the GP about the current city, using whatever API exists
 		if gp.has_method("set_next_city_name"):
 			gp.call("set_next_city_name", chosen)
 		elif gp.has_method("set_current_city_name"):
 			gp.call("set_current_city_name", chosen)
 		elif gp.has_method("set_last_city_name"):
 			gp.call("set_last_city_name", chosen)
-		# (Optional) try common properties if they exist
+
+		# Also try common properties if they exist
 		for k in ["next_city_name", "current_city_name", "last_city_name"]:
 			if k in gp:
 				gp.set(k, chosen)
 
-		# Now launch the race
-		gp.race_scene = "res://Scenes/Main.tscn"
-		gp.race_count = 20
-		gp.grid_size  = 8
+		# Tell GP which scene to launch (SplitMain for 2P, Main for 1P)
+		gp.race_scene = race_scene_path
+
+		# Keep any of your existing GP knobs
+		if "race_count" in gp:
+			gp.race_count = 20
+		if "grid_size" in gp:
+			gp.grid_size = 8
+
+		# Start or enter the race
 		if not gp.active and gp.has_method("start_gp"):
 			gp.call("start_gp", 0)
 		else:
 			gp.enter_current_race()
 		return
 
-	# Fallback (no GP autoload)
-	get_tree().change_scene_to_file("res://Scenes/Main.tscn")
+	# Fallback when no GP autoload exists: jump straight into the race scene
+	var err := get_tree().change_scene_to_file(race_scene_path)
+	if err != OK:
+		push_error("WorldMap: Could not load race scene: %s" % race_scene_path)
 
 func _draw() -> void:
 	# marker
@@ -1098,3 +1111,20 @@ func _best_map_texture_and_width(cfg: Resource, slug: String) -> Array:
 					w = int(sz2.x)
 
 	return [tex, w]
+
+func _is_two_player() -> bool:
+	var two := false
+	if Engine.has_meta("player_count"):
+		var pc := int(Engine.get_meta("player_count"))
+		if pc >= 2:
+			two = true
+	elif Engine.has_meta("two_player_mode"):
+		two = bool(Engine.get_meta("two_player_mode"))
+	return two
+
+func _race_scene_path_for_mode() -> String:
+	var path := "res://Scenes/Main.tscn"
+	var two := _is_two_player()
+	if two:
+		path = "res://Scenes/SplitMain.tscn"
+	return path

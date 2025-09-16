@@ -48,6 +48,14 @@ var DEFAULT_POINTS: PackedVector2Array = PackedVector2Array([
 	Vector2(950, 751)
 ])
 
+var _player_slot: int = 1            # 1 = P1, 2 = P2 (set by SplitMain)
+var _selected_local: String = ""      # this instance’s chosen racer name
+
+func set_player_slot(slot: int) -> void:
+	_player_slot = slot
+	if _player_slot < 1:
+		_player_slot = 1
+
 func _input(event):
 	if event.is_action_pressed("ui_fullscreen"):
 		if DisplayServer.window_get_mode() != DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN:
@@ -81,74 +89,89 @@ func _ensure_roster_spawned() -> void:
 		push_error("World: assign player_scene and opponent_scene in the Inspector.")
 		return
 
-	# Build ordered names: selected, then remaining (we’ll spawn opponents from remaining, player last)
+	# Build ordered names
 	var all_names: Array = []
 	for n in Globals.racer_names:
 		all_names.append(String(n))
 
-	var selected := String(Globals.selected_racer)
-	if selected == "" or not all_names.has(selected):
-		if all_names.size() > 0:
-			selected = String(all_names[0])
-		else:
-			selected = "Voltage"
+	# Per-screen player pick
+	var selected := _selected_from_meta_or_globals(all_names)
+	_selected_local = selected
 
+	# Opponents = everyone else
 	var remaining: Array = []
 	for n in all_names:
 		if n != selected:
 			remaining.append(n)
 
-	if Globals.has_method("set_selected_racer"):
-		Globals.set_selected_racer(selected)
-		print("Picked:", Globals.selected_racer, " color:", Globals.selected_color)
+	# Mirror into Globals only in 1P (avoid P1/P2 fighting in 2P)
+	if not _is_two_player():
+		if Globals.has_method("set_selected_racer"):
+			Globals.set_selected_racer(selected)
+			print("Picked:", Globals.selected_racer, " color:", Globals.selected_color)
 
-	# === 1) Spawn ALL OPPONENTS FIRST (player comes last) ===
+	# === 1) Spawn opponents first ===
 	for i in range(remaining.size()):
 		var nm := String(remaining[i])
 		var opp := opponent_scene.instantiate()
 		opp.name = nm
 		racers_root.add_child(opp)
 
-		# Collision + opponent setup (player_ref set later, after player exists)
 		_wire_racer(opp, false)
 
-		# Colorize now
 		var ocol := Globals.get_racer_color(nm)
 		_set_racer_name_label(opp, nm, ocol)
 		var ospr := _find_sprite(opp)
 		if ospr != null:
 			_apply_yoshi_shader(ospr, ocol)
 
-	# === 2) Spawn PLAYER LAST ===
+	# === 2) Spawn the player last ===
 	var p := player_scene.instantiate()
 	p.name = selected
 	racers_root.add_child(p)
 	_wire_racer(p, true)
 	_player = p
 
-	# Color (shader) + identity label immediately
+	# Optional: pass slot/device to the Player if supported
+	var dev_key := "p1_device"
+	if _player_slot != 1:
+		dev_key = "p2_device"
+	var device_id := -1
+	if Engine.has_meta(dev_key):
+		device_id = int(Engine.get_meta(dev_key))
+	if _player.has_method("SetPlayerIndex"):
+		_player.call_deferred("SetPlayerIndex", _player_slot)
+	if _player.has_method("SetInputDevice"):
+		_player.call_deferred("SetInputDevice", device_id)
+
+	# Local tint immediately (don’t depend on shared Globals color)
 	var pcol := Globals.get_racer_color(selected)
 	var pspr := _find_sprite(_player)
 	if pspr != null:
 		_apply_yoshi_shader(pspr, pcol)
 
-	if _player.has_method("RefreshPaletteFromGlobals"):
+	# Avoid pulling shared palette in 2P
+	if not _is_two_player() and _player.has_method("RefreshPaletteFromGlobals"):
 		_player.RefreshPaletteFromGlobals()
+	else:
+		if _player.has_method("_ensure_yoshi_material"): _player._ensure_yoshi_material()
+		if _player.has_method("_apply_player_palette_from_globals"): _player._apply_player_palette_from_globals()
 
-	# HUD: point to the new player
+	# HUD hook
 	var hud := get_node_or_null(^"RaceHUD")
 	if hud:
 		hud.set("player_path", hud.get_path_to(_player))
 		hud.set("_player", _player)
 
-	# Bind player_ref on opponents now that player exists
+	# Opponents know the player
 	_bind_player_ref_to_opponents(racers_root, _player)
 
-	# Keep Globals in sync with the spawned player/color
-	if Globals.has_method("set_selected_racer"):
+	# Keep Globals in sync in 1P only
+	if not _is_two_player() and Globals.has_method("set_selected_racer"):
 		Globals.set_selected_racer(selected)
 
 	_update_hud_name_color()
+	call_deferred("_reapply_player_color_once")
 
 func _bind_player_ref_to_opponents(racers_root: Node, player: Node) -> void:
 	if racers_root == null or player == null:
@@ -229,38 +252,40 @@ func _await_roster_and_boot() -> void:
 		push_error("World: Racers root never appeared.")
 		return
 
-	var want := Globals.racer_names.size()
-	var chosen_name := String(Globals.selected_racer)
-	var candidate: Node = null
+	# Find the local player's node by our local name (fallback to Globals)
+	var chosen_name := _selected_local
+	if chosen_name == "":
+		chosen_name = String(Globals.selected_racer)
 
+	var candidate: Node = null
 	tries = 0
 	while tries < 360:
-		var have := 0
 		candidate = null
 		for c in racers_root.get_children():
-			if c is Node2D:
-				have += 1
-				if c.name == chosen_name:
-					candidate = c
-		if have >= want and candidate != null:
+			if c is Node2D and c.name == chosen_name:
+				candidate = c
+				break
+		if candidate != null:
 			break
 		await get_tree().process_frame
 		tries += 1
 
 	if candidate == null:
-		push_error("World: chosen racer node not found.")
+		push_error("World: chosen racer node not found: " + chosen_name)
 		return
 
 	_player = candidate
 	_wire_player_dependencies()
 
-	if _player.has_method("RefreshPaletteFromGlobals"):
+	# Palette sync: avoid shared pull in 2P
+	if not _is_two_player() and _player.has_method("RefreshPaletteFromGlobals"):
 		_player.RefreshPaletteFromGlobals()
 	else:
 		if _player.has_method("_ensure_yoshi_material"): _player._ensure_yoshi_material()
 		if _player.has_method("_apply_player_palette_from_globals"): _player._apply_player_palette_from_globals()
 
-	_retarget_player_paths(get_tree().current_scene, _player)
+	# Retarget only within this world’s subtree
+	_retarget_player_paths(self, _player)
 
 	var hud := get_node_or_null(^"RaceHUD")
 	if hud:
@@ -269,6 +294,7 @@ func _await_roster_and_boot() -> void:
 
 	_roster_ready = true
 	_setup_after_roster()
+	call_deferred("_reapply_player_color_once")
 
 func _setup_after_roster() -> void:
 	if _map == null or _player == null:
@@ -284,65 +310,90 @@ func _setup_after_roster() -> void:
 	# Boot map + systems
 	_map.Setup(Globals.screenSize, _player)
 
-	# Bind PathOverlay2D to the Map (Pseudo3D)
+	# Path overlay ↔ map binding
 	var overlay_node := get_node(^"SubViewport/PathOverlay2D")
 	var overlay_vp   := get_node(^"SubViewport") as SubViewport
 	var rel_from_map := _map.get_path_to(overlay_node)
 	if _map != null and _map.has_method("SetPathOverlayNodePath"):
 		_map.call("SetPathOverlayNodePath", rel_from_map, overlay_vp)
 
-	# Bind/minimap hookup
+	# Minimap (local subtree only)
 	var rr := get_node_or_null(racers_root_path)
 	if rr == null:
 		rr = get_node_or_null(^"Sprite Handler/Racers")
-	var minimap := get_tree().get_root().find_child("Minimap", true, false)
+	var minimap := find_child("Minimap", true, false)
 	if minimap != null:
 		if minimap.has_method("Bind"):
 			minimap.call("Bind", _player, rr, overlay_node)
 		if minimap.has_method("mark_path_dirty"):
 			minimap.call("mark_path_dirty")
 
-	# >>> BIND THE SKID PAINTER / OVERLAY PATHS HERE <<<
-	var painter := overlay_node  # PathOverlay2D node (has player_path & pseudo3d_path exports)
-	if painter:
-		painter.set("player_path", painter.get_path_to(_player))
-		painter.set("pseudo3d_path", painter.get_path_to(_map))
+	# Skid overlay paths
+	if overlay_node:
+		overlay_node.set("player_path", overlay_node.get_path_to(_player))
+		overlay_node.set("pseudo3d_path", overlay_node.get_path_to(_map))
 
-	# Tell Map which nodes are opponents, etc.
+	# Opponents registration
 	if _map != null and _map.has_method("SetOpponentsFromGroup"):
 		_map.call("SetOpponentsFromGroup", "racers", _player)
 
+	# Track/visuals
 	_apply_track_from_globals()
-	if _locked_city != "":
-		print("[World] after apply: ", _locked_city, " slug:", _slugify_city(_locked_city))
 
+	# Collision boot
 	if _collision != null and _collision.has_method("Setup"):
 		_collision.call("Setup")
 
+	# Shared time-of-day between screens
+	_sync_time_of_day()
+
+	# Subsystems
 	_player.Setup((_map as Sprite2D).texture.get_size().x)
 	_spriteHandler.Setup(_map.ReturnWorldMatrix(), (_map as Sprite2D).texture.get_size().x, _player)
 	_animationHandler.Setup(_player)
 
-	# RaceManager boot
 	if is_instance_valid(_raceManager):
 		_raceManager.Setup()
 		_raceManager.connect("standings_changed", Callable(self, "_on_standings_changed"))
 
-	# Push path/overlay to subsystems, then finalize AI grid when the path is hot
 	call_deferred("_push_path_points_once")
 	call_deferred("_spawn_player_at_path_index", 1)
 
-	# Register opponents with the map now (they were spawned dynamically)
 	_refresh_map_opponents()
 
-	# Finalize opponent grid a couple frames later so the path is guaranteed ready
 	if _map != null and _map.has_method("SetOpponentsFromGroup"):
 		_map.call("SetOpponentsFromGroup", "racers", _player)
 
 	call_deferred("_finalize_ai_grid_spawn")
-	
+
 	_update_hud_name_color()
 	_map_ready = true
+
+func _sync_time_of_day() -> void:
+	if _backgroundElements == null:
+		return
+
+	# Use a shared meta so both screens match.
+	var mode: int = -1
+	if Engine.has_meta("tod_mode"):
+		mode = int(Engine.get_meta("tod_mode"))
+	else:
+		# Read current setting from this world’s BackgroundEffects
+		var cur := 1
+		if _backgroundElements.has_method("get"):
+			var v = _backgroundElements.get("time_of_day")
+			if typeof(v) == TYPE_INT:
+				cur = int(v)
+		mode = cur
+		Engine.set_meta("tod_mode", mode)
+
+	# Apply to this world
+	if _backgroundElements.has_method("SetTimeOfDay"):
+		_backgroundElements.call("SetTimeOfDay", mode)
+	else:
+		# Fallback: set the exported property
+		if _backgroundElements.has_method("set"):
+			_backgroundElements.set("time_of_day", mode)
 
 # Wait a couple frames so path points / overlay are pushed, then place AI.
 func _finalize_ai_grid_spawn() -> void:
@@ -512,23 +563,76 @@ func _prime_sprite_grid(spr: Node) -> void:
 			a.frame = 0
 			a.stop()
 
-func _apply_yoshi_shader(spr: Node, col: Color) -> void:
-	if ResourceLoader.exists(yoshi_shader_path):
-		var sh := load(yoshi_shader_path) as Shader
-		if sh != null:
-			var sm := ShaderMaterial.new()
-			sm.shader = sh
-			sm.resource_local_to_scene = true
-			sm.set_shader_parameter("target_color", col)
-			sm.set_shader_parameter("src_hue",     src_hue)
-			sm.set_shader_parameter("hue_tol",     hue_tol)
-			sm.set_shader_parameter("edge_soft",   edge_soft)
-			if spr is CanvasItem:
-				(spr as CanvasItem).material = sm
-	else:
-		# fallback: multiply tint
+func _apply_yoshi_shader(spr: Node, _unused: Color) -> void:
+	# 1) Resolve the exact color chosen for THIS slot
+	var col := Color.WHITE
+	if Globals.has_method("get_selected_color_for_slot"):
+		col = Globals.get_selected_color_for_slot(_player_slot)
+	if col == Color.WHITE or col.a == 0.0:
+		# Fallback to name->color map using our local selected name
+		var nm := _selected_local
+		if nm == "":
+			nm = String(Globals.selected_racer)
+		col = Globals.get_racer_color(nm)
+
+	# 2) Make it crisp (no blur)
+	if spr is CanvasItem:
+		(spr as CanvasItem).texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	# If your racer is a container node, push to children too:
+	for c in spr.get_children():
+		if c is CanvasItem:
+			(c as CanvasItem).texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+
+	# 3) Apply shader (fallback to modulate if missing)
+	if not ResourceLoader.exists(yoshi_shader_path):
 		if spr is CanvasItem:
 			(spr as CanvasItem).modulate = col
+		return
+
+	var sh := load(yoshi_shader_path) as Shader
+	if sh == null:
+		if spr is CanvasItem:
+			(spr as CanvasItem).modulate = col
+		return
+
+	var sm := ShaderMaterial.new()
+	sm.shader = sh
+	sm.resource_local_to_scene = true
+
+	sm.set_shader_parameter("target_color", col)
+	sm.set_shader_parameter("src_hue",     src_hue)
+	sm.set_shader_parameter("hue_tol",     hue_tol)
+	sm.set_shader_parameter("edge_soft",   edge_soft)
+
+	if spr is CanvasItem:
+		(spr as CanvasItem).material = sm
+
+func _set_nearest_filter_recursive(n: Node) -> void:
+	# Godot 4: per-node filter override
+	if n is CanvasItem:
+		var ci := n as CanvasItem
+		ci.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	# Visit children to catch nested sprites/animated sprites
+	for c in n.get_children():
+		if c is Node:
+			_set_nearest_filter_recursive(c)
+
+func _current_player_color() -> Color:
+	# Prefer per-slot color from Globals if available
+	if Globals.has_method("get_selected_color_for_slot"):
+		return Globals.get_selected_color_for_slot(_player_slot)
+	# Derive from the local selected name
+	var nm := _selected_local
+	if nm == "":
+		nm = String(Globals.selected_racer)
+	return Globals.get_racer_color(nm)
+
+func _reapply_player_color_once() -> void:
+	if _player == null:
+		return
+	var spr := _find_sprite(_player)
+	if spr != null:
+		_apply_yoshi_shader(spr, Color.WHITE)
 
 func _wire_player_dependencies() -> void:
 	if _player == null:
@@ -629,13 +733,23 @@ func _update_hud_name_color() -> void:
 	var hud := get_node_or_null(^"RaceHUD")
 	if hud == null:
 		return
-	# Find a child Label named "Name" on the HUD
+
+	var name_str := _selected_local
+	if name_str == "":
+		name_str = String(Globals.selected_racer)
+
+	var col := Color.WHITE
+	if Globals.has_method("get_selected_color_for_slot"):
+		col = Globals.get_selected_color_for_slot(_player_slot)
+	if col == Color.WHITE or col.a == 0.0:
+		col = Globals.get_racer_color(name_str)
+
 	var lbl := hud.get_node_or_null(^"Name")
 	if lbl == null:
 		lbl = _find_label_named(hud, "Name")
 	if lbl != null:
-		lbl.text = String(Globals.selected_racer).to_upper()
-		lbl.add_theme_color_override("font_color", Globals.selected_color)
+		lbl.text = name_str.to_upper()
+		lbl.add_theme_color_override("font_color", col)
 
 func _attach_skids_to_opponents() -> void:
 	var svp := get_node_or_null(^"SubViewport")
@@ -837,7 +951,7 @@ func _apply_track_config(cfg: TrackConfig, display_name: String) -> void:
 		if _map != null and _map.has_method("SetPathPoints"):
 			_map.call("SetPathPoints", pts)
 
-	var minimap2 := get_tree().get_root().find_child("Minimap", true, false)
+	var minimap2 := find_child("Minimap", true, false)
 	if minimap2 != null and minimap2.has_method("mark_path_dirty"):
 		minimap2.call("mark_path_dirty")
 
@@ -970,21 +1084,61 @@ func _get_player_uid() -> String:
 	return _player.name
 
 func _grid_index_for_player(total: int) -> int:
+	# In 2P: P1 takes DEFAULT_POINTS[0], P2 takes DEFAULT_POINTS[1]
+	if _is_two_player():
+		if _player_slot <= 1:
+			return 0
+		return min(1, max(0, DEFAULT_POINTS.size() - 1))
+
+	# 1P: keep your existing standings logic; fallback = last slot
 	var last_fallback = clamp(total - 1, 0, max(0, DEFAULT_POINTS.size() - 1))
 	var gp := get_node_or_null("/root/MidnightGrandPrix")
 	if gp != null and gp.has_method("standings_rows"):
 		var rows = gp.call("standings_rows")
 		var uid_order: Array = []
 		if rows is Array and rows.size() > 0:
-			# standings order first
-			for r in rows: uid_order.append(String(r.get("uid","")))
-			# ensure 0-point drivers still get an order
+			for r in rows:
+				uid_order.append(String(r.get("uid","")))
 			for n in Globals.racer_names:
 				var u := String(n)
-				if not uid_order.has(u): uid_order.append(u)
+				if not uid_order.has(u):
+					uid_order.append(u)
 			var i := uid_order.find(_get_player_uid())
-			if i >= 0: return clamp(i, 0, max(0, DEFAULT_POINTS.size() - 1))
+			if i >= 0:
+				return clamp(i, 0, max(0, DEFAULT_POINTS.size() - 1))
 		else:
-			# first race: put player LAST
 			return last_fallback
 	return last_fallback
+
+func _selected_from_meta_or_globals(all_names: Array) -> String:
+	# 1) Prefer Globals per-slot (if you store it there)
+	if Globals.has_method("get_selected_racer_for_slot"):
+		var nm_globals := String(Globals.get_selected_racer_for_slot(_player_slot))
+		if nm_globals != "" and all_names.has(nm_globals):
+			return nm_globals
+
+	# 2) Engine meta per-slot
+	var key := "p1_racer"
+	if _player_slot != 1:
+		key = "p2_racer"
+
+	if Engine.has_meta(key):
+		var nm_meta := String(Engine.get_meta(key))
+		if nm_meta != "" and all_names.has(nm_meta):
+			return nm_meta
+
+	# 3) Global single-player selection
+	var nm_global_single := String(Globals.selected_racer)
+	if nm_global_single != "" and all_names.has(nm_global_single):
+		return nm_global_single
+
+	# 4) Fallbacks
+	if all_names.size() > 0:
+		return String(all_names[0])
+	return "Voltage"
+
+func _is_two_player() -> bool:
+	var pc := 1
+	if Engine.has_meta("player_count"):
+		pc = int(Engine.get_meta("player_count"))
+	return pc >= 2

@@ -3,34 +3,59 @@ extends Control
 @export_file("*.tscn")
 var character_select_scene: String = "res://Scenes/CharacterSelect.tscn"
 
+@export_file("*.tscn")
+var split_wrapper_scene: String = "res://Scenes/SplitMain.tscn"  # optional direct jump
+
 @onready var game_title: Label = $GameTitle
 @onready var subtitle:   Label = $Subtitle
-@onready var start_btn:  Button = $VBox/Start
+@onready var start_btn:  Button = $VBox/Start           # Start (1P)
 @onready var quit_btn:   Button = $VBox/Quit
+var two_player_btn: Button = null                       # $VBox/TwoPlayer (Start 2P)
 
 func _ready() -> void:
-	# Style labels (keep if you want), but make buttons default:
+	# Styling (same as before)
 	_style_label(game_title, 32, Color.hex(0xFFD54DFF), 3, Color.hex(0x291600FF), Vector2(3,3), Color(0,0,0,0.65))
 	_style_label(subtitle,   32, Color.hex(0xFFFFFFFF), 1, Color(0,0,0,0.85), Vector2(2,2), Color(0,0,0,0.5))
 
 	_use_default_button(start_btn)
 	_use_default_button(quit_btn)
 
-	start_btn.pressed.connect(_on_start)
-	quit_btn.pressed.connect(_on_quit)
-	start_btn.grab_focus()
+	# Find the 2P button (make a Button named "TwoPlayer" under VBox)
+	two_player_btn = get_node_or_null(^"VBox/TwoPlayer") as Button
+	if two_player_btn != null:
+		_use_default_button(two_player_btn)
+		two_player_btn.text = "Start (2P)"
+		two_player_btn.pressed.connect(_on_start_2p)
+		_connect_focus_pop(two_player_btn)
 
+	start_btn.text = "Start (1P)"
+	start_btn.pressed.connect(_on_start_1p)
+	quit_btn.pressed.connect(_on_quit)
+
+	start_btn.grab_focus()
 	_pulse(subtitle, 1.06, 0.6)
 	_connect_focus_pop(start_btn)
 	_connect_focus_pop(quit_btn)
-	
+
 	RenderingServer.set_default_clear_color(Color(0,0,0))
 
 func _input(event: InputEvent) -> void:
+	# Debug: which gamepad buttons are pressed
 	if event is InputEventJoypadButton and event.pressed:
 		print("Pressed button index:", event.button_index)
-			
-func _on_start() -> void:
+
+# --------- Actions ---------
+
+func _on_start_1p() -> void:
+	Engine.set_meta("two_player_mode", false)
+	Engine.set_meta("player_count", 1)
+	var err := get_tree().change_scene_to_file(character_select_scene)
+	if err != OK:
+		push_error("Could not load Character Select scene at: %s" % character_select_scene)
+
+func _on_start_2p() -> void:
+	Engine.set_meta("two_player_mode", true)
+	Engine.set_meta("player_count", 2)
 	var err := get_tree().change_scene_to_file(character_select_scene)
 	if err != OK:
 		push_error("Could not load Character Select scene at: %s" % character_select_scene)
@@ -51,14 +76,12 @@ func _style_label(l: Label, font_size: int, font_col: Color, outline_size: int, 
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 func _use_default_button(b: Button) -> void:
-	# Remove any per-node overrides so the engine theme takes over
 	for name in ["normal", "hover", "pressed", "focus", "disabled"]:
 		b.remove_theme_stylebox_override(name)
 	for name in ["font_color", "font_color_hover", "font_color_pressed", "font_color_disabled"]:
 		b.remove_theme_color_override(name)
-	# Inherit the default type/appearance
-	b.theme_type_variation = ""   # ensure no custom type variation
-	b.flat = false                # default buttons aren't flat
+	b.theme_type_variation = ""
+	b.flat = false
 
 func _pulse(node: CanvasItem, scale_up: float, seconds_each_way: float) -> void:
 	node.scale = Vector2.ONE

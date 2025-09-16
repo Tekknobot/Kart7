@@ -1,4 +1,4 @@
-[gd_scene load_steps=35 format=3 uid="uid://dx0ficwyxnegg"]
+[gd_scene load_steps=35 format=3 uid="uid://cpw8ifws46ohm"]
 
 [ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_xvtyr"]
 [ext_resource type="PackedScene" uid="uid://4y14qyh1accq" path="res://Scenes/player.tscn" id="2_u7mjy"]
@@ -359,10 +359,8 @@ _totalDetailStates = 11
 _spriteGFX = NodePath(".")
 _mapPosition = Vector3(64, 0, 816)
 
-[node name="Animation Handler" type="Node" parent="Sprite Handler" node_paths=PackedStringArray("_specialWheelEffect")]
+[node name="Animation Handler" type="Node" parent="Sprite Handler"]
 script = ExtResource("19_off7b")
-_roadRoughness = 0
-_specialWheelEffect = [null, null]
 
 [node name="SubViewport" type="SubViewport" parent="."]
 transparent_bg = true
