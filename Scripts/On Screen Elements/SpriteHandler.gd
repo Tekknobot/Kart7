@@ -255,7 +255,7 @@ func Update(worldMatrix: Basis) -> void:
 	_screen_cached = _screen_size()            # <- compute once
 
 	# --- detect RearView edge and snap scales on transition ---
-	var rear_now := Input.is_action_pressed("RearView")
+	var rear_now := _rearview_on_local()
 	if rear_now != _rear_prev:
 		_rear_prev = rear_now
 		_smoothed_scale.clear()        # next frame every sprite takes target instantly
@@ -484,7 +484,7 @@ func WorldToScreenPosition(worldElement: WorldElement) -> void:
 
 	# ---- rear-aware visibility check (skip while RearView is held) ----
 	var depth_cam := 1.0
-	var rear := Input.is_action_pressed("RearView")   # simple, global action
+	var rear := _rearview_on_local()
 
 	var p3d := get_node_or_null(pseudo3d_node)
 	if p3d != null and p3d.has_method("get_camera_forward_map") and _player != null:
@@ -1633,3 +1633,9 @@ func _lane_px_at(pts: PackedVector2Array, uv_point: Vector2, idx: int) -> float:
 	var right := Vector2(-t.y, t.x)
 	var d := uv_point - a
 	return d.dot(right) * float(_mapSize) # UV → px
+
+func _rearview_on_local() -> bool:
+	var p3d := get_node_or_null(pseudo3d_node)
+	if p3d != null and p3d.has_method("_rearview_on"):
+		return p3d.call("_rearview_on")
+	return false

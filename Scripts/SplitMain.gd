@@ -74,68 +74,61 @@ func _build_split_ui() -> void:
 	_right_sv.gui_disable_input = false
 	_right_vc.add_child(_right_sv)
 
+# SplitMain.gd
 func _spawn_worlds(two_players: bool) -> void:
 	var packed := load(main_world_scene) as PackedScene
-	assert(packed != null, "SplitMain: set main_world_scene to your Main scene (.tscn).")
+	assert(packed != null)
 
-	# Read device hints (if present)
-	var p1_dev: int = -1
-	if Engine.has_meta("p1_device"):
-		p1_dev = int(Engine.get_meta("p1_device"))
-	var p2_dev: int = 0
-	if Engine.has_meta("p2_device"):
-		p2_dev = int(Engine.get_meta("p2_device"))
+	# Always normalize device mapping we want
+	Engine.set_meta("p1_device", 0)
+	Engine.set_meta("p2_device", 1)
 
 	if not two_players:
+		if _divider: _divider.visible = false
 		_right_vc.visible = false
-		if _divider != null:
-			_divider.visible = false
 
-		var w1: Node = packed.instantiate()
-		# >>> IMPORTANT: set slot/device BEFORE add_child, so _ready() sees them
+		var w1 := packed.instantiate()
 		if w1.has_method("set_player_slot"):
-			w1.set_player_slot(1)
-		if w1.has_method("set_input_device"):
-			w1.set_input_device(p1_dev)
-
+			w1.call("set_player_slot", 1)   # <- P1 slot BEFORE add_child
 		_left_sv.add_child(w1)
 		return
 
 	# 2P
+	if _divider: _divider.visible = true
 	_right_vc.visible = true
-	if _divider != null:
-		_divider.visible = show_divider
 
-	var w_left: Node  = packed.instantiate()
-	var w_right: Node = packed.instantiate()
+	var wL := packed.instantiate()
+	var wR := packed.instantiate()
 
-	# >>> set slot/device BEFORE add_child
-	if w_left.has_method("set_player_slot"):
-		w_left.set_player_slot(1)
-	if w_left.has_method("set_input_device"):
-		w_left.set_input_device(p1_dev)
+	# Tell each world its slot BEFORE they enter the tree
+	if wL.has_method("set_player_slot"):
+		wL.call("set_player_slot", 1)     # -> pad 0
+	if wR.has_method("set_player_slot"):
+		wR.call("set_player_slot", 2)     # -> pad 1
 
-	if w_right.has_method("set_player_slot"):
-		w_right.set_player_slot(2)
-	if w_right.has_method("set_input_device"):
-		w_right.set_input_device(p2_dev)
-
-	_left_sv.add_child(w_left)
-	_right_sv.add_child(w_right)
+	_left_sv.add_child(wL)
+	_right_sv.add_child(wR)
 
 func _configure_world_player_slot(world_root: Node, slot: int, device_id: int) -> void:
+	# Preferred: tell the World instance the slot (if it has it)
 	if world_root.has_method("set_player_slot"):
 		world_root.call_deferred("set_player_slot", slot)
-	if world_root.has_method("set_input_device"):
-		world_root.call_deferred("set_input_device", device_id)
 
-	# Try to find a Player node and pass along too (safe if absent)
-	var player: Node = world_root.find_child("Player", true, false)
+	# Set the player's device per instance
+	var player := world_root.find_child("Player", true, false)
 	if player != null:
 		if player.has_method("SetPlayerIndex"):
 			player.call_deferred("SetPlayerIndex", slot)
 		if player.has_method("SetInputDevice"):
 			player.call_deferred("SetInputDevice", device_id)
+
+	# Pass device to systems that need it (Map/SpriteHandler)
+	var map := world_root.find_child("Map", true, false)
+	if map != null and map.has_method("SetPlayerDevice"):
+		map.call("SetPlayerDevice", device_id)
+	var sh := world_root.find_child("SpriteHandler", true, false)
+	if sh != null and sh.has_method("SetPlayerDevice"):
+		sh.call("SetPlayerDevice", device_id)
 
 func _on_resized() -> void:
 	var sz: Vector2 = get_viewport_rect().size

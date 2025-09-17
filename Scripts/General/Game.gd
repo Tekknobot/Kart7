@@ -51,21 +51,16 @@ var DEFAULT_POINTS: PackedVector2Array = PackedVector2Array([
 var _player_slot: int = 1            # 1 = P1, 2 = P2 (set by SplitMain)
 var _selected_local: String = ""      # this instance’s chosen racer name
 
-const _GRID_BASE_PX := 1024.0  # authoring size for DEFAULT_POINTS
+const _GRID_BASE_PX := 1024.0
 
 func _map_width_px() -> float:
 	var w := 1024.0
-	if _map is Sprite2D:
-		var tex := (_map as Sprite2D).texture
-		if tex != null:
-			var sz := tex.get_size()
-			if sz.x > 0.0:
-				w = float(sz.x)
+	if _map is Sprite2D and (_map as Sprite2D).texture:
+		w = float((_map as Sprite2D).texture.get_size().x)
 	return w
 
 func _grid_px_for_current_map(base_px: Vector2) -> Vector2:
-	var scale := _map_width_px() / _GRID_BASE_PX
-	return base_px * scale
+	return base_px * (_map_width_px() / _GRID_BASE_PX)
 
 # Place an entity in MAP space at "px" (pixel coordinates on X/Z).
 # Tries UV setter first; otherwise uses pixel setter.
@@ -105,7 +100,7 @@ func _ensure_roster_spawned() -> void:
 		push_error("World: Racers root not found; set racers_root_path.")
 		return
 
-	# Already spawned? bail
+	# Already spawned?
 	var existing := 0
 	for c in racers_root.get_children():
 		if c is Node2D:
@@ -113,100 +108,92 @@ func _ensure_roster_spawned() -> void:
 	if existing >= Globals.racer_names.size():
 		return
 
-	# Need prefabs
+	# Prefabs required
 	if player_scene == null or opponent_scene == null:
 		push_error("World: assign player_scene and opponent_scene in the Inspector.")
 		return
 
-	# Build ordered names
+	# Build name lists
 	var all_names: Array = []
 	for n in Globals.racer_names:
 		all_names.append(String(n))
 
-	# Per-screen player pick
 	var selected := _selected_from_meta_or_globals(all_names)
 	_selected_local = selected
 
-	# Opponents = everyone else
 	var remaining: Array = []
 	for n in all_names:
-		if n != selected:
-			remaining.append(n)
+		if String(n) != selected:
+			remaining.append(String(n))
 
-	# Mirror into Globals only in 1P (avoid P1/P2 fighting in 2P)
-	if not _is_two_player():
-		if Globals.has_method("set_selected_racer"):
-			Globals.set_selected_racer(selected)
-
-	# === 1) Spawn opponents first ===
-	for i in range(remaining.size()):
-		var nm := String(remaining[i])
+	# 1) Spawn opponents first
+	for nm_any in remaining:
+		var nm := String(nm_any)
 		var opp := opponent_scene.instantiate()
 		opp.name = nm
 		racers_root.add_child(opp)
-
 		_wire_racer(opp, false)
 
-		# Opponent recolor (1P classic behavior preserved)
-		var ocol := Globals.get_racer_color(nm)
-		_set_racer_name_label(opp, nm, ocol)
-		var ospr := _find_sprite(opp)
-		if ospr != null:
-			_apply_yoshi_shader(ospr, ocol)
+		# 1P recolor behavior for opponents
+		var col := Globals.get_racer_color(nm)
+		_set_racer_name_label(opp, nm, col)
+		var spr := _find_sprite(opp)
+		if spr != null:
+			_apply_yoshi_shader(spr, col)
 
-	# === 2) Spawn the player last ===
+	# 2) Spawn local Player last — assign device BEFORE add_child
 	var p := player_scene.instantiate()
 	p.name = selected
+
+	# Device by slot: P1->0, P2->1 (no keyboard)
+	var dev := 0
+	if _player_slot > 1:
+		dev = 1
+
+	# Set slot + device BEFORE entering the tree so Player._ready sees correct pad
+	if p.has_method("SetPlayerIndex"):
+		p.call("SetPlayerIndex", _player_slot)
+	if p.has_method("SetInputDevice"):
+		p.call("SetInputDevice", dev)
+
 	racers_root.add_child(p)
-	_wire_racer(p, true)
 	_player = p
+	_wire_racer(p, true)
 
-	# Optional: pass slot/device to the Player if supported
-	var dev_key := "p1_device"
-	if _player_slot != 1:
-		dev_key = "p2_device"
-	var device_id := -1
-	if Engine.has_meta(dev_key):
-		device_id = int(Engine.get_meta(dev_key))
-	if _player.has_method("SetPlayerIndex"):
-		_player.call_deferred("SetPlayerIndex", _player_slot)
-	if _player.has_method("SetInputDevice"):
-		_player.call_deferred("SetInputDevice", device_id)
-
-	# Player recolor (use per-slot stored color if present)
+	# Player recolor (prefer per-slot color; fallback to name map)
 	var pcol := Color.WHITE
 	if Globals.has_method("get_selected_color_for_slot"):
 		pcol = Globals.get_selected_color_for_slot(_player_slot)
+	else:
+		pcol = Globals.get_racer_color(selected)
 	if pcol == Color.WHITE or pcol.a == 0.0:
 		pcol = Globals.get_racer_color(selected)
 	var pspr := _find_sprite(_player)
 	if pspr != null:
 		_apply_yoshi_shader(pspr, pcol)
 
-	# Avoid pulling shared palette in 2P
-	if not _is_two_player() and _player.has_method("RefreshPaletteFromGlobals"):
-		_player.RefreshPaletteFromGlobals()
-	else:
-		if _player.has_method("_ensure_yoshi_material"): _player._ensure_yoshi_material()
-		if _player.has_method("_apply_player_palette_from_globals"): _player._apply_player_palette_from_globals()
-
-	# HUD hook
+	# HUD hookup
 	var hud := get_node_or_null(^"RaceHUD")
 	if hud:
 		hud.set("player_path", hud.get_path_to(_player))
 		hud.set("_player", _player)
 
-	# Opponents know the player
+	# Make sure every opponent tracks THIS world’s local player
 	_bind_player_ref_to_opponents(racers_root, _player)
 
-	# Keep Globals in sync in 1P only
-	if not _is_two_player() and Globals.has_method("set_selected_racer"):
-		Globals.set_selected_racer(selected)
-
-	# Provisional placement so the player appears on-grid immediately
+	# Provisional grid placement so the player appears in the right bay instantly
+	var total_est := 1
+	if _is_two_player():
+		total_est = 2
+	var p_idx := _grid_index_for_player(total_est)
+	p_idx = clamp(p_idx, 0, max(0, DEFAULT_POINTS.size() - 1))
 	if DEFAULT_POINTS.size() > 0:
-		var provisional := DEFAULT_POINTS[ _grid_index_for_player(1) ]
-		_set_map_position_px(_player, _grid_px_for_current_map(provisional))
+		var base_px := DEFAULT_POINTS[p_idx]                # authored at 1024
+		var px := _grid_px_for_current_map(base_px)         # scaled to real map width
+		_set_map_position_px(_player, px)
+
+	# Also tell local subsystems which pad this world uses
+	_assign_local_device_to_systems()
 
 	_update_hud_name_color()
 	call_deferred("_reapply_player_color_once")
@@ -313,7 +300,7 @@ func _await_roster_and_boot() -> void:
 		return
 
 	_player = candidate
-	_wire_player_dependencies()
+	_assign_local_device_to_systems()
 
 	# Palette sync: avoid shared pull in 2P
 	if not _is_two_player() and _player.has_method("RefreshPaletteFromGlobals"):
@@ -345,17 +332,14 @@ func _setup_after_roster() -> void:
 		push_error("World: _map Sprite2D has no texture.")
 		return
 
-	# Boot map + systems
 	_map.Setup(Globals.screenSize, _player)
 
-	# Path overlay ↔ map binding
 	var overlay_node := get_node(^"SubViewport/PathOverlay2D")
 	var overlay_vp   := get_node(^"SubViewport") as SubViewport
 	var rel_from_map := _map.get_path_to(overlay_node)
 	if _map != null and _map.has_method("SetPathOverlayNodePath"):
 		_map.call("SetPathOverlayNodePath", rel_from_map, overlay_vp)
 
-	# Minimap (local subtree only)
 	var rr := get_node_or_null(racers_root_path)
 	if rr == null:
 		rr = get_node_or_null(^"Sprite Handler/Racers")
@@ -363,29 +347,25 @@ func _setup_after_roster() -> void:
 	if minimap != null:
 		if minimap.has_method("Bind"):
 			minimap.call("Bind", _player, rr, overlay_node)
+		if minimap.has_method("set"):
+			minimap.set("map_size_px", int(_map_width_px()))   # <<< important per-screen
 		if minimap.has_method("mark_path_dirty"):
 			minimap.call("mark_path_dirty")
 
-	# Skid overlay paths
 	if overlay_node:
 		overlay_node.set("player_path", overlay_node.get_path_to(_player))
 		overlay_node.set("pseudo3d_path", overlay_node.get_path_to(_map))
 
-	# Opponents registration
 	if _map != null and _map.has_method("SetOpponentsFromGroup"):
 		_map.call("SetOpponentsFromGroup", "racers", _player)
 
-	# Track/visuals
 	_apply_track_from_globals()
 
-	# Collision boot
 	if _collision != null and _collision.has_method("Setup"):
 		_collision.call("Setup")
 
-	# Shared time-of-day between screens
 	_sync_time_of_day()
 
-	# Subsystems
 	_player.Setup((_map as Sprite2D).texture.get_size().x)
 	_spriteHandler.Setup(_map.ReturnWorldMatrix(), (_map as Sprite2D).texture.get_size().x, _player)
 	_animationHandler.Setup(_player)
@@ -394,8 +374,7 @@ func _setup_after_roster() -> void:
 		_raceManager.Setup()
 		_raceManager.connect("standings_changed", Callable(self, "_on_standings_changed"))
 
-	call_deferred("_push_path_points_once")
-	# ← REMOVED: call_deferred("_spawn_player_at_path_index", 1)
+	call_deferred("_push_path_points_once")  # do NOT spawn onto path
 
 	_refresh_map_opponents()
 
@@ -818,55 +797,72 @@ func _place_grid_player_last() -> void:
 	if DEFAULT_POINTS.size() == 0:
 		return
 
-	# Count real racers in THIS world
-	var total := 0
+	# Collect racers that live under THIS world only
+	var racers: Array = []
 	for n in racers_root.get_children():
 		if n is Node2D:
-			total += 1
-	if total <= 0:
+			racers.append(n)
+	if racers.is_empty():
 		return
 
-	# Player's grid index (2P: P1→0, P2→1)
-	var p_idx := _grid_index_for_player(total)
+	var total := racers.size()
 	var grid_cap = min(total, DEFAULT_POINTS.size())
 
-	# 1) Place opponents into all slots except p_idx
-	var opp_slot := 0
-	for n in racers_root.get_children():
-		if n == _player:
-			continue
+	# Player's grid index (2P: P1→0, P2→1; 1P = previous logic)
+	var p_idx := _grid_index_for_player(total)
+	p_idx = clamp(p_idx, 0, grid_cap - 1)
 
-		while opp_slot == p_idx and opp_slot < grid_cap:
-			opp_slot += 1
-		if opp_slot >= grid_cap:
+	# Build a deterministic opponents list (exclude the local player)
+	var opponents: Array = []
+	for n in racers:
+		if n != _player:
+			opponents.append(n)
+	opponents.sort_custom(func(a, b):
+		# Sort by name; break ties by instance id for stable ordering
+		var na := String(a.name)
+		var nb := String(b.name)
+		if na == nb:
+			return a.get_instance_id() < b.get_instance_id()
+		return na < nb
+	)
+
+	# 1) Place opponents into all slots except p_idx
+	var next_slot := 0
+	for opp in opponents:
+		# advance until a free grid slot
+		while next_slot == p_idx and next_slot < grid_cap:
+			next_slot += 1
+		if next_slot >= grid_cap:
 			break
 
-		# Scale DEFAULT_POINTS from 1024 → current map width
-		var base_px: Vector2 = DEFAULT_POINTS[opp_slot]
-		var px: Vector2 = _grid_px_for_current_map(base_px)
+		# 1024-authored -> absolute pixels for current map
+		var base_px: Vector2 = DEFAULT_POINTS[next_slot]
+		var px: Vector2      = _grid_px_for_current_map(base_px)
 
 		var used_merge := false
-		if n.has_method("ArmMergeFromGrid"):
-			# UV must use the 1024 base to keep authored shape
-			var uv = base_px / _GRID_BASE_PX
-			n.call("ArmMergeFromGrid", uv, 0, 0.0)
+		if opp.has_method("ArmMergeFromGrid"):
+			# keep the authored shape: UV from 1024 base
+			var uv := base_px / _GRID_BASE_PX
+			opp.call("ArmMergeFromGrid", uv, 0, 0.0)
 			used_merge = true
 
 		if not used_merge:
-			_set_map_position_px(n, px)
+			_set_map_position_px(opp, px)
 
-		if _player != null and _has_prop(n, "player_ref"):
-			n.set("player_ref", n.get_path_to(_player))
+		# Make sure each opponent knows the local player (for catch-up/depth/etc.)
+		if _player != null and _has_prop(opp, "player_ref"):
+			opp.set("player_ref", opp.get_path_to(_player))
 
-		opp_slot += 1
+		next_slot += 1
 
-	# 2) Player at its slot (scaled to current width)
-	if p_idx < 0 or p_idx >= DEFAULT_POINTS.size():
-		p_idx = 0
+	# 2) Put the PLAYER at its computed slot (scaled)
 	var p_base: Vector2 = DEFAULT_POINTS[p_idx]
 	var p_px  : Vector2 = _grid_px_for_current_map(p_base)
 	if _player != null:
 		_set_map_position_px(_player, p_px)
+
+	# (optional debug)
+	# prints("[Grid] slot=", _player_slot, " p_idx=", p_idx, " base=", p_base, " scaled=", p_px, " map_w=", _map_width_px())
 
 # --- Track loading ------------------------------------------------------------
 func _apply_track_from_globals() -> void:
@@ -1172,3 +1168,18 @@ func _is_two_player() -> bool:
 	if Engine.has_meta("player_count"):
 		pc = int(Engine.get_meta("player_count"))
 	return pc >= 2
+
+func _assign_local_device_to_systems() -> void:
+	var dev := 0
+	if _player_slot > 1:
+		dev = 1
+	# Player
+	if _player != null:
+		if _player.has_method("SetPlayerIndex"):  _player.call_deferred("SetPlayerIndex", _player_slot)
+		if _player.has_method("SetInputDevice"): _player.call_deferred("SetInputDevice", dev)
+	# Map (Pseudo3D)
+	if _map != null and _map.has_method("SetPlayerDevice"):
+		_map.call("SetPlayerDevice", dev)
+	# SpriteHandler (optional; only if you add SetPlayerDevice there too)
+	if _spriteHandler != null and _spriteHandler.has_method("SetPlayerDevice"):
+		_spriteHandler.call("SetPlayerDevice", dev)

@@ -214,6 +214,20 @@ var DEFAULT_POINTS: PackedVector2Array = PackedVector2Array([
 	Vector2(950, 751)
 ])
 
+var _device_id: int = -1
+var _btn_prev := {}  # button -> bool (edge detect for “just pressed”)
+
+var _player_index: int = 1   # 1 = P1, 2 = P2 (World can set)
+
+func SetPlayerIndex(idx: int) -> void:
+	_player_index = max(1, idx)
+	# If device not explicitly set, map by index: P1->0, P2->1
+	if _device_id < 0:
+		_device_id = clamp(_player_index - 1, 0, 7)
+
+func SetInputDevice(id: int) -> void:
+	_device_id = max(0, id)  # force gamepad only
+
 func ReturnCollisionRadiusUV() -> float:
 	# Convert the pixel radius to UV using your map’s real width.
 	var map_w := 1024.0
@@ -324,27 +338,30 @@ func _set_frame_idx(dir_idx: int) -> void:
 		spr.frame = clamp(dir_idx, 0, DIRECTIONS - 1)
 
 func _ready() -> void:
-	_register_default_actions()
 	var spr := ReturnSpriteGraphic()
 	if spr == null:
 		await get_tree().process_frame
 		spr = ReturnSpriteGraphic()
 	if spr == null:
-		push_error("Player.gd: sprite_graphic_path is not set or node missing: %s" % str(get("sprite_graphic_path")))
+		push_error("Player.gd: sprite_graphic_path not found")
 		return
 
 	_prime_sprite_grid_once()
 	_base_sprite_offset_y = spr.offset.y
 	add_to_group("racers")
 
-	# --- Apply selected racer color from Globals ---
+	# Assign default device by index if world hasn't set one yet
+	if _device_id < 0:
+		_device_id = clamp(_player_index - 1, 0, 7)  # P1->0, P2->1
+
+	# Colorize from Globals
 	_ensure_yoshi_material()
 	_apply_player_palette_from_globals()
 
 	# HUD link
 	_hud = get_node_or_null(hud_path)
 	if _hud == null:
-		_hud = get_tree().get_first_node_in_group("race_hud")  # optional group fallback
+		_hud = get_tree().get_first_node_in_group("race_hud")
 
 func _process(_dt: float) -> void:
 	# publish camera/player position for pseudo-3D projection
@@ -526,7 +543,7 @@ func Setup(mapSize : int) -> void:
 	SetMapSize(mapSize)
 
 func Update(mapForward : Vector3) -> void:
-	_last_map_forward = mapForward  # cache player facing for SFX logic
+	_last_map_forward = mapForward
 	
 	if _isPushedBack:
 		ApplyCollisionBump()
@@ -545,44 +562,52 @@ func Update(mapForward : Vector3) -> void:
 	if _post_spin_lock > 0.0:
 		_post_spin_lock = max(0.0, _post_spin_lock - dt)
 
-	# inputs
+	# Read steer/throttle from THIS device only
 	var input_vec := ReturnPlayerInput()
 
-	# spinout flow
+	# Spinout & celebration ticks
 	_spinout_update_meter(dt, input_vec)
 	_spinout_tick(dt)
 	_award_spin_tick(dt)
 
-	# --- Item boost trigger (only item stuff lives here) ---
-	if Input.is_action_just_pressed("Item"):
+	# -------------------------
+	# ITEM (Button B) — device-scoped edge detection
+	# -------------------------
+	var now_b := Input.is_joy_button_pressed(_device_id, JOY_BUTTON_B)
+	var prev_b := bool(_btn_prev.get(JOY_BUTTON_B, false))
+	_btn_prev[JOY_BUTTON_B] = now_b
+	var item_just := (now_b and not prev_b)
+
+	if item_just:
 		if (not _is_spinning) and _item_cooldown_timer <= 0.0:
-			_item_boost_timer = ITEM_BOOST_TIME
+			_item_boost_timer    = ITEM_BOOST_TIME
 			_item_cooldown_timer = ITEM_BOOST_TIME + ITEM_COOLDOWN
 			_emit_sparks(true)
-			_set_sparks_color(Color(0.6, 1.0, 0.4)) # greenish boost flash
+			_set_sparks_color(Color(0.6, 1.0, 0.4))  # greenish boost flash
 
-	# block drift/nitro while spinning
+	# Drift / Nitro handling (RB edge & hold) is done inside this helper.
+	# It uses ONLY this device’s RB and manages drift arm + visual nitro pulse.
 	if not _is_spinning:
-		_handle_hop_and_drift(input_vec)  # drift + nitro (no hop)
+		_handle_hop_and_drift(input_vec)
 
-	# Timers decay (non-nitro)
+	# Timers decay (and cooldown actually counts down)
 	if _item_boost_timer > 0.0:
 		_item_boost_timer = max(0.0, _item_boost_timer - dt)
+	if _item_cooldown_timer > 0.0:
+		_item_cooldown_timer = max(0.0, _item_cooldown_timer - dt)
 	if _turbo_timer > 0.0:
 		_turbo_timer = max(0.0, _turbo_timer - dt)
 
-	# === Nitro (hold/tap) — no-repeat SFX + hysteresis ===
-	var nitro_down := Input.is_action_pressed("Nitro")
-	var nitro_tap  := Input.is_action_just_pressed("Nitro")
+	# -------------------------
+	# NITRO (RB) — device-scoped, hysteresis
+	# -------------------------
+	# Do NOT edge-detect RB here (edge is used by _handle_hop_and_drift); just read current hold.
+	var nitro_down := Input.is_joy_button_pressed(_device_id, JOY_BUTTON_RIGHT_SHOULDER)
 
-	# Tap cancels latch (your existing behavior)
-	if _nitro_latched and nitro_tap:
-		_nitro_latched = false
-
+	# Latch behavior: keep whatever your game sets elsewhere; here we don't toggle it on.
 	var nitro_blocked := _is_drifting or _is_spinning
 	var requesting := (_nitro_latched or nitro_down) and not nitro_blocked
 
-	# State machine: engage/disengage with hysteresis (prevents re-triggering)
 	if _nitro_active_runtime:
 		if (not requesting) or (_nitro_charge <= NITRO_DISENGAGE_FRAC):
 			_nitro_active_runtime = false
@@ -590,30 +615,25 @@ func Update(mapForward : Vector3) -> void:
 		if requesting and (_nitro_charge >= NITRO_ENGAGE_FRAC):
 			_nitro_active_runtime = true
 
-	# One-shot SFX on the rising edge only
+	# One-shot SFX on rising edge
 	if _nitro_active_runtime and not _nitro_was_active:
 		if _sfx and _sfx.has_method("play_nitro_start"):
 			_sfx.play_nitro_start()
 		elif _sfx and _sfx.has_method("play_boost"):
 			_sfx.play_boost()
 
-	# Drain/refill rules: NEVER refill while the player is still requesting
+	# Drain/refill gauge (never refill while requesting)
 	var drain_rate  = 1.0 / max(0.001, NITRO_CAPACITY_S)
 	var refill_rate = 1.0 / max(0.001, NITRO_REFILL_S)
 
 	if _nitro_active_runtime:
 		_nitro_charge = max(0.0, _nitro_charge - drain_rate * dt)
 	else:
-		if (not requesting) and (not nitro_blocked):
+		if not requesting and not nitro_blocked:
 			_nitro_charge = min(1.0, _nitro_charge + refill_rate * dt)
 
-	# Drive visuals
-	if _nitro_active_runtime:
-		_nitro_timer = 1.0
-	else:
-		_nitro_timer = 0.0
-
-	# Remember for next frame
+	# Drive visuals flag (the shader pulse itself is primed in _handle_hop_and_drift)
+	_nitro_timer = 1.0 if _nitro_active_runtime else 0.0
 	_nitro_was_active = _nitro_active_runtime
 
 	_apply_nitro_fx(mapForward)
@@ -632,11 +652,11 @@ func Update(mapForward : Vector3) -> void:
 	else:
 		_drift_side_slip = lerp(_drift_side_slip, 0.0, clamp(dt * DRIFT_SLIP_DAMP, 0.0, 1.0))
 
-	# predict next pos
+	# Predict next pos
 	var nextPos : Vector3 = _mapPosition + ReturnVelocity()
 	var nextPixelPos : Vector2i = Vector2i(ceil(nextPos.x), ceil(nextPos.z))
 
-	# --- X axis wall ---
+	# Walls (X then Z)
 	if _has_collision_api():
 		if _collisionHandler.IsCollidingWithWall(Vector2i(ceil(nextPos.x), ceil(_mapPosition.z))):
 			nextPos.x = _mapPosition.x
@@ -645,7 +665,6 @@ func Update(mapForward : Vector3) -> void:
 				_sfx.play_collision()
 				_wall_hit_cd = WALL_HIT_COOLDOWN_S
 
-	# --- Z axis wall ---
 	if _has_collision_api():
 		if _collisionHandler.IsCollidingWithWall(Vector2i(ceil(_mapPosition.x), ceil(nextPos.z))):
 			nextPos.z = _mapPosition.z
@@ -654,7 +673,7 @@ func Update(mapForward : Vector3) -> void:
 				_sfx.play_collision()
 				_wall_hit_cd = WALL_HIT_COOLDOWN_S
 
-	# --- Terrain type ---
+	# Terrain
 	var curr_rt := Globals.RoadType.ROAD
 	if _has_collision_api():
 		curr_rt = _collisionHandler.ReturnCurrentRoadType(Vector2i(ceil(nextPos.x), ceil(nextPos.z)))
@@ -663,14 +682,13 @@ func Update(mapForward : Vector3) -> void:
 	# apply drift side-slip after wall clamps
 	nextPos += right_vec * _drift_side_slip * dt
 
+	# Terrain multiplier smoothing
 	var terrain_raw := _speedMultiplier
 	if terrain_raw <= 0.0:
 		terrain_raw = 1.0
 
-	var hl: float
-	if terrain_raw < _terrain_mult_s:
-		hl = TERRAIN_DECAY_HALF_LIFE
-	else:
+	var hl: float = TERRAIN_DECAY_HALF_LIFE
+	if terrain_raw >= _terrain_mult_s:
 		hl = TERRAIN_RECOVER_HALF_LIFE
 
 	var a := 1.0 - pow(0.5, dt / max(0.0001, hl))
@@ -679,7 +697,7 @@ func Update(mapForward : Vector3) -> void:
 	# BOOST (separate from terrain)
 	var boost_mult := _recompute_speed_multiplier()
 
-	# combine
+	# combine & clamp
 	_speedMultiplier = _terrain_mult_s
 	_apply_item_terrain_comp(curr_rt)
 	_speedMultiplier = _terrain_mult_s * boost_mult
@@ -705,40 +723,43 @@ func _push_nitro_hud() -> void:
 		_hud.call("SetNitro", _nitro_charge, is_active)
 
 func ReturnPlayerInput() -> Vector2:
-	var raw_right := Input.get_action_strength("Right")
-	var raw_left  := Input.get_action_strength("Left")
-	var steer_raw := raw_right - raw_left
+	# Left stick X (or D-Pad) on _device_id only
+	var ax := Input.get_joy_axis(_device_id, JOY_AXIS_LEFT_X)
+	var steer_raw = clamp(ax, -1.0, 1.0)
 
-	var forward := Input.get_action_strength("Forward")
-	var brake   := Input.get_action_strength("Brake")
+	# D-Pad override to snap full left/right
+	if Input.is_joy_button_pressed(_device_id, JOY_BUTTON_DPAD_LEFT):
+		steer_raw = -1.0
+	elif Input.is_joy_button_pressed(_device_id, JOY_BUTTON_DPAD_RIGHT):
+		steer_raw = 1.0
 
-	# brief steer lock after a spin
-	if _post_spin_lock > 0.0:
-		steer_raw = 0.0
-
-	# Apply deadzone to the raw value
 	if abs(steer_raw) < STEER_DEADZONE:
 		steer_raw = 0.0
 
-	# Response curve: soften around center so small inputs turn less
 	var steer_mag = abs(steer_raw)
 	if steer_mag > 0.0:
-		steer_mag = pow(steer_mag, max(0.01, STEER_CURVE))  # 1.25 softens near center
+		steer_mag = pow(steer_mag, max(0.01, STEER_CURVE))
+
 	var steer_shaped = steer_mag
 	if steer_raw < 0.0:
 		steer_shaped = -steer_mag
 
-	# Global steering gain for normal steering (non-drift path)
 	var steer = steer_shaped * STEER_GAIN * STEER_SIGN
 
-	# Throttle/brake (unchanged)
+	# A = Forward, B = Brake (same on both pads, per-device)
+	var forward := 0.0
+	if Input.is_joy_button_pressed(_device_id, JOY_BUTTON_A):
+		forward = 1.0
+	var brake := 0.0
+	if Input.is_joy_button_pressed(_device_id, JOY_BUTTON_B):
+		brake = 1.0
+
 	var throttle := -forward
 	if brake > 0.01:
 		throttle = -brake
 
-	# While spinning, ignore steer/throttle so the kart coasts under damped speed
 	if _is_spinning:
-		_inputDir = Vector2(0.0, 0.0)
+		_inputDir = Vector2.ZERO
 		return _inputDir
 
 	_inputDir = Vector2(steer, throttle)
@@ -747,25 +768,29 @@ func ReturnPlayerInput() -> Vector2:
 func _handle_hop_and_drift(input_vec : Vector2) -> void:
 	var dt := get_process_delta_time()
 
-	# Inputs / gates
-	var nitro_down := Input.is_action_pressed("Nitro")            # HOLD to keep nitro alive
-	var nitro_just := Input.is_action_just_pressed("Nitro")       # only for arming drift / SFX once
-	var drift_down := Input.is_action_pressed("Drift")
+	# Right Shoulder (RB) on _device_id drives both nitro pulse and drift hold
+	var now_rb := Input.is_joy_button_pressed(_device_id, JOY_BUTTON_RIGHT_SHOULDER)
+	var prev_rb := bool(_btn_prev.get(JOY_BUTTON_RIGHT_SHOULDER, false))
+	_btn_prev[JOY_BUTTON_RIGHT_SHOULDER] = now_rb
+
+	var nitro_down := now_rb
+	var nitro_just := (now_rb and not prev_rb)
+	var drift_down := now_rb
+
 	var moving_fast := _movementSpeed >= DRIFT_MIN_SPEED
 	var steer_abs = abs(input_vec.x)
 	var steer_sign = sign(input_vec.x)
-	
-	# Nitro: HOLD keeps effect alive (timer is maintained in Update); first press arms drift
+
+	# Arm drift on nitro tap
 	if nitro_just and not _is_drifting:
 		_drift_arm_timer = DRIFT_ARM_WINDOW
-		if _sfx != null:
-			if _sfx.has_method("play_drift"):
-				_sfx.play_drift()
+		if _sfx != null and _sfx.has_method("play_drift"):
+			_sfx.play_drift()
 
-	# Only kick the shader if we actually have enough gauge to run nitro
+	# Visual nitro pulse (only if there’s charge)
 	if nitro_down and _nitro_charge >= NITRO_MIN_ACTIVATE_FRAC:
-		_nitro_timer = 1.0   # simple “on” flag for visuals this frame
-		
+		_nitro_timer = 1.0
+
 	# decay arm timer
 	if _drift_arm_timer > 0.0:
 		_drift_arm_timer = max(0.0, _drift_arm_timer - dt)
@@ -779,21 +804,16 @@ func _handle_hop_and_drift(input_vec : Vector2) -> void:
 
 	# While drifting and holding drift
 	if _is_drifting and drift_down:
-		# Outward bias + steer-shaped contribution (use raw steer, not smoothed)
-		var sign_dir := float(_drift_dir)            # +1 right, -1 left
-		var target_bias := DRIFT_MIN_TURN_BIAS       # baseline outward lean (e.g. 0.55)
-		target_bias += steer_abs * DRIFT_STEER_MULT  # make the knob matter
-
-		# Keep it in range and point outward, then ease in with grip
+		var sign_dir := float(_drift_dir)
+		var target_bias = DRIFT_MIN_TURN_BIAS + (steer_abs * DRIFT_STEER_MULT)
 		var clamped = clamp(sign_dir * target_bias, -1.0, 1.0)
 		var grip_t = clamp(dt * (DRIFT_GRIP * 10.0), 0.0, 1.0)
 		_inputDir.x = lerp(_inputDir.x, clamped, grip_t)
 
-		# Build drift charge faster with more steer pressure
 		var add = (0.75 + 0.25 * steer_abs) * DRIFT_BUILD_RATE * dt
 		_drift_charge = max(0.0, _drift_charge + add)
 
-		# Quick-cancel rules
+		# quick-cancel rules
 		if steer_sign != 0 and steer_sign == -_drift_dir and steer_abs >= DRIFT_REVERSE_BREAK:
 			_cancel_drift_no_award(POST_DRIFT_SETTLE_TIME_BREAK)
 		elif steer_abs < DRIFT_BREAK_DEADZONE:
@@ -838,68 +858,15 @@ func _start_drift_snes(dir: int) -> void:
 	_emit_dust(true)
 	_emit_sparks(false)
 
-func _register_default_actions() -> void:
-	# Ensure actions exist once (now includes RearView + Nitro)
-	for action in ["Forward", "Left", "Right", "Brake", "Hop", "Drift", "Item", "RearView", "Nitro"]:
-		if not InputMap.has_action(action):
-			InputMap.add_action(action)
-
-	# --- Gamepad ---
-	var jb := InputEventJoypadButton.new()
-	jb.device = -1  # accept any controller (prevents Windows device-id mismatches)
-
-	# Forward: A
-	jb.button_index = JOY_BUTTON_A
-	InputMap.action_add_event("Forward", jb.duplicate())
-
-	# Hop / Drift / Nitro: Right Shoulder (RB)
-	jb.button_index = JOY_BUTTON_RIGHT_SHOULDER
-	InputMap.action_add_event("Hop", jb.duplicate())
-	InputMap.action_add_event("Drift", jb.duplicate())
-	InputMap.action_add_event("Nitro", jb.duplicate())
-
-	# RearView: Left Shoulder (LB)
-	jb.button_index = JOY_BUTTON_LEFT_SHOULDER
-	InputMap.action_add_event("RearView", jb.duplicate())
-
-	# Left / Right: D-Pad
-	jb.button_index = JOY_BUTTON_DPAD_LEFT
-	InputMap.action_add_event("Left", jb.duplicate())
-	jb.button_index = JOY_BUTTON_DPAD_RIGHT
-	InputMap.action_add_event("Right", jb.duplicate())
-
-	# Item: B (pad)
-	jb.button_index = JOY_BUTTON_B
-	InputMap.action_add_event("Item", jb.duplicate())
-
-	# --- Keyboard ---
-	var ev: InputEventKey
-
-	# Forward: W, Up
-	ev = InputEventKey.new(); ev.keycode = KEY_W;     InputMap.action_add_event("Forward", ev)
-	ev = InputEventKey.new(); ev.keycode = KEY_UP;    InputMap.action_add_event("Forward", ev)
-
-	# Brake: S, Down
-	ev = InputEventKey.new(); ev.keycode = KEY_S;     InputMap.action_add_event("Brake", ev)
-	ev = InputEventKey.new(); ev.keycode = KEY_DOWN;  InputMap.action_add_event("Brake", ev)
-
-	# Left / Right: A/D, ←/→
-	ev = InputEventKey.new(); ev.keycode = KEY_A;     InputMap.action_add_event("Left", ev)
-	ev = InputEventKey.new(); ev.keycode = KEY_LEFT;  InputMap.action_add_event("Left", ev)
-	ev = InputEventKey.new(); ev.keycode = KEY_D;     InputMap.action_add_event("Right", ev)
-	ev = InputEventKey.new(); ev.keycode = KEY_RIGHT; InputMap.action_add_event("Right", ev)
-
-	# Drift: Shift (either)
-	ev = InputEventKey.new(); ev.keycode = KEY_SHIFT; InputMap.action_add_event("Drift", ev)
-
-	# Item: E (keyboard)
-	ev = InputEventKey.new(); ev.keycode = KEY_E;     InputMap.action_add_event("Item", ev)
-
-	# Nitro: Space (old Hop key)
-	ev = InputEventKey.new(); ev.keycode = KEY_SPACE; InputMap.action_add_event("Nitro", ev)
-
-	# RearView (keyboard): TAB (hold to look back)
-	ev = InputEventKey.new(); ev.keycode = KEY_TAB;   InputMap.action_add_event("RearView", ev)
+func _strip_gamepad_from_actions() -> void:
+	var acts := ["Forward","Left","Right","Brake","Hop","Drift","Item","RearView","Nitro"]
+	for a in acts:
+		var to_remove: Array = []
+		for ev in InputMap.action_get_events(a):
+			if ev is InputEventJoypadButton or ev is InputEventJoypadMotion:
+				to_remove.append(ev)
+		for e in to_remove:
+			InputMap.action_erase_event(a, e)
 
 func _apply_hop_sprite_offset() -> void:
 	# intentionally empty — nitro has no visual bob
