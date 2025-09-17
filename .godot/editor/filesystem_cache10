@@ -1,5 +1,5 @@
 bdbec74c6e5bd72edee867077d70896c
-::res://::1758061184
+::res://::1758112424
 default_bus_layout.tres::AudioBusLayout/AudioBusLayout::2209037852073473154::1758045448::0::1::::<><><>0<>0<><>::
 Donut Plains - Pipe Locations.txt::TextFile/TextFile::-1::1756486576::0::1::::<><><>0<>0<><>::
 export_presets.cfg::TextFile/TextFile::-1::1758045448::0::1::::<><><>0<>0<><>::
@@ -43,77 +43,77 @@ mago2.ttf::FontFile/FontFile::3837370754979297109::1758045448::1758045448::1::::
 mago3.ttf::FontFile/FontFile::7622047366825172978::1758045448::1758045448::1::::<><><>0<>0<>47697f25e47ff0973b443c4cd7ab7708<>res://.godot/imported/mago3.ttf-52d818bb22f71db2c4c2865fe978b1c2.fontdata::
 ::res://Icon/::1756972525
 pizzza-icon.png::CompressedTexture2D/CompressedTexture2D::1162622565897040701::1737051367::1756972525::1::::<><><>0<>0<>769c103efbd06fd72fd7ca0c126b1143<>res://.godot/imported/pizzza-icon.png-7882490a791410ef0f033704d87dc123.ctex::
-::res://Scenes/::1758061109
-CharacterSelect.tscn::PackedScene::2795416404671172298::1758061109::0::1::::<><><>0<>0<><>::uid://cwycjhep4wnxm::::res://Scripts/CharacterSelect.gd<>uid://bav3dn0ajclr6::::res://Fonts/vermin_vibes_1989.ttf<>uid://de3h13uhlsk7r::::res://Scripts/Shaders/FinishFlag.gdshader<>uid://csnhk3q4gx0::::res://Fonts/magofonts/mago1.ttf<>uid://c00id63cfavm2::::res://Scenes/RacerButton.tscn<>uid://0p4etiyothhl::::res://Scripts/FinishFlagFader.gd
-CountdownUI.tscn::PackedScene::2284667873179244339::1758045448::0::1::::<><><>0<>0<><>::uid://7kpydkep7115::::res://Scripts/CountdownUI.gd<>uid://dcsqb1cxdjdid::::res://Audio/synth.wav<>uid://dgugahs6bc7so::::res://Fonts/magofonts/mago3.ttf<>uid://dkat0nv3lms45::::res://Audio/gun.wav
-Main.tscn::PackedScene::5873108577118809530::1758061109::0::1::::<><><>0<>0<><>::uid://b1lbny31w132j::::res://Scripts/General/Game.gd<>uid://4y14qyh1accq::::res://Scenes/player.tscn<>uid://ctt3p16uxh0dd::::res://Scenes/opponent.tscn<>uid://dleafvawfqsd3::::res://Scenes/PauseMenu.tscn<>uid://bm1g128j70kea::::res://Textures/VFX/StarNight.tscn<>uid://cex362lk6utnk::::res://Scripts/On Screen Elements/BackgroundEffects.gd<>uid://b7ri4tesomgep::::res://Temp/Background Color_Black.png<>uid://eeap17h4pmqt::::res://Textures/Tracks/Skylines/newyork.png<>uid://dd1wpy3roc8w6::::res://Textures/Tracks/My Tracks/Buildings.png<>uid://hpt6elsw8vyg::::res://Scripts/Shaders/ModeSeven.gdshader<>uid://baswq6uaio1tg::::res://Textures/Tracks/Grass/Grass_Tile_02.png<>uid://cuhl0bp0xfw80::::res://Textures/Tracks/My Tracks/Track_02.png<>uid://4oyj7tns2kqe::::res://Scripts/World Elements/Pseudo3D.gd<>uid://dhfy5381d720i::::res://Scripts/General/Collision.gd<>uid://bkmti72i7af1q::::res://Textures/Tracks/My Tracks/Track_02_Road.png<>uid://5uqme7h2yul3::::res://Scripts/On Screen Elements/SpriteHandler.gd<>uid://d1nvgl514d4vw::::res://Textures/Hazards/Orange_Pipes.png<>uid://crr8fhlnitj4a::::res://Scripts/World Elements/Hazard.gd<>uid://bomqe0y8c30wy::::res://Scripts/General/AnimationHandler.gd<>uid://bkg7bm4cb65tt::::res://Scripts/AI/PathOverlay2D.gd<>uid://15qg36alnh4::::res://Scripts/RaceManager.gd<>uid://csnhk3q4gx0::::res://Fonts/magofonts/mago1.ttf<>uid://cnmmx8tldt4vt::::res://Scripts/LeaderBoard.gd<>uid://dtnsya35gcocj::::res://Scripts/Minimap.gd<>uid://dcfngv7oaf2c8::::res://Scripts/RaceHUD.gd<>uid://dgugahs6bc7so::::res://Fonts/magofonts/mago3.ttf<>uid://buw362wjb8o8d::::res://Fonts/magofonts/mago2.ttf<>uid://7sye74odmhah::::res://Scenes/CountdownUI.tscn<>uid://dcb4blo4uiyti::::res://Scripts/PostRaceController.gd<>uid://c7rugtwfllds7::::res://Scripts/SkidsOnTrackFromMinimap.gd<>uid://phcpocpluv50::::res://Scripts/Transition.gd
+::res://Scenes/::1758076735
+CharacterSelect.tscn::PackedScene::2795416404671172298::1758076735::0::1::::<><><>0<>0<><>::uid://cwycjhep4wnxm::::res://Scripts/CharacterSelect.gd<>uid://bav3dn0ajclr6::::res://Fonts/vermin_vibes_1989.ttf<>uid://de3h13uhlsk7r::::res://Scripts/Shaders/FinishFlag.gdshader<>uid://csnhk3q4gx0::::res://Fonts/magofonts/mago1.ttf<>uid://c00id63cfavm2::::res://Scenes/RacerButton.tscn<>uid://0p4etiyothhl::::res://Scripts/FinishFlagFader.gd
+CountdownUI.tscn::PackedScene::2284667873179244339::1758076116::0::1::::<><><>0<>0<><>::uid://7kpydkep7115::::res://Scripts/CountdownUI.gd<>uid://dcsqb1cxdjdid::::res://Audio/synth.wav<>uid://dgugahs6bc7so::::res://Fonts/magofonts/mago3.ttf<>uid://dkat0nv3lms45::::res://Audio/gun.wav
+Main.tscn::PackedScene::5873108577118809530::1758076735::0::1::::<><><>0<>0<><>::uid://b1lbny31w132j::::res://Scripts/General/Game.gd<>uid://4y14qyh1accq::::res://Scenes/player.tscn<>uid://ctt3p16uxh0dd::::res://Scenes/opponent.tscn<>uid://dleafvawfqsd3::::res://Scenes/PauseMenu.tscn<>uid://bm1g128j70kea::::res://Textures/VFX/StarNight.tscn<>uid://cex362lk6utnk::::res://Scripts/On Screen Elements/BackgroundEffects.gd<>uid://b7ri4tesomgep::::res://Temp/Background Color_Black.png<>uid://eeap17h4pmqt::::res://Textures/Tracks/Skylines/newyork.png<>uid://dd1wpy3roc8w6::::res://Textures/Tracks/My Tracks/Buildings.png<>uid://hpt6elsw8vyg::::res://Scripts/Shaders/ModeSeven.gdshader<>uid://baswq6uaio1tg::::res://Textures/Tracks/Grass/Grass_Tile_02.png<>uid://cuhl0bp0xfw80::::res://Textures/Tracks/My Tracks/Track_02.png<>uid://4oyj7tns2kqe::::res://Scripts/World Elements/Pseudo3D.gd<>uid://dhfy5381d720i::::res://Scripts/General/Collision.gd<>uid://bkmti72i7af1q::::res://Textures/Tracks/My Tracks/Track_02_Road.png<>uid://5uqme7h2yul3::::res://Scripts/On Screen Elements/SpriteHandler.gd<>uid://d1nvgl514d4vw::::res://Textures/Hazards/Orange_Pipes.png<>uid://crr8fhlnitj4a::::res://Scripts/World Elements/Hazard.gd<>uid://bomqe0y8c30wy::::res://Scripts/General/AnimationHandler.gd<>uid://bkg7bm4cb65tt::::res://Scripts/AI/PathOverlay2D.gd<>uid://15qg36alnh4::::res://Scripts/RaceManager.gd<>uid://csnhk3q4gx0::::res://Fonts/magofonts/mago1.ttf<>uid://cnmmx8tldt4vt::::res://Scripts/LeaderBoard.gd<>uid://dtnsya35gcocj::::res://Scripts/Minimap.gd<>uid://dcfngv7oaf2c8::::res://Scripts/RaceHUD.gd<>uid://dgugahs6bc7so::::res://Fonts/magofonts/mago3.ttf<>uid://buw362wjb8o8d::::res://Fonts/magofonts/mago2.ttf<>uid://7sye74odmhah::::res://Scenes/CountdownUI.tscn<>uid://dcb4blo4uiyti::::res://Scripts/PostRaceController.gd<>uid://c7rugtwfllds7::::res://Scripts/SkidsOnTrackFromMinimap.gd<>uid://phcpocpluv50::::res://Scripts/Transition.gd
 music_manager.tscn::PackedScene/PackedScene::1789789261483825011::1758045448::0::1::::<><><>0<>0<><>::uid://d2n3bufpojtei::::res://Scripts/MusicManager.gd<>uid://whk8vhmlkg0n::::res://Audio/Music/Drifter.mp3
-opponent.tscn::PackedScene::6147380850977776565::1758061109::0::1::::<><><>0<>0<><>::uid://cq2qm30peuh2::::res://Scripts/World Elements/Racers/Opponent.gd<>uid://buw362wjb8o8d::::res://Fonts/magofonts/mago2.ttf<>uid://be3tjjb2isjnd::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PZM_Car01_-Sheet.png<>uid://jwsfedkwc2mf::::res://Scripts/KartSFX.gd<>uid://dao0xo2qdbnow::::res://Audio/pSE_EG_IDLE_B_AMB.wav<>uid://bdu3ele2dkq3w::::res://Audio/pSE_EG_LOOP_B_AMB.wav<>uid://b5m8w2chfjqdn::::res://Audio/real_drift.mp3<>uid://d1awsowjhkwt7::::res://Audio/boost.wav<>uid://bfxphvr6hykl1::::res://Audio/spinout.wav<>uid://ch151vyr1o65::::res://Audio/collision_thud.wav<>uid://dr0ab3ogjrbbl::::res://Audio/offroad_rumble.wav<>uid://cjlujousugdtr::::res://Audio/jump.wav
-PauseMenu.tscn::PackedScene::7939606875080686810::1758045448::0::1::::<><><>0<>0<><>::uid://c4bwhb1md4mmh::::res://Scripts/PauseMenuOverlay.gd<>uid://csnhk3q4gx0::::res://Fonts/magofonts/mago1.ttf<>uid://dgugahs6bc7so::::res://Fonts/magofonts/mago3.ttf
-player.tscn::PackedScene::2086652839237247196::1758061109::0::1::::<><><>0<>0<><>::uid://by6cg8pjfml46::::res://Scripts/World Elements/Racers/Player.gd<>uid://be3tjjb2isjnd::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PZM_Car01_-Sheet.png<>uid://jwsfedkwc2mf::::res://Scripts/KartSFX.gd<>uid://dao0xo2qdbnow::::res://Audio/pSE_EG_IDLE_B_AMB.wav<>uid://bdu3ele2dkq3w::::res://Audio/pSE_EG_LOOP_B_AMB.wav<>uid://bjrk28dvey0cv::::res://Audio/real_drift.wav<>uid://d1awsowjhkwt7::::res://Audio/boost.wav<>uid://bfxphvr6hykl1::::res://Audio/spinout.wav<>uid://ch151vyr1o65::::res://Audio/collision_thud.wav<>uid://dr0ab3ogjrbbl::::res://Audio/offroad_rumble.wav
-RacerButton.tscn::PackedScene::6579664667088307863::1758045448::0::1::::<><><>0<>0<><>::uid://bm73s7ojds8ud::::res://Scripts/RacerButton.gd<>uid://p4p7alalfk00::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL1.png<>uid://b822gm4k1y3wt::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL2.png<>uid://dcwoenqqdf675::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL3.png<>uid://dd1ibd7pnq6ec::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL4.png<>uid://dis6mmqyi4tqh::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL5.png<>uid://bbwb8nbg0fn6t::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL6.png<>uid://4fpybri0h5ss::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL7.png<>uid://bhlmmc4dmlpt8::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL8.png<>uid://b8k0hct3rdpge::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL9.png<>uid://38l2fsmcxunk::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL10.png<>uid://yeegq1jah4tf::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL11.png<>uid://buw362wjb8o8d::::res://Fonts/magofonts/mago2.ttf<>uid://bfl1dihgmyt1s::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL12.png
-SplitMain.tscn::PackedScene::9129437614339331630::1758061109::0::1::::<><><>0<>0<><>::uid://brp1m0fiqymm1::::res://Scripts/SplitMain.gd
-standings.tscn::PackedScene::1805981816308565255::1758045448::0::1::::<><><>0<>0<><>::uid://c4muu1g0r4rdd::::res://Scripts/GPStandings.gd<>uid://de3h13uhlsk7r::::res://Scripts/Shaders/FinishFlag.gdshader<>uid://0p4etiyothhl::::res://Scripts/FinishFlagFader.gd<>uid://csnhk3q4gx0::::res://Fonts/magofonts/mago1.ttf
-title.tscn::PackedScene::451528040721663060::1758061109::0::1::::<><><>0<>0<><>::uid://cwf6dvmkcsxgo::::res://Scripts/TitleScreen.gd<>uid://de3h13uhlsk7r::::res://Scripts/Shaders/FinishFlag.gdshader<>uid://buw362wjb8o8d::::res://Fonts/magofonts/mago2.ttf<>uid://0p4etiyothhl::::res://Scripts/FinishFlagFader.gd<>uid://da843lunw601x::::res://Fonts/NickelGothicV3Variableslntwdth-BF674fcf11737ff.ttf<>uid://csnhk3q4gx0::::res://Fonts/magofonts/mago1.ttf<>uid://0q8tkgywkb3h::::res://Scenes/music_manager.tscn
-WorldMap.tscn::PackedScene::8653682109516425098::1758045448::0::1::::<><><>0<>0<><>::uid://d4ctmix5rqgps::::res://Scripts/WorldMap.gd<>uid://csnhk3q4gx0::::res://Fonts/magofonts/mago1.ttf<>uid://dgugahs6bc7so::::res://Fonts/magofonts/mago3.ttf<>uid://dtnsya35gcocj::::res://Scripts/Minimap.gd
-::res://Scripts/::1758060446
-CharacterSelect.gd::GDScript::6366678874214860462::1758045448::0::1::::<>Control<><>0<>0<><>::
-CountdownUI.gd::GDScript::2267640561124018538::1758045448::0::1::::CountdownUI<>Control<><>0<>0<><>::
-FinishFlagFader.gd::GDScript::1787455704639555341::1758045448::0::1::::<>ColorRect<><>0<>0<><>::
-FullscreenWeb.gd::GDScript::8140867246129450079::1758045448::0::1::::<>Node<><>0<>0<><>::
-GPStandings.gd::GDScript::6834341797706978885::1758045448::0::1::::<>Control<><>0<>0<><>::
-KartSFX.gd::GDScript::678217953382605049::1758045448::0::1::::<>Node<><>0<>0<><>::
-LeaderBoard.gd::GDScript::5710840308028768953::1758045448::0::1::::Leaderboard<>Control<><>0<>0<><>::
-LeaderboardRow.gd::GDScript::2447983072686622247::1758045448::0::1::::LeaderboardRow<>Control<><>0<>0<><>::
-MidnightGrandPrix.gd::GDScript::5597697903930242066::1758045448::0::1::::<>Node<><>0<>0<><>::
-Minimap.gd::GDScript::8520822800553908661::1758045448::0::1::::Minimap<>Control<><>0<>0<><>::
-MusicManager.gd::GDScript::9082900660591961380::1758045448::0::1::::MusicManager<>Node<><>0<>0<><>::
-PauseMenuOverlay.gd::GDScript::6811730578280050663::1758045448::0::1::::PauseMenu<>Control<><>0<>0<><>::
-PostRaceController.gd::GDScript::7303467295422370318::1758045448::0::1::::<>Node2D<><>0<>0<><>::
-RaceHUD.gd::GDScript::7310762815855478329::1758045448::0::1::::RaceHUD<>Control<><>0<>0<><>::
-RaceManager.gd::GDScript::55524263894596727::1758045448::0::1::::RaceManager<>Node<><>0<>0<><>::
-RacerButton.gd::GDScript::3296480818355292175::1758045448::0::1::::RacerButton<>Button<><>0<>0<><>::
-RoadTypeEffects.gd::GDScript::9100522961404024879::1758045448::0::1::::RoadEffects<>Node2D<><>0<>0<><>::
-ScreenScaler.gd::GDScript::8611985824870366159::1758045448::0::1::::<>Node<><>0<>0<><>::
-SkidMarkPainter2D.gd::GDScript::5814079855091444718::1758045448::0::1::::<>Node2D<><>0<>0<><>::
-SkidsOnTrackFromMinimap.gd::GDScript::7055204872412676408::1758045448::0::1::::<>Node<><>0<>0<><>::
-SplitMain.gd::GDScript::3612198084382933090::1758060271::0::1::::<>Control<><>0<>0<><>::
-TitleScreen.gd::GDScript::6329206522336455718::1758060446::0::1::::<>Control<><>0<>0<><>::
-TrackConfig.gd::GDScript::1780800969043207017::1758045448::0::1::::TrackConfig<>Resource<><>0<>0<><>::
-TracksDB.gd::GDScript::2261716615254746604::1758045448::0::1::::TracksDB<>Node<><>0<>0<><>::
-Transition.gd::GDScript::1067432258856563865::1758045448::0::1::::ScreenFader<>ColorRect<><>0<>0<><>::
-WorldMap.gd::GDScript::9200042781583502904::1758045448::0::1::::WorldMap<>Node2D<><>0<>0<><>::
+opponent.tscn::PackedScene::6147380850977776565::1758076735::0::1::::<><><>0<>0<><>::uid://cq2qm30peuh2::::res://Scripts/World Elements/Racers/Opponent.gd<>uid://buw362wjb8o8d::::res://Fonts/magofonts/mago2.ttf<>uid://be3tjjb2isjnd::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PZM_Car01_-Sheet.png<>uid://jwsfedkwc2mf::::res://Scripts/KartSFX.gd<>uid://dao0xo2qdbnow::::res://Audio/pSE_EG_IDLE_B_AMB.wav<>uid://bdu3ele2dkq3w::::res://Audio/pSE_EG_LOOP_B_AMB.wav<>uid://b5m8w2chfjqdn::::res://Audio/real_drift.mp3<>uid://d1awsowjhkwt7::::res://Audio/boost.wav<>uid://bfxphvr6hykl1::::res://Audio/spinout.wav<>uid://ch151vyr1o65::::res://Audio/collision_thud.wav<>uid://dr0ab3ogjrbbl::::res://Audio/offroad_rumble.wav<>uid://cjlujousugdtr::::res://Audio/jump.wav
+PauseMenu.tscn::PackedScene/PackedScene::7939606875080686810::1758045448::0::1::::<><><>0<>0<><>::uid://c4bwhb1md4mmh::::res://Scripts/PauseMenuOverlay.gd<>uid://csnhk3q4gx0::::res://Fonts/magofonts/mago1.ttf<>uid://dgugahs6bc7so::::res://Fonts/magofonts/mago3.ttf
+player.tscn::PackedScene::2086652839237247196::1758076735::0::1::::<><><>0<>0<><>::uid://by6cg8pjfml46::::res://Scripts/World Elements/Racers/Player.gd<>uid://be3tjjb2isjnd::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PZM_Car01_-Sheet.png<>uid://jwsfedkwc2mf::::res://Scripts/KartSFX.gd<>uid://dao0xo2qdbnow::::res://Audio/pSE_EG_IDLE_B_AMB.wav<>uid://bdu3ele2dkq3w::::res://Audio/pSE_EG_LOOP_B_AMB.wav<>uid://bjrk28dvey0cv::::res://Audio/real_drift.wav<>uid://d1awsowjhkwt7::::res://Audio/boost.wav<>uid://bfxphvr6hykl1::::res://Audio/spinout.wav<>uid://ch151vyr1o65::::res://Audio/collision_thud.wav<>uid://dr0ab3ogjrbbl::::res://Audio/offroad_rumble.wav
+RacerButton.tscn::PackedScene/PackedScene::6579664667088307863::1758045448::0::1::::<><><>0<>0<><>::uid://bm73s7ojds8ud::::res://Scripts/RacerButton.gd<>uid://p4p7alalfk00::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL1.png<>uid://b822gm4k1y3wt::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL2.png<>uid://dcwoenqqdf675::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL3.png<>uid://dd1ibd7pnq6ec::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL4.png<>uid://dis6mmqyi4tqh::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL5.png<>uid://bbwb8nbg0fn6t::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL6.png<>uid://4fpybri0h5ss::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL7.png<>uid://bhlmmc4dmlpt8::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL8.png<>uid://b8k0hct3rdpge::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL9.png<>uid://38l2fsmcxunk::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL10.png<>uid://yeegq1jah4tf::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL11.png<>uid://buw362wjb8o8d::::res://Fonts/magofonts/mago2.ttf<>uid://bfl1dihgmyt1s::::res://Textures/Racers/MetalZebra/PZM_Delivery_01/PNGs/PZM_Car01_FINAL12.png
+SplitMain.tscn::PackedScene::9129437614339331630::1758076735::0::1::::<><><>0<>0<><>::uid://brp1m0fiqymm1::::res://Scripts/SplitMain.gd
+standings.tscn::PackedScene/PackedScene::1805981816308565255::1758045448::0::1::::<><><>0<>0<><>::uid://c4muu1g0r4rdd::::res://Scripts/GPStandings.gd<>uid://de3h13uhlsk7r::::res://Scripts/Shaders/FinishFlag.gdshader<>uid://0p4etiyothhl::::res://Scripts/FinishFlagFader.gd<>uid://csnhk3q4gx0::::res://Fonts/magofonts/mago1.ttf
+Title.tscn::PackedScene::451528040721663060::1758076735::0::1::::<><><>0<>0<><>::uid://cwf6dvmkcsxgo::::res://Scripts/TitleScreen.gd<>uid://de3h13uhlsk7r::::res://Scripts/Shaders/FinishFlag.gdshader<>uid://buw362wjb8o8d::::res://Fonts/magofonts/mago2.ttf<>uid://0p4etiyothhl::::res://Scripts/FinishFlagFader.gd<>uid://da843lunw601x::::res://Fonts/NickelGothicV3Variableslntwdth-BF674fcf11737ff.ttf<>uid://csnhk3q4gx0::::res://Fonts/magofonts/mago1.ttf<>uid://0q8tkgywkb3h::::res://Scenes/music_manager.tscn
+WorldMap.tscn::PackedScene/PackedScene::8653682109516425098::1758045448::0::1::::<><><>0<>0<><>::uid://d4ctmix5rqgps::::res://Scripts/WorldMap.gd<>uid://csnhk3q4gx0::::res://Fonts/magofonts/mago1.ttf<>uid://dgugahs6bc7so::::res://Fonts/magofonts/mago3.ttf<>uid://dtnsya35gcocj::::res://Scripts/Minimap.gd
+::res://Scripts/::1758068554
+CharacterSelect.gd::GDScript::6366678874214860462::1758064345::0::1::::<>Control<><>0<>0<><>::
+CountdownUI.gd::GDScript/GDScript::2267640561124018538::1758045448::0::1::::CountdownUI<>Control<><>0<>0<><>::
+FinishFlagFader.gd::GDScript/GDScript::1787455704639555341::1758045448::0::1::::<>ColorRect<><>0<>0<><>::
+FullscreenWeb.gd::GDScript/GDScript::8140867246129450079::1758045448::0::1::::<>Node<><>0<>0<><>::
+GPStandings.gd::GDScript/GDScript::6834341797706978885::1758045448::0::1::::<>Control<><>0<>0<><>::
+KartSFX.gd::GDScript/GDScript::678217953382605049::1758045448::0::1::::<>Node<><>0<>0<><>::
+LeaderBoard.gd::GDScript/GDScript::5710840308028768953::1758045448::0::1::::Leaderboard<>Control<><>0<>0<><>::
+LeaderboardRow.gd::GDScript/GDScript::2447983072686622247::1758045448::0::1::::LeaderboardRow<>Control<><>0<>0<><>::
+MidnightGrandPrix.gd::GDScript/GDScript::5597697903930242066::1758045448::0::1::::<>Node<><>0<>0<><>::
+Minimap.gd::GDScript/GDScript::8520822800553908661::1758045448::0::1::::Minimap<>Control<><>0<>0<><>::
+MusicManager.gd::GDScript/GDScript::9082900660591961380::1758045448::0::1::::MusicManager<>Node<><>0<>0<><>::
+PauseMenuOverlay.gd::GDScript/GDScript::6811730578280050663::1758045448::0::1::::PauseMenu<>Control<><>0<>0<><>::
+PostRaceController.gd::GDScript/GDScript::7303467295422370318::1758045448::0::1::::<>Node2D<><>0<>0<><>::
+RaceHUD.gd::GDScript/GDScript::7310762815855478329::1758045448::0::1::::RaceHUD<>Control<><>0<>0<><>::
+RaceManager.gd::GDScript/GDScript::55524263894596727::1758045448::0::1::::RaceManager<>Node<><>0<>0<><>::
+RacerButton.gd::GDScript/GDScript::3296480818355292175::1758045448::0::1::::RacerButton<>Button<><>0<>0<><>::
+RoadTypeEffects.gd::GDScript/GDScript::9100522961404024879::1758045448::0::1::::RoadEffects<>Node2D<><>0<>0<><>::
+ScreenScaler.gd::GDScript/GDScript::8611985824870366159::1758045448::0::1::::<>Node<><>0<>0<><>::
+SkidMarkPainter2D.gd::GDScript/GDScript::5814079855091444718::1758045448::0::1::::<>Node2D<><>0<>0<><>::
+SkidsOnTrackFromMinimap.gd::GDScript/GDScript::7055204872412676408::1758045448::0::1::::<>Node<><>0<>0<><>::
+SplitMain.gd::GDScript::3612198084382933090::1758068554::0::1::::<>Control<><>0<>0<><>::
+TitleScreen.gd::GDScript/GDScript::6329206522336455718::1758060446::0::1::::<>Control<><>0<>0<><>::
+TrackConfig.gd::GDScript/GDScript::1780800969043207017::1758045448::0::1::::TrackConfig<>Resource<><>0<>0<><>::
+TracksDB.gd::GDScript/GDScript::2261716615254746604::1758045448::0::1::::TracksDB<>Node<><>0<>0<><>::
+Transition.gd::GDScript/GDScript::1067432258856563865::1758045448::0::1::::ScreenFader<>ColorRect<><>0<>0<><>::
+WorldMap.gd::GDScript::9200042781583502904::1758063284::0::1::::WorldMap<>Node2D<><>0<>0<><>::
 ::res://Scripts/AI/::1758031664
-PathOverlay2D.gd::GDScript::3102640791333206041::1758045448::0::1::::<>Node2D<><>0<>0<><>::
-::res://Scripts/General/::1758061109
-AnimationHandler.gd::GDScript::3394816994396386184::1758060906::0::1::::<>Control<><>0<>0<><>::
-Collision.gd::GDScript::7662418149778340342::1758045448::0::1::::<>Node<><>0<>0<><>::
-Game.gd::GDScript::4234124010916833407::1758061109::0::1::::<>Node2D<><>0<>0<><>::
-Globals.gd::GDScript::8244448299010129701::1758045448::0::1::::<>Node<><>0<>0<><>::
-::res://Scripts/On Screen Elements/::1758031664
-BackgroundEffects.gd::GDScript::5102834301310110880::1758045448::0::1::::<>Node2D<><>0<>0<><>::
-DriftCloud.gd::GDScript::618047163678589716::1758045448::0::1::::<>GPUParticles2D<><>0<>0<><>::
+PathOverlay2D.gd::GDScript/GDScript::3102640791333206041::1758045448::0::1::::<>Node2D<><>0<>0<><>::
+::res://Scripts/General/::1758073525
+AnimationHandler.gd::GDScript::3394816994396386184::1758061283::0::1::::<>Node<><>0<>0<><>::
+Collision.gd::GDScript/GDScript::7662418149778340342::1758045448::0::1::::<>Node<><>0<>0<><>::
+Game.gd::GDScript::4234124010916833407::1758073525::0::1::::<>Node2D<><>0<>0<><>::
+Globals.gd::GDScript::8244448299010129701::1758061938::0::1::::<>Node<><>0<>0<><>::
+::res://Scripts/On Screen Elements/::1758067909
+BackgroundEffects.gd::GDScript/GDScript::5102834301310110880::1758045448::0::1::::<>Node2D<><>0<>0<><>::
+DriftCloud.gd::GDScript/GDScript::618047163678589716::1758045448::0::1::::<>GPUParticles2D<><>0<>0<><>::
 SkidTrail.gd::GDScript/GDScript::8102787343292609673::1758045448::0::1::::<>Line2D<><>0<>0<><>::
-SpriteHandler.gd::GDScript::2147946025515526962::1758045448::0::1::::<>Node2D<><>0<>0<><>::
-::res://Scripts/Shaders/::1758061124
-FinishFlag.gdshader::Shader::7498292954219359129::1758061124::0::1::::<><><>0<>0<><>::
-GasDistort.gdshader::Shader::2607723553934212141::1758061124::0::1::::<><><>0<>0<><>::
-ModeSeven.gdshader::Shader::523496782185546226::1758061124::0::1::::<><><>0<>0<><>::
-NightSkylineTint.gdshader::Shader::2791868784696729947::1758061124::0::1::::<><><>0<>0<><>::
-NitroPulse.gdshader::Shader::3070992916704321304::1758061124::0::1::::<><><>0<>0<><>::
-OpponentNitroPulse.gdshader::Shader::5778017781052285897::1758061124::0::1::::<><><>0<>0<><>::
-Tunnel.gdshader::Shader::5678273891489786483::1758061124::0::1::::<><><>0<>0<><>::
-WindPixel2D.gdshader::Shader::1761595979560667603::1758061124::0::1::::<><><>0<>0<><>::
+SpriteHandler.gd::GDScript::2147946025515526962::1758067909::0::1::::<>Node2D<><>0<>0<><>::
+::res://Scripts/Shaders/::1758076769
+FinishFlag.gdshader::Shader::7498292954219359129::1758076769::0::1::::<><><>0<>0<><>::
+GasDistort.gdshader::Shader::2607723553934212141::1758076769::0::1::::<><><>0<>0<><>::
+ModeSeven.gdshader::Shader::523496782185546226::1758076769::0::1::::<><><>0<>0<><>::
+NightSkylineTint.gdshader::Shader::2791868784696729947::1758076769::0::1::::<><><>0<>0<><>::
+NitroPulse.gdshader::Shader::3070992916704321304::1758076769::0::1::::<><><>0<>0<><>::
+OpponentNitroPulse.gdshader::Shader::5778017781052285897::1758076769::0::1::::<><><>0<>0<><>::
+Tunnel.gdshader::Shader::5678273891489786483::1758076769::0::1::::<><><>0<>0<><>::
+WindPixel2D.gdshader::Shader::1761595979560667603::1758076769::0::1::::<><><>0<>0<><>::
 YoshiColor.tres::ShaderMaterial/ShaderMaterial::4672939478198970796::1758045448::0::1::::<><><>0<>0<><>::uid://7cn7to2by008::::res://Scripts/Shaders/YoshiSwap.gdshader
-YoshiSwap.gdshader::Shader::2251019239036056967::1758061124::0::1::::<><><>0<>0<><>::
-::res://Scripts/World Elements/::1758032283
-Hazard.gd::GDScript::6003159106040995574::1758045448::0::1::::Hazard<>WorldElement<><>0<>0<><>::
-Pseudo3D.gd::GDScript::2065852744745591588::1758045448::0::1::::<>Sprite2D<><>0<>0<><>::
-WorldElement.gd::GDScript::8380419385673741142::1758045448::0::1::::WorldElement<>Node2D<><>0<>0<><>::
-::res://Scripts/World Elements/Racers/::1758039639
-Opponent.gd::GDScript::175076337539030665::1758045448::0::1::::<>WorldElement<><>0<>0<><>::
-Player.gd::GDScript::4135082546989400501::1758039639::0::1::::<>WorldElement<><>0<>0<><>::
-Racer.gd::GDScript::5250713216991393359::1758045448::0::1::::Racer<>WorldElement<><>0<>0<><>::
+YoshiSwap.gdshader::Shader::2251019239036056967::1758076769::0::1::::<><><>0<>0<><>::
+::res://Scripts/World Elements/::1758076735
+Hazard.gd::GDScript/GDScript::6003159106040995574::1758045448::0::1::::Hazard<>WorldElement<><>0<>0<><>::
+Pseudo3D.gd::GDScript::2065852744745591588::1758076735::0::1::::<>Sprite2D<><>0<>0<><>::
+WorldElement.gd::GDScript/GDScript::8380419385673741142::1758045448::0::1::::WorldElement<>Node2D<><>0<>0<><>::
+::res://Scripts/World Elements/Racers/::1758073794
+Opponent.gd::GDScript/GDScript::175076337539030665::1758045448::0::1::::<>WorldElement<><>0<>0<><>::
+Player.gd::GDScript::4135082546989400501::1758073794::0::1::::<>WorldElement<><>0<>0<><>::
+Racer.gd::GDScript/GDScript::5250713216991393359::1758045448::0::1::::Racer<>WorldElement<><>0<>0<><>::
 ::res://Temp/::1758031664
 Background Color.png::CompressedTexture2D/CompressedTexture2D::5490622543840600871::1758045448::1758045448::1::::<><><>0<>0<>bf6d28cd4e6b50bc18bb05512371eac0<>res://.godot/imported/Background Color.png-1a38f6fa832b42096eda3e122dc8d4b1.ctex::
 Background Color_Black.png::CompressedTexture2D/CompressedTexture2D::4668096630854422703::1758045448::1758045448::1::::<><><>0<>0<>82d93364ebec48fab91a85169979ecc4<>res://.godot/imported/Background Color_Black.png-41f1a178ab508b1936d6d9194a30cd36.ctex::
@@ -562,7 +562,7 @@ sao_paulo.png::CompressedTexture2D/CompressedTexture2D::4673009074695484420::175
 seoul.png::CompressedTexture2D/CompressedTexture2D::5886769127300378928::1758045448::1758045448::1::::<><><>0<>0<>c841bf1d3dc12598e991840269c17b3d<>res://.godot/imported/seoul.png-d0118e29066c3bd5dcaabd00dfc04c74.ctex::
 toronto.png::CompressedTexture2D/CompressedTexture2D::4425085305146699575::1758045448::1758045448::1::::<><><>0<>0<>70a0b14196b1839bf39235fb1645d74d<>res://.godot/imported/toronto.png-abdba8083b1439b958ee7ad6a811e46b.ctex::
 ::res://Textures/VFX/::1758031664
-StarNight.tscn::PackedScene::3282772831114845400::1758045448::0::1::::<><><>0<>0<><>::
+StarNight.tscn::PackedScene/PackedScene::3282772831114845400::1758045448::0::1::::<><><>0<>0<><>::
 ::res://Textures/WorldMap/::1758031664
 ::res://TracksDB/::1758031768
 ::res://TracksDB/banff/::1758031733

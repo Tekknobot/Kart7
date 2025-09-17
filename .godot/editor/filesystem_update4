@@ -8,17 +8,12 @@ res://Scripts/Shaders/NitroPulse.gdshader
 res://Scripts/Shaders/OpponentNitroPulse.gdshader
 res://Scripts/Shaders/WindPixel2D.gdshader
 res://Scripts/Shaders/NightSkylineTint.gdshader
-res://Scripts/General/AnimationHandler.gd
+res://Scenes/Title.tscn
 res://Scenes/CharacterSelect.tscn
 res://Scenes/player.tscn
 res://Scenes/opponent.tscn
 res://Scenes/SplitMain.tscn
-res://Scripts/CharacterSelect.gd
-res://Scripts/SplitMain.gd
-res://Scripts/General/Globals.gd
-res://Scripts/General/Game.gd
-res://Scripts/WorldMap.gd
-res://Scenes/CountdownUI.tscn
-res://Scripts/World Elements/Racers/Player.gd
-res://Scripts/World Elements/Pseudo3D.gd
 res://Scripts/On Screen Elements/SpriteHandler.gd
+res://Scripts/General/Game.gd
+res://Scenes/WorldMap.tscn
+res://Scripts/TitleScreen.gd

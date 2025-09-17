@@ -24,11 +24,11 @@ func _ready() -> void:
 	two_player_btn = get_node_or_null(^"VBox/TwoPlayer") as Button
 	if two_player_btn != null:
 		_use_default_button(two_player_btn)
-		two_player_btn.text = "Start (2P)"
+		two_player_btn.text = "2P"
 		two_player_btn.pressed.connect(_on_start_2p)
 		_connect_focus_pop(two_player_btn)
 
-	start_btn.text = "Start (1P)"
+	start_btn.text = "1P"
 	start_btn.pressed.connect(_on_start_1p)
 	quit_btn.pressed.connect(_on_quit)
 

@@ -220,13 +220,20 @@ var _btn_prev := {}  # button -> bool (edge detect for “just pressed”)
 var _player_index: int = 1   # 1 = P1, 2 = P2 (World can set)
 
 func SetPlayerIndex(idx: int) -> void:
-	_player_index = max(1, idx)
-	# If device not explicitly set, map by index: P1->0, P2->1
+	_player_index = 1
+	if idx > 1:
+		_player_index = idx
+	# default mapping by index if a device wasn’t forced yet
 	if _device_id < 0:
-		_device_id = clamp(_player_index - 1, 0, 7)
+		var dev_from_idx := _player_index - 1
+		if dev_from_idx < 0:
+			dev_from_idx = 0
+		_device_id = dev_from_idx
 
 func SetInputDevice(id: int) -> void:
-	_device_id = max(0, id)  # force gamepad only
+	_device_id = id
+	if _device_id < 0:
+		_device_id = 0
 
 func ReturnCollisionRadiusUV() -> float:
 	# Convert the pixel radius to UV using your map’s real width.
@@ -350,15 +357,19 @@ func _ready() -> void:
 	_base_sprite_offset_y = spr.offset.y
 	add_to_group("racers")
 
-	# Assign default device by index if world hasn't set one yet
+	# If world didn't set device yet, map by index (P1->0, P2->1)
 	if _device_id < 0:
-		_device_id = clamp(_player_index - 1, 0, 7)  # P1->0, P2->1
+		var idx := _player_index
+		if idx < 1:
+			idx = 1
+		_device_id = idx - 1
+		if _device_id < 0:
+			_device_id = 0
 
-	# Colorize from Globals
+	# Apply THIS slot's palette
 	_ensure_yoshi_material()
 	_apply_player_palette_from_globals()
 
-	# HUD link
 	_hud = get_node_or_null(hud_path)
 	if _hud == null:
 		_hud = get_tree().get_first_node_in_group("race_hud")
@@ -1260,33 +1271,6 @@ func _ensure_yoshi_material() -> void:
 	# Track the base material for sanity (not strictly required anymore).
 	_yoshi_mat = sm
 
-func _apply_player_palette_from_globals() -> void:
-	var spr := ReturnSpriteGraphic()
-	if spr == null:
-		return
-	# Skip while Nitro’s temp material is active; base will be restored later.
-	if spr.material == _nitro_mat:
-		return
-
-	var name_now := String(Globals.selected_racer)
-	var col := Globals.get_racer_color(name_now)
-
-	_ensure_yoshi_material()
-
-	var sm := spr.material
-	if sm != null and sm is ShaderMaterial and (sm as ShaderMaterial).shader != null:
-		var shmat := sm as ShaderMaterial
-		shmat.set_shader_parameter("target_color", col)
-		shmat.set_shader_parameter("src_hue",     yoshi_source_hue)
-		shmat.set_shader_parameter("hue_tol",     yoshi_tolerance)
-		shmat.set_shader_parameter("edge_soft",   yoshi_edge_soft)
-	else:
-		spr.modulate = col
-
-func RefreshPaletteFromGlobals() -> void:
-	_ensure_yoshi_material()
-	_apply_player_palette_from_globals()
-
 func IsUsingNitroMaterial() -> bool:
 	var spr := ReturnSpriteGraphic()
 	if spr == null: return false
@@ -1399,3 +1383,46 @@ func _apply_award_spin_frames() -> void:
 		var base_idx := dir_idx % frames      # 0..11
 		_set_frame(base_idx)                  # sets frame (resets flip)
 		_set_flip_h(flip)                     # then apply the flip
+
+# --- Color resolution strictly per player index (no globals racing) ---
+
+func _resolve_selected_name_for_slot() -> String:
+	var nm := ""
+	if Globals.has_method("get_selected_racer_for_slot"):
+		nm = String(Globals.get_selected_racer_for_slot(_player_index))
+	if nm == "":
+		nm = String(Globals.selected_racer)
+	return nm
+
+func _resolve_selected_color_for_slot() -> Color:
+	var col := Color.WHITE
+	if Globals.has_method("get_selected_color_for_slot"):
+		col = Globals.get_selected_color_for_slot(_player_index)
+	if col == Color.WHITE or col.a == 0.0:
+		var nm := _resolve_selected_name_for_slot()
+		col = Globals.get_racer_color(nm)
+	return col
+
+func _apply_player_palette_from_globals() -> void:
+	var spr := ReturnSpriteGraphic()
+	if spr == null:
+		return
+	if spr.material == _nitro_mat:
+		return
+
+	_ensure_yoshi_material()
+
+	var col := _resolve_selected_color_for_slot()
+	var sm := spr.material
+	if sm != null and sm is ShaderMaterial and (sm as ShaderMaterial).shader != null:
+		var sh := sm as ShaderMaterial
+		sh.set_shader_parameter("target_color", col)
+		sh.set_shader_parameter("src_hue",     yoshi_source_hue)
+		sh.set_shader_parameter("hue_tol",     yoshi_tolerance)
+		sh.set_shader_parameter("edge_soft",   yoshi_edge_soft)
+	else:
+		spr.modulate = col
+
+func RefreshPaletteFromGlobals() -> void:
+	_ensure_yoshi_material()
+	_apply_player_palette_from_globals()

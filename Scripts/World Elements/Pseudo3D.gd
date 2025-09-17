@@ -63,12 +63,8 @@ var REARVIEW_ACTION: StringName = "RearView"
 @export var map_tint_strength: float = 1.0  # 0..1
 @export var tint_outside_grass: bool = true
 
-@export var player_device_id: int = -1
-var _mat_made_unique := false
-
-func _ensure_unique_material() -> void:
-	if _mat_made_unique:
-		return
+# --- ensure this instance's material is not shared with the other viewport ---
+func _ensure_local_material() -> void:
 	if material == null:
 		return
 	if material is ShaderMaterial:
@@ -77,10 +73,6 @@ func _ensure_unique_material() -> void:
 			var dupe := sm.duplicate(true) as ShaderMaterial
 			dupe.resource_local_to_scene = true
 			material = dupe
-	_mat_made_unique = true
-
-func SetPlayerDevice(id: int) -> void:
-	player_device_id = id
 
 func SetMapTint(col: Color, strength: float = map_tint_strength) -> void:
 	if material == null: return
@@ -89,11 +81,10 @@ func SetMapTint(col: Color, strength: float = map_tint_strength) -> void:
 	material.set_shader_parameter("tintOutsideGrass", tint_outside_grass)
 
 func _rearview_on() -> bool:
-	return (player_device_id >= 0) and Input.is_joy_button_pressed(player_device_id, JOY_BUTTON_LEFT_SHOULDER)
+	return Input.is_action_pressed(REARVIEW_ACTION)
 
 func _ready():
-	_ensure_unique_material()
-
+	_ensure_local_material()
 	# cache once
 	for np in opponent_nodes:
 		var n := get_node_or_null(np)
@@ -101,8 +92,7 @@ func _ready():
 			_opponents.append(n)
 	_overlay_node = get_node_or_null(path_overlay_node)
 	_last_matrix = Basis()
-
-	_bind_path_overlay_texture()
+	
 	_ensure_rearview_binding()
 
 func _process(_dt):
@@ -134,23 +124,21 @@ func _ensure_rearview_binding() -> void:
 	InputMap.action_add_event(REARVIEW_ACTION, jb)
 		
 func _bind_path_overlay_texture() -> void:
-	_ensure_unique_material()
+	_ensure_local_material()
 	if material != null and path_overlay_viewport != null:
 		var tex := path_overlay_viewport.get_texture()
 		if tex != null:
 			material.set_shader_parameter("pathOverlay", tex)
 
 func Setup(screenSize : Vector2, player : Racer) -> void:
-	_ensure_unique_material()
-
+	_ensure_local_material()
 	scale = screenSize / texture.get_size().x
 	_mapPosition = Vector3(player.ReturnMapPosition().x, _mapVerticalPosition, player.ReturnMapPosition().z)
 	_mapRotationAngle = _mapStartRotationAngle
 	KeepRotationDistance(player)
-
 	_bind_path_overlay_texture()
 	UpdateShader()
-	_update_opponents_view_bindings()
+	_update_opponents_view_bindings()   # prime once
 
 	if intro_spin_enabled:
 		call_deferred("PlayIntroSpin", player)
@@ -460,7 +448,8 @@ func SetOpponentsFromGroup(group_name: String = "racers", exclude: Node = null) 
 	for n in nodes:
 		if not is_instance_valid(n):
 			continue
-		if n.get_viewport() != my_vp:   # <- key line
+		# Only racers rendered by THIS SubViewport
+		if n.get_viewport() != my_vp:
 			continue
 		if exclude != null and n == exclude:
 			continue
@@ -552,11 +541,26 @@ func screen_px_to_map_uv(screen_px: Vector2) -> Vector2:
 	return Vector2(h.x / h.z, h.y / h.z)
 
 func SetTrackTextures(track: Texture2D, grass: Texture2D) -> void:
-	_ensure_unique_material()
+	_ensure_local_material()
 	if material == null:
 		return
+
+	# Bind shader uniforms for the ground shader
 	if track != null:
 		material.set_shader_parameter("trackTexture", track)
 	if grass != null:
 		material.set_shader_parameter("grassTexture", grass)
-	_bind_path_overlay_texture()
+
+	# CRITICAL: make sure the Sprite actually submits geometry in this viewport
+	# (shader still samples the uniforms; this just guarantees the quad is drawn)
+	if track != null:
+		# Only assign if different, to avoid thrashing
+		if texture == null or texture != track:
+			texture = track
+
+	# Be explicit about visibility as well
+	visible = true
+	modulate.a = 1.0
+
+	# Re-push the matrix once uniforms & texture exist
+	UpdateShader()

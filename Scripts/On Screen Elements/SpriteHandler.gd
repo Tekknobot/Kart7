@@ -167,6 +167,7 @@ var _screen_bump_boot_s: float = 0.0
 var _screen_pair_latched := {}      # key -> bool
 var _screen_pair_chain   := {}      # key -> {count:int, last:float}
 
+@export var auto_spawn_from_defaults := false   # let World own grid placement by default
 
 var DEFAULT_POINTS: PackedVector2Array = PackedVector2Array([
 	Vector2(922, 583),	
@@ -237,8 +238,9 @@ func Setup(worldMatrix: Basis, mapSize: int, player: Racer) -> void:
 		WorldToScreenPosition(player)
 
 	if auto_apply_path:
-		call_deferred("_apply_path_from_overlay")
-		call_deferred("SpawnOpponentsFromDefaults")
+		call_deferred("_apply_path_from_overlay")  # keep path wiring
+	if auto_spawn_from_defaults:
+		call_deferred("SpawnOpponentsFromDefaults")  # only if you really want SH to place grid
 
 	_smoothed_scale.clear()
 
