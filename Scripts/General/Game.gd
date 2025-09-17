@@ -100,7 +100,7 @@ func _ensure_roster_spawned() -> void:
 		push_error("World: Racers root not found; set racers_root_path.")
 		return
 
-	# Already spawned?
+	# Already spawned? bail
 	var existing := 0
 	for c in racers_root.get_children():
 		if c is Node2D:
@@ -108,92 +108,103 @@ func _ensure_roster_spawned() -> void:
 	if existing >= Globals.racer_names.size():
 		return
 
-	# Prefabs required
+	# Need prefabs
 	if player_scene == null or opponent_scene == null:
 		push_error("World: assign player_scene and opponent_scene in the Inspector.")
 		return
 
-	# Build name lists
+	# Build ordered names
 	var all_names: Array = []
 	for n in Globals.racer_names:
 		all_names.append(String(n))
 
+	# Per-screen player pick
 	var selected := _selected_from_meta_or_globals(all_names)
 	_selected_local = selected
 
+	# Opponents = everyone else
 	var remaining: Array = []
 	for n in all_names:
-		if String(n) != selected:
-			remaining.append(String(n))
+		if n != selected:
+			remaining.append(n)
 
-	# 1) Spawn opponents first
-	for nm_any in remaining:
-		var nm := String(nm_any)
+	# Mirror into Globals only in 1P (avoid P1/P2 fighting in 2P)
+	if not _is_two_player():
+		if Globals.has_method("set_selected_racer"):
+			Globals.set_selected_racer(selected)
+
+	# === 1) Spawn opponents first ===
+	for i in range(remaining.size()):
+		var nm := String(remaining[i])
 		var opp := opponent_scene.instantiate()
 		opp.name = nm
 		racers_root.add_child(opp)
+
 		_wire_racer(opp, false)
 
-		# 1P recolor behavior for opponents
-		var col := Globals.get_racer_color(nm)
-		_set_racer_name_label(opp, nm, col)
-		var spr := _find_sprite(opp)
-		if spr != null:
-			_apply_yoshi_shader(spr, col)
+		# Opponent recolor (1P classic behavior preserved)
+		var ocol := Globals.get_racer_color(nm)
+		_set_racer_name_label(opp, nm, ocol)
+		var ospr := _find_sprite(opp)
+		if ospr != null:
+			_apply_yoshi_shader(ospr, ocol)
 
-	# 2) Spawn local Player last — assign device BEFORE add_child
+	# === 2) Spawn the player last ===
 	var p := player_scene.instantiate()
 	p.name = selected
-
-	# Device by slot: P1->0, P2->1 (no keyboard)
-	var dev := 0
-	if _player_slot > 1:
-		dev = 1
-
-	# Set slot + device BEFORE entering the tree so Player._ready sees correct pad
-	if p.has_method("SetPlayerIndex"):
-		p.call("SetPlayerIndex", _player_slot)
-	if p.has_method("SetInputDevice"):
-		p.call("SetInputDevice", dev)
-
 	racers_root.add_child(p)
-	_player = p
 	_wire_racer(p, true)
+	_player = p
 
-	# Player recolor (prefer per-slot color; fallback to name map)
+	_player = p
+	_assign_local_device_to_systems()
+
+	# Optional: pass slot/device to the Player if supported
+	var dev_key := "p1_device"
+	if _player_slot != 1:
+		dev_key = "p2_device"
+	var device_id := -1
+	if Engine.has_meta(dev_key):
+		device_id = int(Engine.get_meta(dev_key))
+	if _player.has_method("SetPlayerIndex"):
+		_player.call_deferred("SetPlayerIndex", _player_slot)
+	if _player.has_method("SetInputDevice"):
+		_player.call_deferred("SetInputDevice", device_id)
+
+	# Player recolor (use per-slot stored color if present)
 	var pcol := Color.WHITE
 	if Globals.has_method("get_selected_color_for_slot"):
 		pcol = Globals.get_selected_color_for_slot(_player_slot)
-	else:
-		pcol = Globals.get_racer_color(selected)
 	if pcol == Color.WHITE or pcol.a == 0.0:
 		pcol = Globals.get_racer_color(selected)
 	var pspr := _find_sprite(_player)
 	if pspr != null:
 		_apply_yoshi_shader(pspr, pcol)
 
-	# HUD hookup
+	# Avoid pulling shared palette in 2P
+	if not _is_two_player() and _player.has_method("RefreshPaletteFromGlobals"):
+		_player.RefreshPaletteFromGlobals()
+	else:
+		if _player.has_method("_ensure_yoshi_material"): _player._ensure_yoshi_material()
+		if _player.has_method("_apply_player_palette_from_globals"): _player._apply_player_palette_from_globals()
+
+	# HUD hook
 	var hud := get_node_or_null(^"RaceHUD")
 	if hud:
 		hud.set("player_path", hud.get_path_to(_player))
 		hud.set("_player", _player)
 
-	# Make sure every opponent tracks THIS world’s local player
+	# Opponents know the player
 	_bind_player_ref_to_opponents(racers_root, _player)
 
-	# Provisional grid placement so the player appears in the right bay instantly
-	var total_est := 1
-	if _is_two_player():
-		total_est = 2
-	var p_idx := _grid_index_for_player(total_est)
-	p_idx = clamp(p_idx, 0, max(0, DEFAULT_POINTS.size() - 1))
-	if DEFAULT_POINTS.size() > 0:
-		var base_px := DEFAULT_POINTS[p_idx]                # authored at 1024
-		var px := _grid_px_for_current_map(base_px)         # scaled to real map width
-		_set_map_position_px(_player, px)
+	# Keep Globals in sync in 1P only
+	if not _is_two_player() and Globals.has_method("set_selected_racer"):
+		Globals.set_selected_racer(selected)
 
-	# Also tell local subsystems which pad this world uses
-	_assign_local_device_to_systems()
+	# Provisional placement so the player appears on-grid immediately
+	if DEFAULT_POINTS.size() > 0:
+		var provisional := DEFAULT_POINTS[ _grid_index_for_player(1) ]
+		_set_map_position_px(_player, _grid_px_for_current_map(provisional))
 
 	_update_hud_name_color()
 	call_deferred("_reapply_player_color_once")
