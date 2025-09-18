@@ -1,4 +1,4 @@
-[gd_scene load_steps=35 format=3 uid="uid://cpw8ifws46ohm"]
+[gd_scene load_steps=35 format=3 uid="uid://cq5u6atfp56ob"]
 
 [ext_resource type="Script" uid="uid://b1lbny31w132j" path="res://Scripts/General/Game.gd" id="1_xvtyr"]
 [ext_resource type="PackedScene" uid="uid://4y14qyh1accq" path="res://Scenes/player.tscn" id="2_u7mjy"]
@@ -75,7 +75,7 @@ _skyLine = NodePath("Sky Line")
 _treeLine = NodePath("Tree Line")
 day_tree_color = Color(0.70173, 0.70173, 0.70173, 1)
 night_sky_color = Color(0.191018, 0.283686, 0.468595, 1)
-night_tree_color = Color(0.228002, 0.322423, 0.259356, 1)
+night_tree_color = Color(0.383597, 0.383597, 0.383597, 1)
 weight_night = 1.0
 night_clear_chance = 0.5
 pseudo3d_path = NodePath("../Map")

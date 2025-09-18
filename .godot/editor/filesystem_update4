@@ -13,7 +13,5 @@ res://Scenes/CharacterSelect.tscn
 res://Scenes/player.tscn
 res://Scenes/opponent.tscn
 res://Scenes/SplitMain.tscn
-res://Scripts/On Screen Elements/SpriteHandler.gd
-res://Scripts/General/Game.gd
 res://Scenes/WorldMap.tscn
-res://Scripts/TitleScreen.gd
+res://Scenes/CountdownUI.tscn
